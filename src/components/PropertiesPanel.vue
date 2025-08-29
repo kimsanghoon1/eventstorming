@@ -41,15 +41,15 @@ const removeProperty = (index: number) => {
     
     <div>
       <label>Instance Name:</label>
-      <input v-model="localItem.instanceName" @input="update" />
+      <input v-model="localItem.instanceName" @blur="update" />
     </div>
 
     <hr>
 
     <h4>Fields</h4>
     <div v-for="(prop, index) in localItem.properties" :key="index" class="property-item">
-      <input v-model="prop.key" @input="update" placeholder="Key" />
-      <input v-model="prop.value" @input="update" placeholder="Value" />
+      <input v-model="prop.key" @blur="update" placeholder="Key" />
+      <input v-model="prop.value" @blur="update" placeholder="Value" />
       <button @click="removeProperty(index)">X</button>
     </div>
     <button @click="addProperty" class="add-btn">+ Add Field</button>

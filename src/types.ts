@@ -10,6 +10,8 @@ export interface CanvasItem {
   properties: Property[];
   x: number;
   y: number;
+  width?: number;
+  height?: number;
 }
 
 export interface Connection {
