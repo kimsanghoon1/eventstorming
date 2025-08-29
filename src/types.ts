@@ -12,6 +12,7 @@ export interface CanvasItem {
   y: number;
   width?: number;
   height?: number;
+  parent?: number | null;
 }
 
 export interface Connection {
