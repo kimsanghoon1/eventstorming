@@ -1,0 +1,95 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { store } from '../store';
+
+const newBoardName = ref('');
+
+onMounted(() => {
+  store.fetchBoards();
+});
+
+const createBoard = () => {
+  store.createNewBoard(newBoardName.value);
+  newBoardName.value = '';
+};
+
+</script>
+
+<template>
+  <div class="board-switcher">
+    <h4>Boards</h4>
+    <div class="board-list">
+      <div 
+        v-for="board in store.boards" 
+        :key="board"
+        class="board-item"
+        :class="{ active: board === store.activeBoard }"
+      >
+        <span @click="store.loadBoard(board)">{{ board }}</span>
+        <button @click="store.deleteBoard(board)" class="delete-btn">x</button>
+      </div>
+    </div>
+    <div class="board-actions">
+      <input v-model="newBoardName" @keyup.enter="createBoard" placeholder="New board name..." />
+      <button @click="createBoard">+ Create</button>
+    </div>
+    <button @click="store.saveCurrentBoard()" class="save-all-btn">Save Current Board</button>
+  </div>
+</template>
+
+<style scoped>
+.board-switcher {
+  padding: 15px;
+  background-color: #e9ecef;
+  border-bottom: 1px solid #ccc;
+}
+h4 {
+  margin: 0 0 10px 0;
+}
+.board-list {
+  margin-bottom: 15px;
+}
+.board-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  cursor: pointer;
+}
+.board-item:hover {
+  background-color: #dee2e6;
+}
+.board-item.active {
+  background-color: #007bff;
+  color: white;
+}
+.board-item span {
+  flex-grow: 1;
+}
+.delete-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  cursor: pointer;
+  line-height: 20px;
+  text-align: center;
+}
+.board-actions {
+  display: flex;
+}
+.board-actions input {
+  flex-grow: 1;
+  margin-right: 5px;
+}
+.save-all-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+}
+</style>
