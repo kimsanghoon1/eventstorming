@@ -8,4 +8,12 @@ export interface CanvasItem {
   type: string; // e.g., 'Command', 'Event'
   instanceName: string; // e.g., 'CreateUser', 'UserCreated'
   properties: Property[];
+  x: number;
+  y: number;
+}
+
+export interface Connection {
+  id: string;
+  from: number; // ID of the source CanvasItem
+  to: number;   // ID of the target CanvasItem
 }

@@ -1,9 +1,8 @@
-<script setup lang="ts">
-import { ref } from "vue";
-import draggable from "vuedraggable";
-import PropertiesPanel from "./PropertiesPanel.vue";
+'''<script setup lang="ts">
+import { ref, computed, watch } from "vue";
 import { store } from "../store";
-import type { CanvasItem } from "../types";
+import type { CanvasItem, Connection } from "../types";
+import PropertiesPanel from "./PropertiesPanel.vue";
 
 const toolBox = ref([
   { id: 1, type: "Command" },
@@ -13,18 +12,64 @@ const toolBox = ref([
 ]);
 
 const selectedItem = ref<CanvasItem | null>(null);
+const stageRef = ref(null);
 
-const cloneComponent = (item: { type: string }) => {
-  return {
-    id: Date.now(),
-    type: item.type,
-    instanceName: `New ${item.type}`,
-    properties: [],
-  };
+// Konva stage config
+const stageConfig = {
+  width: window.innerWidth - 450, // Adjust based on toolbox/panel widths
+  height: window.innerHeight - 100, // Adjust based on header height
 };
 
-const selectItem = (item: CanvasItem) => {
-  selectedItem.value = item;
+// --- Drag and Drop from Toolbox to Canvas ---
+let draggedTool = ref(null);
+
+const handleDragStart = (tool) => {
+  draggedTool.value = tool;
+};
+
+const handleDrop = (e) => {
+  e.preventDefault();
+  if (!draggedTool.value) return;
+
+  const stage = stageRef.value.getStage();
+  stage.setPointersPositions(e);
+  const pos = stage.getPointerPosition();
+
+  const newItem: CanvasItem = {
+    id: Date.now(),
+    type: draggedTool.value.type,
+    instanceName: `New ${draggedTool.value.type}`,
+    properties: [],
+    x: pos.x,
+    y: pos.y,
+  };
+  store.canvasItems.push(newItem);
+  draggedTool.value = null;
+};
+
+// --- Item Dragging on Canvas ---
+const handleItemDragEnd = (e, item) => {
+  const index = store.canvasItems.findIndex(i => i.id === item.id);
+  if (index !== -1) {
+    store.canvasItems[index].x = e.target.x();
+    store.canvasItems[index].y = e.target.y();
+  }
+};
+
+// --- Item Selection & Properties ---
+const handleItemClick = (e, item) => {
+  if (connectingMode.value) {
+    handleConnectionClick(item);
+  } else {
+    selectedItem.value = item;
+  }
+};
+
+const handleStageClick = (e) => {
+  // Deselect if clicking on the stage background
+  if (e.target === e.target.getStage()) {
+    selectedItem.value = null;
+  }
 };
 
 const handleUpdate = (updatedItem: CanvasItem) => {
@@ -35,9 +80,52 @@ const handleUpdate = (updatedItem: CanvasItem) => {
   selectedItem.value = updatedItem;
 };
 
-// When canvas items change from the store (e.g. loading a new board), deselect the current item.
-store.$watch('canvasItems', () => {
+watch(() => store.canvasItems, () => {
   selectedItem.value = null;
+}, { deep: true });
+
+
+// --- Connection Logic ---
+const connectingMode = ref(false);
+const sourceNodeId = ref<number | null>(null);
+
+const toggleConnectingMode = () => {
+  connectingMode.value = !connectingMode.value;
+  sourceNodeId.value = null; // Reset on toggle
+};
+
+const handleConnectionClick = (targetItem: CanvasItem) => {
+  if (sourceNodeId.value === null) {
+    sourceNodeId.value = targetItem.id;
+  } else {
+    if (sourceNodeId.value !== targetItem.id) {
+      const newConnection: Connection = {
+        id: `conn-${sourceNodeId.value}-${targetItem.id}`,
+        from: sourceNodeId.value,
+        to: targetItem.id,
+      };
+      // Avoid duplicate connections
+      if (!store.connections.find(c => c.id === newConnection.id)) {
+        store.connections.push(newConnection);
+      }
+    }
+    // Reset after attempting to connect
+    sourceNodeId.value = null;
+    connectingMode.value = false;
+  }
+};
+
+const connectionPoints = computed(() => {
+  return store.connections.map(conn => {
+    const fromNode = store.canvasItems.find(item => item.id === conn.from);
+    const toNode = store.canvasItems.find(item => item.id === conn.to);
+    if (!fromNode || !toNode) return null;
+    
+    const from = { x: fromNode.x + 100, y: fromNode.y + 50 }; // center of item
+    const to = { x: toNode.x + 100, y: toNode.y + 50 }; // center of item
+
+    return [from.x, from.y, to.x, to.y];
+  }).filter(p => p !== null);
 });
 
 </script>
@@ -46,45 +134,69 @@ store.$watch('canvasItems', () => {
   <div class="container">
     <div class="toolbox">
       <h3>Toolbox</h3>
-      <draggable
-        v-model="toolBox"
-        :group="{ name: 'components', pull: 'clone', put: false }"
-        :sort="false"
-        :clone="cloneComponent"
-        item-key="id"
+      <div 
+        v-for="tool in toolBox"
+        :key="tool.id"
+        class="tool-item"
+        draggable="true"
+        @dragstart="handleDragStart(tool)"
       >
-        <template #item="{ element }">
-          <div class="tool-item">{{ element.type }}</div>
-        </template>
-      </draggable>
+        {{ tool.type }}
+      </div>
+      <hr>
+      <button 
+        @click="toggleConnectingMode" 
+        class="connect-btn"
+        :class="{ active: connectingMode }"
+      >
+        {{ connectingMode ? 'Connecting...' : 'Add Connection' }}
+      </button>
     </div>
-    <div class="canvas">
-      <h3>Canvas</h3>
-      <draggable
-        v-model="store.canvasItems"
-        group="components"
-        item-key="id"
-        class="canvas-drag-area"
-      >
-        <template #item="{ element }">
-          <div 
-            class="canvas-item" 
-            @click="selectItem(element)"
-            :class="{ selected: selectedItem && selectedItem.id === element.id }"
+
+    <div class="canvas-wrapper" @drop="handleDrop" @dragover.prevent>
+      <v-stage ref="stageRef" :config="stageConfig" @click="handleStageClick">
+        <v-layer>
+          <!-- Connections -->
+          <v-arrow v-for="(points, index) in connectionPoints" :key="index" :config="{ points: points, stroke: 'black', fill: 'black' }" />
+
+          <!-- Canvas Items -->
+          <v-group 
+            v-for="item in store.canvasItems" 
+            :key="item.id" 
+            :config="{ x: item.x, y: item.y, draggable: true }"
+            @dragend="handleItemDragEnd($event, item)"
+            @click="handleItemClick($event, item)"
           >
-            <div class="item-header">{{ element.type }}</div>
-            <div class="item-body">
-              <strong>{{ element.instanceName }}</strong>
-              <ul>
-                <li v-for="prop in element.properties" :key="prop.key">
-                  {{ prop.key }}: {{ prop.value }}
-                </li>
-              </ul>
-            </div>
-          </div>
-        </template>
-      </draggable>
+            <v-rect :config="{
+              width: 200,
+              height: 100,
+              fill: item.id === (selectedItem && selectedItem.id) || item.id === sourceNodeId ? '#a2d2ff' : 'white',
+              stroke: 'black',
+              strokeWidth: 2,
+              cornerRadius: 5,
+            }" />
+            <v-text :config="{
+              text: item.type,
+              fontSize: 14,
+              fontStyle: 'bold',
+              fill: 'black',
+              width: 200,
+              padding: 10,
+              align: 'center',
+            }" />
+            <v-text :config="{
+              text: item.instanceName,
+              fontSize: 16,
+              fill: 'black',
+              width: 200,
+              padding: 30,
+              align: 'center',
+            }" />
+          </v-group>
+        </v-layer>
+      </v-stage>
     </div>
+
     <PropertiesPanel 
       v-if="selectedItem"
       :modelValue="selectedItem"
@@ -115,71 +227,20 @@ store.$watch('canvasItems', () => {
   cursor: grab;
   text-align: center;
 }
-.canvas {
+.canvas-wrapper {
   flex-grow: 1;
-  padding: 15px;
-  overflow: auto;
-  height: 100%;
+  overflow: hidden;
 }
-.canvas-drag-area {
-  height: 100%;
-  border: 2px dashed #ccc;
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-}
-.canvas-item {
-  border: 2px solid #6e7f80;
-  width: 200px;
-  min-height: 100px;
-  margin: 10px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  background-color: white;
-}
-.canvas-item.selected {
-  border-color: #007bff;
-  border-width: 3px;
-}
-.item-header {
-  background-color: #6e7f80;
-  color: white;
-  padding: 5px;
-  text-align: center;
-}
-.item-body {
+.connect-btn {
+  width: 100%;
   padding: 10px;
-  flex-grow: 1;
+  background-color: #ffc107;
+  border: none;
+  cursor: pointer;
 }
-.item-body ul {
-  padding-left: 20px;
-  font-size: 0.8em;
-  margin-top: 5px;
-  word-break: break-all;
-}
-
-/* Mobile Responsive Styles */
-@media (max-width: 768px) {
-  .container {
-    flex-direction: column;
-  }
-  .toolbox {
-    width: 100%;
-    border-right: none;
-    border-bottom: 1px solid #ccc;
-    height: auto;
-  }
-  .tool-item {
-    width: 40%;
-  }
-  .properties-panel {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid #ccc;
-  }
-  .canvas-drag-area {
-    min-height: 50vh;
-  }
+.connect-btn.active {
+  background-color: #e0a800;
+  font-weight: bold;
 }
 </style>
+''
