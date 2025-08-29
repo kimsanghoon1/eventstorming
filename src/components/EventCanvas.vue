@@ -108,10 +108,11 @@ const handleDrop = (e) => {
     x: pos.x,
     y: pos.y,
     width: draggedTool.value.type === 'ContextBox' ? 400 : 200,
-    height: draggedTool.value.type === 'ContextBox' ? 300 : 100,
+    height: 100,
     rotation: 0,
     parent: null,
   };
+  newItem.height = calculateItemHeight(newItem);
   newItem.parent = findParentContext(newItem);
   store.canvasItems.push(newItem);
   draggedTool.value = null;
@@ -181,8 +182,13 @@ const handleStageClick = (e) => {
 const handleUpdate = (updatedItem: CanvasItem) => {
   const index = store.canvasItems.findIndex(i => i.id === updatedItem.id);
   if (index !== -1) {
-    store.canvasItems[index] = updatedItem;
-    selectedItem.value = updatedItem;
+    const oldItem = store.canvasItems[index];
+    const newItem = { ...updatedItem };
+    if (JSON.stringify(oldItem.properties) !== JSON.stringify(newItem.properties)) {
+      newItem.height = calculateItemHeight(newItem);
+    }
+    store.canvasItems[index] = newItem;
+    selectedItem.value = newItem;
   }
 };
 
@@ -292,7 +298,7 @@ const connectionPoints = computed(() => {
           <v-group v-for="item in actors" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0 }" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd($event, item)">
             <v-rect :config="{
               width: item.width,
-              height: calculateItemHeight(item),
+              height: item.height,
               fill: item.parent ? 'transparent' : colorMap[item.type],
               stroke: item.id === sourceNodeId ? '#007bff' : 'black',
               strokeWidth: 2,
@@ -312,7 +318,7 @@ const connectionPoints = computed(() => {
           <v-group v-for="item in stickyNotes" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0 }" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd($event, item)">
             <v-rect :config="{
               width: item.width,
-              height: calculateItemHeight(item),
+              height: item.height,
               fill: colorMap[item.type],
               stroke: item.id === sourceNodeId ? '#007bff' : 'black',
               strokeWidth: 2,
