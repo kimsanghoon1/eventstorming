@@ -2,6 +2,7 @@
 import { store } from './store';
 import BoardSwitcher from './components/BoardSwitcher.vue';
 import EventCanvas from './components/EventCanvas.vue';
+import UmlCanvas from './components/UmlCanvas.vue';
 </script>
 
 <template>
@@ -10,7 +11,10 @@ import EventCanvas from './components/EventCanvas.vue';
       <BoardSwitcher />
     </header>
     <main>
-      <EventCanvas v-if="store.activeBoard" :key="store.activeBoard" />
+      <div v-if="store.activeBoard">
+        <EventCanvas v-if="store.currentView === 'event-canvas'" :key="store.activeBoard" />
+        <UmlCanvas v-else-if="store.currentView === 'uml-canvas'" />
+      </div>
       <div v-else class="no-board-selected">
         <h2>No Board Selected</h2>
         <p>Create a new board or select one to start.</p>

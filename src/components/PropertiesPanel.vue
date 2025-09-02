@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { defineProps, defineEmits, ref, watch, nextTick } from 'vue';
+import { defineProps, defineEmits, ref, watch, nextTick, computed } from 'vue';
+import { store } from '../store';
+import type { CanvasItem } from "../types";
 
 const props = defineProps({
-  modelValue: Object
+  modelValue: Object as () => CanvasItem
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -11,10 +13,51 @@ const localItem = ref<any>({});
 
 watch(() => props.modelValue, (newItem) => {
   localItem.value = JSON.parse(JSON.stringify(newItem));
+  if (newItem.type === 'Command') {
+    if (!localItem.value.httpMethod) {
+      localItem.value.httpMethod = 'GET';
+    }
+    if (!localItem.value.apiPath) {
+      localItem.value.apiPath = '/';
+    }
+  }
 }, { deep: true, immediate: true });
 
+const connectedItems = computed(() => {
+  const items: { key: string, value: string }[] = [];
+  if (!props.modelValue) return [];
+
+  if (props.modelValue.type === 'Aggregate' && props.modelValue.children) {
+    props.modelValue.children.forEach(childId => {
+      const child = store.canvasItems.find(i => i.id === childId);
+      if (child) {
+        items.push({ key: `Child (${child.type})`, value: child.instanceName });
+      }
+    });
+  }
+
+  if (props.modelValue.type === 'Event' && props.modelValue.connectedPolicies) {
+    props.modelValue.connectedPolicies.forEach(policyId => {
+      const policy = store.canvasItems.find(i => i.id === policyId);
+      if (policy) {
+        items.push({ key: 'Connected Policy', value: policy.instanceName });
+      }
+    });
+  }
+
+  if (props.modelValue.type === 'Policy' && props.modelValue.connectedEvents) {
+    props.modelValue.connectedEvents.forEach(eventId => {
+      const event = store.canvasItems.find(i => i.id === eventId);
+      if (event) {
+        items.push({ key: 'Connected Event', value: event.instanceName });
+      }
+    });
+  }
+
+  return items;
+});
+
 const update = () => {
-  // Ensure numeric values for width and height
   localItem.value.width = Number(localItem.value.width) || 0;
   localItem.value.height = Number(localItem.value.height) || 0;
   nextTick(() => {
@@ -60,6 +103,32 @@ const removeProperty = (index: number) => {
       </div>
     </div>
 
+    <div v-if="modelValue.type === 'Command'" class="form-section">
+      <div>
+        <label>HTTP Method:</label>
+        <select v-model="localItem.httpMethod" @change="update">
+          <option>GET</option>
+          <option>POST</option>
+          <option>PUT</option>
+          <option>DELETE</option>
+          <option>PATCH</option>
+        </select>
+      </div>
+      <div style="margin-top: 10px;">
+        <label>API Path:</label>
+        <input v-model="localItem.apiPath" @blur="update" />
+      </div>
+    </div>
+
+    <div v-if="connectedItems.length > 0" class="properties-section">
+      <h4>Connected</h4>
+      <div v-for="(prop, index) in connectedItems" :key="index" class="property-item">
+        <input :value="prop.key" class="key-input" disabled />
+        <span class="separator">:</span>
+        <input :value="prop.value" class="value-input" disabled />
+      </div>
+    </div>
+
     <div class="properties-section">
       <h4>Fields</h4>
       <div v-for="(prop, index) in localItem.properties" :key="index" class="property-item">
@@ -73,6 +142,10 @@ const removeProperty = (index: number) => {
         </button>
       </div>
       <button @click="addProperty" class="add-btn">+ Add Field</button>
+    </div>
+
+    <div v-if="modelValue.type === 'Aggregate'" class="form-section">
+      <button @click="store.showUmlCanvas(modelValue.id)" class.bind="add-btn">Edit UML Diagram</button>
     </div>
 
   </div>
@@ -113,12 +186,17 @@ label {
   font-weight: bold;
   font-size: 0.9em;
 }
-input {
+input, select {
   width: 100%;
   padding: 8px;
   border: 1px solid #ced4da;
   border-radius: 4px;
   box-sizing: border-box;
+}
+input:disabled {
+  background-color: #e9ecef;
+  opacity: 1;
+  cursor: not-allowed;
 }
 .size-inputs {
   display: flex;
@@ -149,6 +227,8 @@ input {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 26px;
+  height: 26px;
 }
 .delete-btn:hover {
   background-color: #e9ecef;

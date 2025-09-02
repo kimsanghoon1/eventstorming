@@ -5,17 +5,33 @@ import { store } from "../store";
 import type { CanvasItem, Connection } from "../types";
 import PropertiesPanel from "./PropertiesPanel.vue";
 import ObjectProperties from "./ObjectProperties.vue";
+import ContextChildrenDialog from "./ContextChildrenDialog.vue";
+
+// --- Dialog State ---
+const isDialogVisible = ref(false);
+const dialogContext = ref<CanvasItem | null>(null);
+
+const showContextChildren = (contextBox: CanvasItem) => {
+  dialogContext.value = contextBox;
+  isDialogVisible.value = true;
+};
+
+const closeDialog = () => {
+  isDialogVisible.value = false;
+  dialogContext.value = null;
+};
 
 // --- Configuration ---
 const colorMap: Record<string, string> = {
-  Command: '#90e0ef',   // Light Blue
+  Command: '#87ceeb',   // Sky Blue
   Event: '#ffb703',     // Orange
-  Aggregate: '#fddd81', // Yellow
-  Policy: '#f4a261',    // Sandy Brown
+  Aggregate: '#ffff99', // Light Yellow
+  Policy: '#ffc0cb',    // Pink
   ContextBox: '#e9ecef', // Light Gray
   Actor: '#d0f4de',      // Light Green
-  ReadModel: '#a9d6e5'  // Light Steel Blue
+  ReadModel: '#90ee90'  // Light Green
 };
+const snapThreshold = 15;
 
 const toolBox = ref([
   { id: 1, type: "Command" },
@@ -62,6 +78,34 @@ const handleKeyDown = (e: KeyboardEvent) => {
   if (e.key === 'c') {
     toggleConnectingMode();
   }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+    e.preventDefault();
+    selectedItems.value = [...store.canvasItems];
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+    e.preventDefault();
+    store.undo();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+    e.preventDefault();
+    store.redo();
+  }
+  if (e.key === 'Backspace') {
+    e.preventDefault(); // Prevent browser from navigating back
+    const idsToDelete = new Set(selectedItems.value.map(item => item.id));
+    
+    if (idsToDelete.size > 0) {
+      // Remove items
+      store.canvasItems = store.canvasItems.filter(item => !idsToDelete.has(item.id));
+      
+      // Remove connections associated with deleted items
+      store.connections = store.connections.filter(conn => !idsToDelete.has(conn.from) && !idsToDelete.has(conn.to));
+      
+      // Clear selection
+      selectedItems.value = [];
+      store.pushState();
+    }
+  }
 };
 
 onMounted(() => {
@@ -74,14 +118,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize);
   window.removeEventListener('keydown', handleKeyDown);
 });
-
-const handleContextDragStart = (e: Konva.KonvaEventObject<DragEvent>, item: CanvasItem) => {
-  // Your existing logic for context drag start
-};
-
-const handleContextDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
-  // Your existing logic for context drag move
-};
 
 // --- Item Categories ---
 const categorizedItems = computed(() => {
@@ -116,7 +152,7 @@ const calculateItemHeight = (item: CanvasItem) => {
   return baseHeight + propertyHeight;
 };
 
-// --- Parenting Logic ---
+// --- Parenting & Attachment Logic ---
 const findParentContext = (item: CanvasItem): number | null => {
   const itemCenter = { x: item.x + item.width / 2, y: item.y + item.height / 2 };
   const parents = categorizedItems.value.contextBoxes
@@ -128,6 +164,54 @@ const findParentContext = (item: CanvasItem): number | null => {
     );
   return parents.length > 0 ? parents[parents.length - 1].id : null;
 };
+
+const findParentAggregate = (item: CanvasItem): CanvasItem | null => {
+  for (const agg of categorizedItems.value.aggregates) {
+    if (agg.id === item.id) continue;
+
+    const itemRight = item.x + item.width;
+    const aggRight = agg.x + agg.width;
+    const itemBottom = item.y + item.height;
+    const aggBottom = agg.y + agg.height;
+
+    const isCloseHorizontally = item.x < aggRight + snapThreshold && itemRight > agg.x - snapThreshold;
+    const isCloseVertically = item.y < aggBottom + snapThreshold && itemBottom > agg.y - snapThreshold;
+
+    if (isCloseHorizontally && isCloseVertically) {
+      return agg;
+    }
+  }
+  return null;
+};
+
+const updateItemAttachment = (item: CanvasItem) => {
+  const oldParentId = item.parent;
+  const newParent = findParentAggregate(item);
+
+  if (oldParentId === newParent?.id) return; // No change
+
+  // Remove from old parent's children list
+  if (oldParentId) {
+    const oldParent = store.canvasItems.find(i => i.id === oldParentId);
+    if (oldParent && oldParent.children) {
+      oldParent.children = oldParent.children.filter(childId => childId !== item.id);
+    }
+  }
+
+  // Add to new parent's children list
+  if (newParent) {
+    if (!newParent.children) {
+      newParent.children = [];
+    }
+    if (!newParent.children.includes(item.id)) {
+      newParent.children.push(item.id);
+    }
+    item.parent = newParent.id;
+  } else {
+    item.parent = null;
+  }
+};
+
 
 // --- Drag and Drop from Toolbox ---
 let draggedTool = ref<{id: number, type: string} | null>(null);
@@ -155,20 +239,118 @@ const handleDrop = (e: DragEvent) => {
     parent: null,
   };
   newItem.height = calculateItemHeight(newItem);
-  newItem.parent = findParentContext(newItem);
+  updateItemAttachment(newItem);
+  if (!newItem.parent) {
+    newItem.parent = findParentContext(newItem);
+  }
   store.canvasItems.push(newItem);
   draggedTool.value = null;
+  store.pushState();
 };
 
 // --- Canvas Item Interactions ---
-const handleItemDragEnd = (e: Konva.KonvaEventObject<DragEvent>, item: CanvasItem) => {
-    const movedItem = store.canvasItems.find(i => i.id === item.id);
-    if (movedItem) {
-        movedItem.x = e.target.x();
-        movedItem.y = e.target.y();
-        movedItem.parent = findParentContext(movedItem);
+const dragStartPositions = ref<Map<number, {x: number, y: number}>>(new Map());
+
+const handleItemDragStart = (e: Konva.KonvaEventObject<DragEvent>, item: CanvasItem) => {
+  const stage = stageRef.value?.getStage();
+  if (!stage) return;
+
+  if (!highlightedItemIds.value.has(item.id)) {
+    selectedItems.value = [item];
+    updateTransformer(); 
+  }
+  
+  dragStartPositions.value.clear();
+  selectedItems.value.forEach(selectedItem => {
+    const node = stage.findOne('.item-' + selectedItem.id);
+    if (node) {
+      dragStartPositions.value.set(selectedItem.id, { x: node.x(), y: node.y() });
     }
+  });
 };
+
+const handleItemDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+  const stage = stageRef.value?.getStage();
+  const draggedNode = e.target;
+  const draggedItemId = Number(draggedNode.name().split('-')[1]);
+  
+  if (!stage || !dragStartPositions.value.has(draggedItemId)) return;
+
+  const startPos = dragStartPositions.value.get(draggedItemId);
+  if (!startPos) return;
+
+  // Snapping logic
+  let newX = draggedNode.x();
+  let newY = draggedNode.y();
+  const draggedItem = store.canvasItems.find(i => i.id === draggedItemId);
+
+  if (draggedItem && ['Command', 'Event', 'Policy'].includes(draggedItem.type)) {
+      categorizedItems.value.aggregates.forEach(agg => {
+        if (selectedItems.value.some(i => i.id === agg.id)) return;
+
+        const aggRight = agg.x + agg.width;
+        const aggBottom = agg.y + agg.height;
+
+        // Snap to aggregate edges
+        if (Math.abs(newX - aggRight) < snapThreshold) newX = aggRight;
+        if (Math.abs(newX + draggedNode.width() - agg.x) < snapThreshold) newX = agg.x - draggedNode.width();
+        if (Math.abs(newY - aggBottom) < snapThreshold) newY = aggBottom;
+        if (Math.abs(newY + draggedNode.height() - agg.y) < snapThreshold) newY = agg.y - draggedNode.height();
+      });
+  }
+
+  draggedNode.x(newX);
+  draggedNode.y(newY);
+
+  const dx = draggedNode.x() - startPos.x;
+  const dy = draggedNode.y() - startPos.y;
+
+  selectedItems.value.forEach(item => {
+    if (item.id === draggedItemId) return; 
+
+    const node = stage.findOne('.item-' + item.id);
+    const initialPos = dragStartPositions.value.get(item.id);
+    if (node && initialPos) {
+      node.x(initialPos.x + dx);
+      node.y(initialPos.y + dy);
+    }
+  });
+};
+
+const handleItemDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+  selectedItems.value.forEach(item => {
+    const storeItem = store.canvasItems.find(i => i.id === item.id);
+    const node = stageRef.value?.getStage()?.findOne('.item-' + item.id);
+    if (storeItem && node) {
+      const oldX = storeItem.x;
+      const oldY = storeItem.y;
+      const newX = node.x();
+      const newY = node.y();
+
+      storeItem.x = newX;
+      storeItem.y = newY;
+      
+      updateItemAttachment(storeItem);
+      if (storeItem.type !== 'ContextBox') {
+        storeItem.parent = findParentContext(storeItem);
+      }
+
+      if (storeItem.type === 'ContextBox') {
+        const dx = newX - oldX;
+        const dy = newY - oldY;
+        store.canvasItems.forEach(child => {
+          if (child.parent === storeItem.id) {
+            child.x += dx;
+            child.y += dy;
+          }
+        });
+      }
+    }
+  });
+  dragStartPositions.value.clear();
+  store.pushState();
+};
+
 
 const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
     if (!transformerRef.value) return;
@@ -192,9 +374,9 @@ const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
             item.height = Math.max(5, item.height * scaleY);
         }
     });
+    updateTransformer();
+    store.pushState();
 };
-
-const isSelected = (item: CanvasItem) => selectedItems.value.some(i => i.id === item.id);
 
 const handleItemClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
   if (connectingMode.value) {
@@ -203,7 +385,7 @@ const handleItemClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem
   }
   
   const isCtrlPressed = e.evt.ctrlKey || e.evt.metaKey;
-  const isItemAlreadySelected = isSelected(item);
+  const isItemAlreadySelected = highlightedItemIds.value.has(item.id);
 
   if (!isCtrlPressed) {
     if (isItemAlreadySelected && selectedItems.value.length === 1) {
@@ -233,10 +415,31 @@ const handleUpdate = (updatedItem: CanvasItem) => {
     if (selectionIndex !== -1) {
         selectedItems.value[selectionIndex] = newItem;
     }
+    store.pushState();
   }
 };
 
-// --- Transformer Logic ---
+// --- Transformer & Highlighting Logic ---
+const highlightedItemIds = computed(() => {
+  const ids = new Set<number>();
+  if (connectingMode.value && sourceNodeId.value) {
+    ids.add(sourceNodeId.value);
+  }
+  selectedItems.value.forEach(item => {
+    ids.add(item.id);
+    // Find connected items and add them
+    store.connections.forEach(conn => {
+      if (conn.from === item.id) {
+        ids.add(conn.to);
+      }
+      if (conn.to === item.id) {
+        ids.add(conn.from);
+      }
+    });
+  });
+  return ids;
+});
+
 const updateTransformer = () => {
   if (!transformerRef.value || !stageRef.value) return;
   const transformerNode = transformerRef.value.getNode();
@@ -269,35 +472,84 @@ const handleConnectionClick = (targetItem: CanvasItem) => {
   }
   else {
     if (sourceNodeId.value !== targetItem.id) {
+      const sourceItem = store.canvasItems.find(i => i.id === sourceNodeId.value);
+      if (!sourceItem) return;
+
       const newConnection: Connection = { 
         id: `conn-${sourceNodeId.value}-${targetItem.id}`,
         from: sourceNodeId.value, 
         to: targetItem.id 
       };
-      if (!store.connections.find((c: Connection) => c.id === newConnection.id)) { 
-        store.connections.push(newConnection); 
+      if (!store.connections.find(c => c.id === newConnection.id)) { 
+        store.connections.push(newConnection);
+
+        // Update data structure for Event -> Policy connection
+        if (sourceItem.type === 'Event' && targetItem.type === 'Policy') {
+          if (!sourceItem.connectedPolicies) sourceItem.connectedPolicies = [];
+          sourceItem.connectedPolicies.push(targetItem.id);
+        }
+        if (sourceItem.type === 'Policy' && targetItem.type === 'Event') {
+          const eventItem = store.canvasItems.find(i => i.id === targetItem.id);
+          if (eventItem) {
+            if (!eventItem.connectedPolicies) eventItem.connectedPolicies = [];
+            eventItem.connectedPolicies.push(sourceItem.id);
+          }
+        }
+        store.pushState();
       }
     }
     sourceNodeId.value = null;
+    connectingMode.value = false;
   }
 };
-const getEdgePoint = (source: CanvasItem, target: CanvasItem) => {
-    const dx = (target.x + target.width / 2) - (source.x + source.width / 2);
-    const dy = (target.y + target.height / 2) - (source.y + source.height / 2);
-    const angle = Math.atan2(dy, dx);
-    const a = source.width / 2; const b = source.height / 2;
-    const r = a * b / Math.sqrt(b*b * Math.pow(Math.cos(angle), 2) + a*a * Math.pow(Math.sin(angle), 2));
-    return { x: source.x + a + r * Math.cos(angle), y: source.y + b + r * Math.sin(angle) };
-}
 const connectionPoints = computed(() => {
-  return store.connections.map((conn: Connection) => {
-    const fromNode = store.canvasItems.find((item: CanvasItem) => item.id === conn.from);
-    const toNode = store.canvasItems.find((item: CanvasItem) => item.id === conn.to);
+  return store.connections.map((conn) => {
+    const fromNode = store.canvasItems.find((item) => item.id === conn.from);
+    const toNode = store.canvasItems.find((item) => item.id === conn.to);
     if (!fromNode || !toNode) return null;
-    const fromPoint = getEdgePoint(fromNode, toNode);
-    const toPoint = getEdgePoint(toNode, fromNode);
-    return [fromPoint.x, fromPoint.y, toPoint.x, toPoint.y];
-  }).filter((p): p is [number, number, number, number] => p !== null);
+
+    const fromX = fromNode.x;
+    const fromY = fromNode.y;
+    const toX = toNode.x;
+    const toY = toNode.y;
+    const fromWidth = fromNode.width;
+    const fromHeight = fromNode.height;
+    const toWidth = toNode.width;
+    const toHeight = toNode.height;
+
+    const fromCenterX = fromX + fromWidth / 2;
+    const fromCenterY = fromY + fromHeight / 2;
+    const toCenterX = toX + toWidth / 2;
+    const toCenterY = toY + toHeight / 2;
+
+    const dx = toCenterX - fromCenterX;
+    const dy = toCenterY - fromCenterY;
+
+    let startPoint, endPoint;
+
+    if (Math.abs(dx) > Math.abs(dy)) { // Horizontal connection
+      if (dx > 0) { // from -> to (left to right)
+        startPoint = { x: fromX + fromWidth, y: fromCenterY };
+        endPoint = { x: toX, y: toCenterY };
+      } else { // from -> to (right to left)
+        startPoint = { x: fromX, y: fromCenterY };
+        endPoint = { x: toX + toWidth, y: toCenterY };
+      }
+      const midX = fromCenterX + dx / 2;
+      return [startPoint.x, startPoint.y, midX, startPoint.y, midX, endPoint.y, endPoint.x, endPoint.y];
+    } else { // Vertical connection
+      if (dy > 0) { // from -> to (top to bottom)
+        startPoint = { x: fromCenterX, y: fromY + fromHeight };
+        endPoint = { x: toCenterX, y: toY };
+      } else { // from -> to (bottom to top)
+        startPoint = { x: fromCenterX, y: fromY };
+        endPoint = { x: toCenterX, y: toY + toHeight };
+      }
+      const midY = fromCenterY + dy / 2;
+      return [startPoint.x, startPoint.y, startPoint.x, midY, endPoint.x, midY, endPoint.x, endPoint.y];
+    }
+
+  }).filter((p): p is number[] => p !== null);
 });
 
 // --- Selection Box Logic ---
@@ -306,7 +558,6 @@ const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     return;
   }
   e.evt.preventDefault();
-  selectedItems.value = [];
   const stage = e.target.getStage();
   if (!stage) return;
   const pos = stage.getPointerPosition();
@@ -318,6 +569,10 @@ const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     x2: pos.x,
     y2: pos.y,
   };
+  // Clear selection on stage mousedown, unless Ctrl is pressed
+  if (!e.evt.ctrlKey && !e.evt.metaKey) {
+      selectedItems.value = [];
+  }
 };
 
 const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -356,7 +611,17 @@ const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
         }
     }
   });
-  selectedItems.value = newlySelected;
+  // Add to current selection if Ctrl is pressed
+  if (e.evt.ctrlKey || e.evt.metaKey) {
+    const currentIds = new Set(selectedItems.value.map(i => i.id));
+    newlySelected.forEach(item => {
+      if (!currentIds.has(item.id)) {
+        selectedItems.value.push(item);
+      }
+    });
+  } else {
+    selectedItems.value = newlySelected;
+  }
 };
 </script>
 
@@ -383,25 +648,30 @@ const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
       >
         <v-layer>
           <!-- Bounded Contexts -->
-          <v-group v-for="item in categorizedItems.contextBoxes" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragstart="handleContextDragStart($event, item)" @dragmove="handleContextDragMove" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
+          <v-group v-for="item in categorizedItems.contextBoxes" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragstart="handleItemDragStart($event, item)" @dragmove="handleItemDragMove" @dragend="handleItemDragEnd($event)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
             <v-rect :config="{
               width: item.width,
               height: item.height,
               fill: colorMap[item.type],
-              stroke: isSelected(item) ? '#007bff' : '#adb5bd',
+              stroke: highlightedItemIds.has(item.id) ? '#007bff' : '#adb5bd',
               strokeWidth: 2,
               dash: [10, 5]
             }" />
             <v-text :config="{ text: item.instanceName, fontSize: 18, fontStyle: 'bold', padding: 10 }" />
+            <!-- Children List Button -->
+            <v-group :config="{ x: item.width - 30, y: 10 }" @click.stop="showContextChildren(item)">
+              <v-rect :config="{ width: 20, height: 20, fill: '#6c757d', cornerRadius: 3 }" />
+              <v-text :config="{ text: '...', fontSize: 16, fill: 'white', width: 20, height: 20, align: 'center', verticalAlign: 'middle', padding: 0, lineHeight: 1.2 }" />
+            </v-group>
           </v-group>
 
           <!-- Aggregates -->
-          <v-group v-for="item in categorizedItems.aggregates" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
+          <v-group v-for="item in categorizedItems.aggregates" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragstart="handleItemDragStart($event, item)" @dragmove="handleItemDragMove" @dragend="handleItemDragEnd($event)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
             <v-rect :config="{
               width: item.width,
               height: item.height,
               fill: colorMap[item.type],
-              stroke: isSelected(item) || item.id === sourceNodeId ? '#007bff' : 'black',
+              stroke: highlightedItemIds.has(item.id) ? '#007bff' : 'black',
               strokeWidth: 2,
               cornerRadius: 5
             }" />
@@ -414,12 +684,12 @@ const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
           <v-arrow v-for="(points, index) in connectionPoints" :key="`conn-${index}`" :config="{ points: points, stroke: 'black', fill: 'black', pointerLength: 10, pointerWidth: 10 }" />
 
           <!-- Actors -->
-          <v-group v-for="item in categorizedItems.actors" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
+          <v-group v-for="item in categorizedItems.actors" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragstart="handleItemDragStart($event, item)" @dragmove="handleItemDragMove" @dragend="handleItemDragEnd($event)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
             <v-rect :config="{
               width: item.width,
               height: item.height,
               fill: item.parent ? 'transparent' : colorMap[item.type],
-              stroke: isSelected(item) || item.id === sourceNodeId ? '#007bff' : 'black',
+              stroke: highlightedItemIds.has(item.id) ? '#007bff' : 'black',
               strokeWidth: 2,
               cornerRadius: 5
             }" />
@@ -432,12 +702,12 @@ const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
           </v-group>
 
           <!-- Sticky Notes -->
-          <v-group v-for="item in categorizedItems.stickyNotes" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
+          <v-group v-for="item in categorizedItems.stickyNotes" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragstart="handleItemDragStart($event, item)" @dragmove="handleItemDragMove" @dragend="handleItemDragEnd($event)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
             <v-rect :config="{
               width: item.width,
               height: item.height,
               fill: colorMap[item.type],
-              stroke: isSelected(item) || item.id === sourceNodeId ? '#007bff' : 'black',
+              stroke: highlightedItemIds.has(item.id) ? '#007bff' : 'black',
               strokeWidth: 2,
               cornerRadius: 5
             }" />
@@ -475,6 +745,8 @@ const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
     </div>
 
     <PropertiesPanel v-if="selectedItems.length > 0" :modelValue="selectedItems[selectedItems.length - 1]" @update:modelValue="handleUpdate" />
+    
+    <ContextChildrenDialog :modelValue="dialogContext" :visible="isDialogVisible" @close="closeDialog" />
   </div>
 </template>
 

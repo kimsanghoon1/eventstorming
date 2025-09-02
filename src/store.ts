@@ -1,17 +1,31 @@
-import { reactive } from 'vue';
+import { reactive, toRaw } from 'vue';
 import type { CanvasItem, Connection } from './types';
+
+interface HistoryState {
+  canvasItems: CanvasItem[];
+  connections: Connection[];
+}
 
 interface Store {
   boards: string[];
   activeBoard: string | null;
   canvasItems: CanvasItem[];
   connections: Connection[];
+  history: HistoryState[];
+  historyIndex: number;
+  currentView: 'event-canvas' | 'uml-canvas';
+  editingAggregateId: number | null;
   fetchBoards: () => Promise<void>;
   loadBoard: (name: string) => Promise<void>;
   saveCurrentBoard: () => Promise<void>;
   createNewBoard: (name: string) => Promise<void>;
   deleteBoard: (name: string) => Promise<void>;
   createTestObjects: () => void;
+  pushState: () => void;
+  undo: () => void;
+  redo: () => void;
+  showUmlCanvas: (aggregateId: number) => void;
+  showEventCanvas: () => void;
 }
 
 export const store = reactive<Store>({
@@ -19,6 +33,52 @@ export const store = reactive<Store>({
   activeBoard: null,
   canvasItems: [],
   connections: [],
+  history: [],
+  historyIndex: -1,
+  currentView: 'event-canvas',
+  editingAggregateId: null,
+
+  showUmlCanvas(aggregateId: number) {
+    this.editingAggregateId = aggregateId;
+    this.currentView = 'uml-canvas';
+  },
+
+  showEventCanvas() {
+    this.editingAggregateId = null;
+    this.currentView = 'event-canvas';
+  },
+
+  pushState() {
+    // clear redo history
+    if (this.historyIndex < this.history.length - 1) {
+      this.history.splice(this.historyIndex + 1);
+    }
+    
+    const state = {
+      canvasItems: JSON.parse(JSON.stringify(toRaw(this.canvasItems))),
+      connections: JSON.parse(JSON.stringify(toRaw(this.connections))),
+    };
+    this.history.push(state);
+    this.historyIndex++;
+  },
+
+  undo() {
+    if (this.historyIndex > 0) {
+      this.historyIndex--;
+      const previousState = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
+      this.canvasItems = previousState.canvasItems;
+      this.connections = previousState.connections;
+    }
+  },
+
+  redo() {
+    if (this.historyIndex < this.history.length - 1) {
+      this.historyIndex++;
+      const nextState = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
+      this.canvasItems = nextState.canvasItems;
+      this.connections = nextState.connections;
+    }
+  },
 
   async fetchBoards() {
     const response = await fetch('/api/boards');
@@ -44,6 +104,9 @@ export const store = reactive<Store>({
       this.canvasItems = data.items || [];
       this.connections = data.connections || [];
     }
+    this.history = [];
+    this.historyIndex = -1;
+    this.pushState();
   },
 
   async saveCurrentBoard() {
@@ -72,6 +135,9 @@ export const store = reactive<Store>({
     this.activeBoard = name;
     await this.saveCurrentBoard();
     await this.fetchBoards();
+    this.history = [];
+    this.historyIndex = -1;
+    this.pushState();
   },
 
   async deleteBoard(name: string) {
@@ -81,6 +147,8 @@ export const store = reactive<Store>({
       this.activeBoard = null;
       this.canvasItems = [];
       this.connections = [];
+      this.history = [];
+      this.historyIndex = -1;
     }
     await this.fetchBoards();
   },
@@ -112,6 +180,7 @@ export const store = reactive<Store>({
       items.push(newItem);
     }
     this.canvasItems.push(...items);
+    this.pushState();
     alert('Created 1000 test objects.');
   },
 });

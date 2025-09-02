@@ -14,6 +14,8 @@ export interface CanvasItem {
   height: number;
   rotation: number;
   parent: number | null;
+  children?: number[];
+  connectedPolicies?: number[];
 }
 
 export interface Connection {
