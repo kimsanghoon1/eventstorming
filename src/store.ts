@@ -11,6 +11,7 @@ interface Store {
   saveCurrentBoard: () => Promise<void>;
   createNewBoard: (name: string) => Promise<void>;
   deleteBoard: (name: string) => Promise<void>;
+  createTestObjects: () => void;
 }
 
 export const store = reactive<Store>({
@@ -82,5 +83,35 @@ export const store = reactive<Store>({
       this.connections = [];
     }
     await this.fetchBoards();
+  },
+
+  createTestObjects() {
+    if (!this.activeBoard) {
+      alert("Please select a board first.");
+      return;
+    }
+    const items = [];
+    const toolTypes = ["Command", "Event", "Aggregate", "Policy", "Actor", "ReadModel"];
+    const stageWidth = 3000;
+    const stageHeight = 3000;
+
+    for (let i = 0; i < 1000; i++) {
+      const type = toolTypes[Math.floor(Math.random() * toolTypes.length)];
+      const newItem = {
+        id: Date.now() + i,
+        type: type,
+        instanceName: `Test ${type} ${i}`,
+        properties: [],
+        x: Math.random() * stageWidth,
+        y: Math.random() * stageHeight,
+        width: 200,
+        height: 100,
+        rotation: 0,
+        parent: null,
+      };
+      items.push(newItem);
+    }
+    this.canvasItems.push(...items);
+    alert('Created 1000 test objects.');
   },
 });

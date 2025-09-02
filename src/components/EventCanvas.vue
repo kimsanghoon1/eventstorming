@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import Konva from 'konva';
 import { store } from "../store";
 import type { CanvasItem, Connection } from "../types";
 import PropertiesPanel from "./PropertiesPanel.vue";
 import ObjectProperties from "./ObjectProperties.vue";
 
 // --- Configuration ---
-const colorMap = {
+const colorMap: Record<string, string> = {
   Command: '#90e0ef',   // Light Blue
   Event: '#ffb703',     // Orange
   Aggregate: '#fddd81', // Yellow
@@ -26,9 +27,17 @@ const toolBox = ref([
   { id: 7, type: "ReadModel" },
 ]);
 
-const selectedItem = ref<CanvasItem | null>(null);
-const stageRef = ref(null);
-const transformerRef = ref(null);
+const selectedItems = ref<CanvasItem[]>([]);
+const stageRef = ref<{ getStage: () => Konva.Stage } | null>(null);
+const transformerRef = ref<{ getNode: () => Konva.Transformer } | null>(null);
+const selectionRectRef = ref<{ getNode: () => Konva.Rect } | null>(null);
+const selection = ref({
+  visible: false,
+  x1: 0,
+  y1: 0,
+  x2: 0,
+  y2: 0,
+});
 
 const stageConfig = ref({ width: 100, height: 100 });
 
@@ -43,9 +52,12 @@ const handleResize = () => {
 };
 
 const handleKeyDown = (e: KeyboardEvent) => {
-  if (e.key === 'Escape' && connectingMode.value) {
-    connectingMode.value = false;
-    sourceNodeId.value = null;
+  if (e.key === 'Escape') {
+    if (connectingMode.value) {
+      connectingMode.value = false;
+      sourceNodeId.value = null;
+    }
+    selectedItems.value = [];
   }
   if (e.key === 'c') {
     toggleConnectingMode();
@@ -63,11 +75,40 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeyDown);
 });
 
+const handleContextDragStart = (e: Konva.KonvaEventObject<DragEvent>, item: CanvasItem) => {
+  // Your existing logic for context drag start
+};
+
+const handleContextDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+  // Your existing logic for context drag move
+};
 
 // --- Item Categories ---
-const contextBoxes = computed(() => store.canvasItems.filter(item => item.type === 'ContextBox'));
-const actors = computed(() => store.canvasItems.filter(item => item.type === 'Actor'));
-const stickyNotes = computed(() => store.canvasItems.filter(item => !['ContextBox', 'Actor'].includes(item.type)));
+const categorizedItems = computed(() => {
+  const result = {
+    contextBoxes: [] as CanvasItem[],
+    actors: [] as CanvasItem[],
+    aggregates: [] as CanvasItem[],
+    stickyNotes: [] as CanvasItem[],
+  };
+  for (const item of store.canvasItems) {
+    switch (item.type) {
+      case 'ContextBox':
+        result.contextBoxes.push(item);
+        break;
+      case 'Actor':
+        result.actors.push(item);
+        break;
+      case 'Aggregate':
+        result.aggregates.push(item);
+        break;
+      default:
+        result.stickyNotes.push(item);
+        break;
+    }
+  }
+  return result;
+});
 
 const calculateItemHeight = (item: CanvasItem) => {
   const baseHeight = 100;
@@ -78,7 +119,7 @@ const calculateItemHeight = (item: CanvasItem) => {
 // --- Parenting Logic ---
 const findParentContext = (item: CanvasItem): number | null => {
   const itemCenter = { x: item.x + item.width / 2, y: item.y + item.height / 2 };
-  const parents = contextBoxes.value
+  const parents = categorizedItems.value.contextBoxes
     .filter(ctx => 
       itemCenter.x >= ctx.x && 
       itemCenter.x <= ctx.x + ctx.width && 
@@ -89,16 +130,17 @@ const findParentContext = (item: CanvasItem): number | null => {
 };
 
 // --- Drag and Drop from Toolbox ---
-let draggedTool = ref(null);
-const handleDragStart = (tool) => { draggedTool.value = tool; };
+let draggedTool = ref<{id: number, type: string} | null>(null);
+const handleToolDragStart = (tool: {id: number, type: string}) => { draggedTool.value = tool; };
 
-const handleDrop = (e) => {
+const handleDrop = (e: DragEvent) => {
   e.preventDefault();
-  if (!draggedTool.value) return;
+  if (!draggedTool.value || !stageRef.value) return;
 
   const stage = stageRef.value.getStage();
   stage.setPointersPositions(e);
   const pos = stage.getPointerPosition();
+  if (!pos) return;
 
   const newItem: CanvasItem = {
     id: Date.now(),
@@ -119,68 +161,66 @@ const handleDrop = (e) => {
 };
 
 // --- Canvas Item Interactions ---
-const handleItemDragEnd = (e, item) => {
-  const movedItemIndex = store.canvasItems.findIndex(i => i.id === item.id);
-  if (movedItemIndex === -1) return;
-
-  const oldPos = { x: store.canvasItems[movedItemIndex].x, y: store.canvasItems[movedItemIndex].y };
-  const newPos = { x: e.target.x(), y: e.target.y() };
-  
-  store.canvasItems[movedItemIndex].x = newPos.x;
-  store.canvasItems[movedItemIndex].y = newPos.y;
-
-  if (item.type === 'ContextBox') {
-    const dx = newPos.x - oldPos.x;
-    const dy = newPos.y - oldPos.y;
-    store.canvasItems.forEach((child, index) => {
-      if (child.parent === item.id) {
-        const newChild = { ...child, x: child.x + dx, y: child.y + dy };
-        store.canvasItems[index] = newChild;
-      }
-    });
-  } else {
-    store.canvasItems[movedItemIndex].parent = findParentContext(store.canvasItems[movedItemIndex]);
-  }
-};
-
-const handleTransformEnd = (e, item) => {
-    const node = e.target;
-    const index = store.canvasItems.findIndex(i => i.id === item.id);
-    if (index !== -1) {
-        const scaleX = node.scaleX();
-        const scaleY = node.scaleY();
-        node.scaleX(1);
-        node.scaleY(1);
-
-        store.canvasItems[index] = {
-            ...store.canvasItems[index],
-            x: node.x(),
-            y: node.y(),
-            rotation: node.rotation(),
-            width: Math.max(5, node.width() * scaleX),
-            height: Math.max(5, node.height() * scaleY),
-        };
+const handleItemDragEnd = (e: Konva.KonvaEventObject<DragEvent>, item: CanvasItem) => {
+    const movedItem = store.canvasItems.find(i => i.id === item.id);
+    if (movedItem) {
+        movedItem.x = e.target.x();
+        movedItem.y = e.target.y();
+        movedItem.parent = findParentContext(movedItem);
     }
 };
 
-const handleItemClick = (e, item) => {
-  if (connectingMode.value) {
-    handleConnectionClick(item);
-  } else {
-    selectedItem.value = item;
-    updateTransformer();
-  }
+const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
+    if (!transformerRef.value) return;
+    const transformer = transformerRef.value.getNode();
+    const nodes = (e.target as any) === transformer ? transformer.nodes() : [e.target];
+    
+    nodes.forEach((node: Konva.Node) => {
+        const id = Number(node.name().split('-')[1]);
+        const item = store.canvasItems.find((i: CanvasItem) => i.id === id);
+        if (item) {
+            const scaleX = node.scaleX();
+            const scaleY = node.scaleY();
+
+            node.scaleX(1);
+            node.scaleY(1);
+
+            item.x = node.x();
+            item.y = node.y();
+            item.rotation = node.rotation();
+            item.width = Math.max(5, item.width * scaleX);
+            item.height = Math.max(5, item.height * scaleY);
+        }
+    });
 };
 
-const handleStageClick = (e) => {
-  if (e.target === e.target.getStage()) {
-    selectedItem.value = null;
-    updateTransformer();
+const isSelected = (item: CanvasItem) => selectedItems.value.some(i => i.id === item.id);
+
+const handleItemClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
+  if (connectingMode.value) {
+    handleConnectionClick(item);
+    return;
+  }
+  
+  const isCtrlPressed = e.evt.ctrlKey || e.evt.metaKey;
+  const isItemAlreadySelected = isSelected(item);
+
+  if (!isCtrlPressed) {
+    if (isItemAlreadySelected && selectedItems.value.length === 1) {
+      return;
+    } 
+    selectedItems.value = [item];
+  } else {
+    if (isItemAlreadySelected) {
+      selectedItems.value = selectedItems.value.filter(i => i.id !== item.id);
+    } else {
+      selectedItems.value.push(item);
+    }
   }
 };
 
 const handleUpdate = (updatedItem: CanvasItem) => {
-  const index = store.canvasItems.findIndex(i => i.id === updatedItem.id);
+  const index = store.canvasItems.findIndex((i: CanvasItem) => i.id === updatedItem.id);
   if (index !== -1) {
     const oldItem = store.canvasItems[index];
     const newItem = { ...updatedItem };
@@ -188,33 +228,33 @@ const handleUpdate = (updatedItem: CanvasItem) => {
       newItem.height = calculateItemHeight(newItem);
     }
     store.canvasItems[index] = newItem;
-    selectedItem.value = newItem;
+    
+    const selectionIndex = selectedItems.value.findIndex(i => i.id === updatedItem.id);
+    if (selectionIndex !== -1) {
+        selectedItems.value[selectionIndex] = newItem;
+    }
   }
 };
 
 // --- Transformer Logic ---
 const updateTransformer = () => {
+  if (!transformerRef.value || !stageRef.value) return;
   const transformerNode = transformerRef.value.getNode();
   const stage = stageRef.value.getStage();
-  const selected = selectedItem.value;
+  
+  const selectedNodes = selectedItems.value.map(item => {
+    return stage.findOne('.item-' + item.id);
+  }).filter((n): n is Konva.Node => !!n);
 
-  if (selected && selected.id) {
-    const selectedNode = stage.findOne('.item-' + selected.id);
-    if (selectedNode) {
-      transformerNode.nodes([selectedNode]);
-    } else {
-      transformerNode.nodes([]);
-    }
-  } else {
-    transformerNode.nodes([]);
-  }
-  if (transformerNode.getLayer()) {
-    transformerNode.getLayer().batchDraw();
+  transformerNode.nodes(selectedNodes);
+  const layer = transformerNode.getLayer();
+  if (layer) {
+    layer.batchDraw();
   }
 };
 
-watch(selectedItem, updateTransformer);
-watch(() => store.activeBoard, () => { selectedItem.value = null; });
+watch(selectedItems, updateTransformer);
+watch(() => store.activeBoard, () => { selectedItems.value = []; });
 
 // --- Connection Logic ---
 const connectingMode = ref(false);
@@ -234,14 +274,14 @@ const handleConnectionClick = (targetItem: CanvasItem) => {
         from: sourceNodeId.value, 
         to: targetItem.id 
       };
-      if (!store.connections.find(c => c.id === newConnection.id)) { 
+      if (!store.connections.find((c: Connection) => c.id === newConnection.id)) { 
         store.connections.push(newConnection); 
       }
     }
-    sourceNodeId.value = null; // Reset for next connection, but stay in connecting mode
+    sourceNodeId.value = null;
   }
 };
-const getEdgePoint = (source, target) => {
+const getEdgePoint = (source: CanvasItem, target: CanvasItem) => {
     const dx = (target.x + target.width / 2) - (source.x + source.width / 2);
     const dy = (target.y + target.height / 2) - (source.y + source.height / 2);
     const angle = Math.atan2(dy, dx);
@@ -250,61 +290,138 @@ const getEdgePoint = (source, target) => {
     return { x: source.x + a + r * Math.cos(angle), y: source.y + b + r * Math.sin(angle) };
 }
 const connectionPoints = computed(() => {
-  return store.connections.map(conn => {
-    const fromNode = store.canvasItems.find(item => item.id === conn.from);
-    const toNode = store.canvasItems.find(item => item.id === conn.to);
+  return store.connections.map((conn: Connection) => {
+    const fromNode = store.canvasItems.find((item: CanvasItem) => item.id === conn.from);
+    const toNode = store.canvasItems.find((item: CanvasItem) => item.id === conn.to);
     if (!fromNode || !toNode) return null;
     const fromPoint = getEdgePoint(fromNode, toNode);
     const toPoint = getEdgePoint(toNode, fromNode);
     return [fromPoint.x, fromPoint.y, toPoint.x, toPoint.y];
-  }).filter(p => p !== null);
+  }).filter((p): p is [number, number, number, number] => p !== null);
 });
 
+// --- Selection Box Logic ---
+const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  if (e.target !== e.target.getStage()) {
+    return;
+  }
+  e.evt.preventDefault();
+  selectedItems.value = [];
+  const stage = e.target.getStage();
+  if (!stage) return;
+  const pos = stage.getPointerPosition();
+  if (!pos) return;
+  selection.value = {
+    visible: true,
+    x1: pos.x,
+    y1: pos.y,
+    x2: pos.x,
+    y2: pos.y,
+  };
+};
+
+const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  if (!selection.value.visible) {
+    return;
+  }
+  e.evt.preventDefault();
+  const stage = e.target.getStage();
+  if (!stage) return;
+  const pos = stage.getPointerPosition();
+  if (!pos) return;
+  selection.value.x2 = pos.x;
+  selection.value.y2 = pos.y;
+};
+
+const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  if (!selection.value.visible) {
+    return;
+  }
+  e.evt.preventDefault();
+  
+  setTimeout(() => {
+    selection.value.visible = false;
+  }, 0);
+
+  if (!stageRef.value || !selectionRectRef.value) return;
+  const stage = stageRef.value.getStage();
+  const box = selectionRectRef.value.getNode().getClientRect();
+  const newlySelected: CanvasItem[] = [];
+  store.canvasItems.forEach((item: CanvasItem) => {
+    const node = stage.findOne('.item-' + item.id);
+    if (node) {
+        const nodeBox = node.getClientRect();
+        if (Konva.Util.haveIntersection(box, nodeBox)) {
+            newlySelected.push(item);
+        }
+    }
+  });
+  selectedItems.value = newlySelected;
+};
 </script>
 
 <template>
   <div class="container">
     <div class="toolbox">
       <h3>Toolbox</h3>
-      <div v-for="tool in toolBox" :key="tool.id" class="tool-item" :style="{ backgroundColor: colorMap[tool.type] }" draggable="true" @dragstart="handleDragStart(tool)">
+      <div v-for="tool in toolBox" :key="tool.id" class="tool-item" :style="{ backgroundColor: colorMap[tool.type] }" draggable="true" @dragstart="handleToolDragStart(tool)">
         {{ tool.type }}
       </div>
-      <hr>
+      <hr />
       <button @click="toggleConnectingMode" class="connect-btn" :class="{ active: connectingMode }">
         {{ connectingMode ? 'Connecting...' : 'Add Connection (c)' }}
       </button>
     </div>
 
     <div class="canvas-wrapper" @drop="handleDrop" @dragover.prevent>
-      <v-stage ref="stageRef" :config="stageConfig" @click="handleStageClick">
+      <v-stage 
+        ref="stageRef" 
+        :config="stageConfig" 
+        @mousedown="handleMouseDown" 
+        @mousemove="handleMouseMove" 
+        @mouseup="handleMouseUp"
+      >
         <v-layer>
           <!-- Bounded Contexts -->
-          <v-group v-for="item in contextBoxes" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0 }" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd($event, item)">
+          <v-group v-for="item in categorizedItems.contextBoxes" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragstart="handleContextDragStart($event, item)" @dragmove="handleContextDragMove" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
             <v-rect :config="{
               width: item.width,
               height: item.height,
               fill: colorMap[item.type],
-              stroke: '#adb5bd',
+              stroke: isSelected(item) ? '#007bff' : '#adb5bd',
               strokeWidth: 2,
               dash: [10, 5]
             }" />
             <v-text :config="{ text: item.instanceName, fontSize: 18, fontStyle: 'bold', padding: 10 }" />
           </v-group>
 
+          <!-- Aggregates -->
+          <v-group v-for="item in categorizedItems.aggregates" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
+            <v-rect :config="{
+              width: item.width,
+              height: item.height,
+              fill: colorMap[item.type],
+              stroke: isSelected(item) || item.id === sourceNodeId ? '#007bff' : 'black',
+              strokeWidth: 2,
+              cornerRadius: 5
+            }" />
+            <v-text :config="{ text: item.type, fontSize: 14, fontStyle: 'bold', width: item.width, padding: 10, align: 'center' }" />
+            <v-text :config="{ text: item.instanceName, fontSize: 16, width: item.width, padding: 30, align: 'center' }" />
+            <ObjectProperties :properties="item.properties" :itemWidth="item.width" />
+          </v-group>
+
           <!-- Connections -->
           <v-arrow v-for="(points, index) in connectionPoints" :key="`conn-${index}`" :config="{ points: points, stroke: 'black', fill: 'black', pointerLength: 10, pointerWidth: 10 }" />
 
           <!-- Actors -->
-          <v-group v-for="item in actors" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0 }" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd($event, item)">
+          <v-group v-for="item in categorizedItems.actors" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
             <v-rect :config="{
               width: item.width,
               height: item.height,
               fill: item.parent ? 'transparent' : colorMap[item.type],
-              stroke: item.id === sourceNodeId ? '#007bff' : 'black',
+              stroke: isSelected(item) || item.id === sourceNodeId ? '#007bff' : 'black',
               strokeWidth: 2,
-              cornerRadius: 5,
-              shadowBlur: 5,
-              shadowOpacity: 0.5
+              cornerRadius: 5
             }" />
             <v-group :config="{ x: item.width / 2, y: item.height / 2, scaleX: 0.4, scaleY: 0.4 }">
               <v-circle :config="{ x: 0, y: -25, radius: 20, stroke: 'black', strokeWidth: 4 }"/>
@@ -315,36 +432,49 @@ const connectionPoints = computed(() => {
           </v-group>
 
           <!-- Sticky Notes -->
-          <v-group v-for="item in stickyNotes" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0 }" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd($event, item)">
+          <v-group v-for="item in categorizedItems.stickyNotes" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragend="handleItemDragEnd($event, item)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
             <v-rect :config="{
               width: item.width,
               height: item.height,
               fill: colorMap[item.type],
-              stroke: item.id === sourceNodeId ? '#007bff' : 'black',
+              stroke: isSelected(item) || item.id === sourceNodeId ? '#007bff' : 'black',
               strokeWidth: 2,
-              cornerRadius: 5,
-              shadowBlur: 5,
-              shadowOpacity: 0.5
+              cornerRadius: 5
             }" />
             <v-text :config="{ text: item.type, fontSize: 14, fontStyle: 'bold', width: item.width, padding: 10, align: 'center' }" />
             <v-text :config="{ text: item.instanceName, fontSize: 16, width: item.width, padding: 30, align: 'center' }" />
             <ObjectProperties :properties="item.properties" :itemWidth="item.width" />
           </v-group>
 
-          <v-transformer ref="transformerRef" :config="{
-            boundBoxFunc: (oldBox, newBox) => {
-              // limit resize
-              if (newBox.width < 5 || newBox.height < 5) {
-                return oldBox;
-              }
-              return newBox;
-            },
-          }" />
+          <v-transformer 
+            ref="transformerRef" 
+            :config="{
+              boundBoxFunc: (oldBox: { x: number; y: number; width: number; height: number; }, newBox: { x: number; y: number; width: number; height: number; }) => {
+                if (newBox.width < 5 || newBox.height < 5) {
+                  return oldBox;
+                }
+                return newBox;
+              },
+            }" 
+            @transformend="handleTransformEnd"
+          />
+
+          <v-rect 
+            ref="selectionRectRef" 
+            :config="{
+              x: Math.min(selection.x1, selection.x2),
+              y: Math.min(selection.y1, selection.y2),
+              width: Math.abs(selection.x1 - selection.x2),
+              height: Math.abs(selection.y1 - selection.y2),
+              fill: 'rgba(0, 161, 255, 0.3)',
+              visible: selection.visible,
+            }" 
+          />
         </v-layer>
       </v-stage>
     </div>
 
-    <PropertiesPanel v-if="selectedItem" :modelValue="selectedItem" @update:modelValue="handleUpdate" />
+    <PropertiesPanel v-if="selectedItems.length > 0" :modelValue="selectedItems[selectedItems.length - 1]" @update:modelValue="handleUpdate" />
   </div>
 </template>
 

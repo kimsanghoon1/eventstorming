@@ -20,6 +20,6 @@ import { defineProps } from 'vue';
 
 defineProps({
   properties: Array as () => Array<{ key: string; value: string }>,
-  itemWidth: Number
+  itemWidth: { type: Number, default: 200 }
 });
 </script>

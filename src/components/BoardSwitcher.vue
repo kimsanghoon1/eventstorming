@@ -34,6 +34,7 @@ const createBoard = () => {
       <button @click="createBoard">+ Create</button>
     </div>
     <button @click="store.saveCurrentBoard()" class="save-all-btn">Save Current Board</button>
+    <button @click="store.createTestObjects()" class="test-btn">Create 1000 Test Objects</button>
   </div>
 </template>
 
@@ -91,5 +92,15 @@ h4 {
   background-color: #28a745;
   color: white;
   border: none;
+}
+
+.test-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #ffc107;
+  color: black;
+  border: none;
+  cursor: pointer;
 }
 </style>

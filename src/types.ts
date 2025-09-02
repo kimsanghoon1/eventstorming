@@ -10,9 +10,10 @@ export interface CanvasItem {
   properties: Property[];
   x: number;
   y: number;
-  width?: number;
-  height?: number;
-  parent?: number | null;
+  width: number;
+  height: number;
+  rotation: number;
+  parent: number | null;
 }
 
 export interface Connection {
