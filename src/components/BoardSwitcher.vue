@@ -3,13 +3,14 @@ import { ref, onMounted } from 'vue';
 import { store } from '../store';
 
 const newBoardName = ref('');
+const newBoardType = ref('Eventstorming');
 
 onMounted(() => {
   store.fetchBoards();
 });
 
 const createBoard = () => {
-  store.createNewBoard(newBoardName.value);
+  store.createNewBoard(newBoardName.value, newBoardType.value as any);
   newBoardName.value = '';
 };
 
@@ -31,6 +32,10 @@ const createBoard = () => {
     </div>
     <div class="board-actions">
       <input v-model="newBoardName" @keyup.enter="createBoard" placeholder="New board name..." />
+      <select v-model="newBoardType">
+        <option value="Eventstorming">Eventstorming</option>
+        <option value="UML">UML</option>
+      </select>
       <button @click="createBoard">+ Create</button>
     </div>
     <button @click="store.saveCurrentBoard()" class="save-all-btn">Save Current Board</button>

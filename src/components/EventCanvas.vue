@@ -11,7 +11,8 @@ import ContextChildrenDialog from "./ContextChildrenDialog.vue";
 const isDialogVisible = ref(false);
 const dialogContext = ref<CanvasItem | null>(null);
 
-const showContextChildren = (contextBox: CanvasItem) => {
+const showContextChildren = (e: Konva.KonvaEventObject<MouseEvent>, contextBox: CanvasItem) => {
+  e.evt.stopPropagation();
   dialogContext.value = contextBox;
   isDialogVisible.value = true;
 };
@@ -21,7 +22,7 @@ const closeDialog = () => {
   dialogContext.value = null;
 };
 
-// --- Configuration ---
+// --- Configuration -- -
 const colorMap: Record<string, string> = {
   Command: '#87ceeb',   // Sky Blue
   Event: '#ffb703',     // Orange
@@ -68,6 +69,9 @@ const handleResize = () => {
 };
 
 const handleKeyDown = (e: KeyboardEvent) => {
+  if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
+    return;
+  }
   if (e.key === 'Escape') {
     if (connectingMode.value) {
       connectingMode.value = false;
@@ -376,6 +380,10 @@ const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
     });
     updateTransformer();
     store.pushState();
+    const transformerNode = transformerRef.value?.getNode();
+    if (transformerNode) {
+      transformerNode.forceUpdate();
+    }
 };
 
 const handleItemClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
@@ -659,7 +667,7 @@ const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
             }" />
             <v-text :config="{ text: item.instanceName, fontSize: 18, fontStyle: 'bold', padding: 10 }" />
             <!-- Children List Button -->
-            <v-group :config="{ x: item.width - 30, y: 10 }" @click.stop="showContextChildren(item)">
+            <v-group :config="{ x: item.width - 30, y: 10 }" @click="showContextChildren($event, item)">
               <v-rect :config="{ width: 20, height: 20, fill: '#6c757d', cornerRadius: 3 }" />
               <v-text :config="{ text: '...', fontSize: 16, fill: 'white', width: 20, height: 20, align: 'center', verticalAlign: 'middle', padding: 0, lineHeight: 1.2 }" />
             </v-group>
@@ -746,7 +754,7 @@ const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
 
     <PropertiesPanel v-if="selectedItems.length > 0" :modelValue="selectedItems[selectedItems.length - 1]" @update:modelValue="handleUpdate" />
     
-    <ContextChildrenDialog :modelValue="dialogContext" :visible="isDialogVisible" @close="closeDialog" />
+    <ContextChildrenDialog v-if="isDialogVisible" :modelValue="dialogContext" :visible="isDialogVisible" @close="closeDialog" />
   </div>
 </template>
 

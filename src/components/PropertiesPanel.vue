@@ -10,9 +10,27 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue']);
 
 const localItem = ref<any>({});
+const umlBoards = ref<string[]>([]);
+
+const getUmlBoards = async () => {
+  const response = await fetch('/api/boards');
+  const allBoards = await response.json();
+  const umlBoardsData = [];
+  for (const boardName of allBoards) {
+    const res = await fetch(`/api/boards/${boardName}`);
+    const data = await res.json();
+    if (!Array.isArray(data) && data.boardType === 'UML') {
+      umlBoardsData.push(boardName);
+    }
+  }
+  umlBoards.value = umlBoardsData;
+};
 
 watch(() => props.modelValue, (newItem) => {
   localItem.value = JSON.parse(JSON.stringify(newItem));
+  if (newItem && newItem.type === 'Aggregate') {
+    getUmlBoards();
+  }
   if (newItem.type === 'Command') {
     if (!localItem.value.httpMethod) {
       localItem.value.httpMethod = 'GET';
@@ -75,6 +93,32 @@ const addProperty = () => {
 
 const removeProperty = (index: number) => {
   localItem.value.properties.splice(index, 1);
+  update();
+};
+
+const addAttribute = () => {
+  if (!localItem.value.attributes) {
+    localItem.value.attributes = [];
+  }
+  localItem.value.attributes.push('');
+  update();
+};
+
+const removeAttribute = (index: number) => {
+  localItem.value.attributes.splice(index, 1);
+  update();
+};
+
+const addMethod = () => {
+  if (!localItem.value.methods) {
+    localItem.value.methods = [];
+  }
+  localItem.value.methods.push('');
+  update();
+};
+
+const removeMethod = (index: number) => {
+  localItem.value.methods.splice(index, 1);
   update();
 };
 
@@ -144,8 +188,38 @@ const removeProperty = (index: number) => {
       <button @click="addProperty" class="add-btn">+ Add Field</button>
     </div>
 
+    <div v-if="modelValue.type === 'Class' || modelValue.type === 'Interface'" class="properties-section">
+      <h4>Attributes</h4>
+      <div v-for="(attr, index) in localItem.attributes" :key="index" class="property-item">
+        <input v-model="localItem.attributes[index]" @blur="update" placeholder="Attribute" class="value-input" />
+        <button @click="removeAttribute(index)" class="delete-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <path d="M 10 2 L 9 3 L 4 3 L 4 5 L 20 5 L 20 3 L 15 3 L 14 2 L 10 2 z M 5 7 L 5 22 L 19 22 L 19 7 L 5 7 z M 8 9 L 10 9 L 10 20 L 8 20 L 8 9 z M 14 9 L 16 9 L 16 20 L 14 20 L 14 9 z"/>
+          </svg>
+        </button>
+      </div>
+      <button @click="addAttribute" class="add-btn">+ Add Attribute</button>
+    </div>
+
+    <div v-if="modelValue.type === 'Class' || modelValue.type === 'Interface'" class="properties-section">
+      <h4>Methods</h4>
+      <div v-for="(method, index) in localItem.methods" :key="index" class="property-item">
+        <input v-model="localItem.methods[index]" @blur="update" placeholder="Method" class="value-input" />
+        <button @click="removeMethod(index)" class="delete-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+            <path d="M 10 2 L 9 3 L 4 3 L 4 5 L 20 5 L 20 3 L 15 3 L 14 2 L 10 2 z M 5 7 L 5 22 L 19 22 L 19 7 L 5 7 z M 8 9 L 10 9 L 10 20 L 8 20 L 8 9 z M 14 9 L 16 9 L 16 20 L 14 20 L 14 9 z"/>
+          </svg>
+        </button>
+      </div>
+      <button @click="addMethod" class="add-btn">+ Add Method</button>
+    </div>
+
     <div v-if="modelValue.type === 'Aggregate'" class="form-section">
-      <button @click="store.showUmlCanvas(modelValue.id)" class.bind="add-btn">Edit UML Diagram</button>
+      <label>UML Diagram:</label>
+      <select v-model="localItem.umlDiagram" @change="update">
+        <option :value="null">None</option>
+        <option v-for="board in umlBoards" :key="board" :value="board">{{ board }}</option>
+      </select>
     </div>
 
   </div>

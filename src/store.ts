@@ -9,6 +9,7 @@ interface HistoryState {
 interface Store {
   boards: string[];
   activeBoard: string | null;
+  boardType: 'Eventstorming' | 'UML';
   canvasItems: CanvasItem[];
   connections: Connection[];
   history: HistoryState[];
@@ -18,7 +19,7 @@ interface Store {
   fetchBoards: () => Promise<void>;
   loadBoard: (name: string) => Promise<void>;
   saveCurrentBoard: () => Promise<void>;
-  createNewBoard: (name: string) => Promise<void>;
+  createNewBoard: (name: string, boardType: 'Eventstorming' | 'UML') => Promise<void>;
   deleteBoard: (name: string) => Promise<void>;
   createTestObjects: () => void;
   pushState: () => void;
@@ -31,6 +32,7 @@ interface Store {
 export const store = reactive<Store>({
   boards: [],
   activeBoard: null,
+  boardType: 'Eventstorming',
   canvasItems: [],
   connections: [],
   history: [],
@@ -100,10 +102,19 @@ export const store = reactive<Store>({
     if (Array.isArray(data)) {
       this.canvasItems = data;
       this.connections = [];
+      this.boardType = 'Eventstorming';
     } else {
       this.canvasItems = data.items || [];
       this.connections = data.connections || [];
+      this.boardType = data.boardType || 'Eventstorming';
     }
+
+    if (this.boardType === 'UML') {
+      this.currentView = 'uml-canvas';
+    } else {
+      this.currentView = 'event-canvas';
+    }
+
     this.history = [];
     this.historyIndex = -1;
     this.pushState();
@@ -114,6 +125,7 @@ export const store = reactive<Store>({
     const boardData = {
       items: this.canvasItems,
       connections: this.connections,
+      boardType: this.boardType,
     };
     await fetch(`/api/boards/${this.activeBoard}`,
       {
@@ -125,7 +137,7 @@ export const store = reactive<Store>({
     alert(`${this.activeBoard} saved!`);
   },
 
-  async createNewBoard(name: string) {
+  async createNewBoard(name: string, boardType: 'Eventstorming' | 'UML') {
     if (this.boards.includes(name) || !name.trim()) {
       alert('Invalid or duplicate board name.');
       return;
@@ -133,6 +145,7 @@ export const store = reactive<Store>({
     this.canvasItems = [];
     this.connections = [];
     this.activeBoard = name;
+    this.boardType = boardType;
     await this.saveCurrentBoard();
     await this.fetchBoards();
     this.history = [];

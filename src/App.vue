@@ -13,7 +13,7 @@ import UmlCanvas from './components/UmlCanvas.vue';
     <main>
       <div v-if="store.activeBoard">
         <EventCanvas v-if="store.currentView === 'event-canvas'" :key="store.activeBoard" />
-        <UmlCanvas v-else-if="store.currentView === 'uml-canvas'" />
+        <UmlCanvas v-else-if="store.currentView === 'uml-canvas'" :key="store.activeBoard" />
       </div>
       <div v-else class="no-board-selected">
         <h2>No Board Selected</h2>
