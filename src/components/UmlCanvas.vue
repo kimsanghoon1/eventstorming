@@ -1,37 +1,39 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount } from "vue";
+import { ref, computed, watch } from "vue";
 import Konva from 'konva';
 import { store } from "../store";
 import type { CanvasItem, Connection } from "../types";
 import PropertiesPanel from "./PropertiesPanel.vue";
 import ObjectProperties from "./ObjectProperties.vue";
+import { useCanvasLogic } from '../composables/useCanvasLogic';
+
+const {
+  selectedItems,
+  stageRef,
+  transformerRef,
+  selectionRectRef,
+  selection,
+  stageConfig,
+  handleMouseDown,
+  handleMouseMove,
+  handleMouseUp,
+  handleItemClick,
+  handleTransformEnd,
+} = useCanvasLogic();
 
 const umlToolBox = ref([
   { id: 1, type: "Class" },
   { id: 2, type: "Interface" },
+  { id: 3, type: "Component" },
+  { id: 4, type: "Package" },
 ]);
 
-const stageConfig = ref({ width: 100, height: 100 });
-const stageRef = ref<{ getStage: () => Konva.Stage } | null>(null);
-
-const handleResize = () => {
-  const wrapper = document.querySelector('.canvas-wrapper');
-  if (wrapper) {
-    stageConfig.value = {
-      width: wrapper.clientWidth,
-      height: wrapper.clientHeight,
-    };
-  }
-};
-
-onMounted(() => {
-  handleResize();
-  window.addEventListener('resize', handleResize);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('resize', handleResize);
-});
+const connectionTools = ref([
+    { type: 'Association' },
+    { type: 'Aggregation' },
+    { type: 'Composition' },
+    { type: 'Generalization' },
+]);
 
 let draggedTool = ref<{id: number, type: string} | null>(null);
 const handleToolDragStart = (tool: {id: number, type: string}) => { draggedTool.value = tool; };
@@ -68,7 +70,7 @@ const handleDrop = (e: DragEvent) => {
     rotation: 0,
     parent: null,
   };
-  if (newItem.type === 'Class' || newItem.type === 'Interface') {
+  if (['Class', 'Interface', 'Component', 'Package'].includes(newItem.type)) {
     newItem.height = calculateUmlItemHeight(newItem);
   }
   store.canvasItems.push(newItem);
@@ -76,15 +78,10 @@ const handleDrop = (e: DragEvent) => {
   store.pushState();
 };
 
-const selectedItems = ref<CanvasItem[]>([]);
-const handleItemClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
-  selectedItems.value = [item];
-};
-
 const handleUpdate = (updatedItem: CanvasItem) => {
   const index = store.canvasItems.findIndex((i: CanvasItem) => i.id === updatedItem.id);
   if (index !== -1) {
-    if (updatedItem.type === 'Class' || updatedItem.type === 'Interface') {
+    if (['Class', 'Interface', 'Component', 'Package'].includes(updatedItem.type)) {
       updatedItem.height = calculateUmlItemHeight(updatedItem);
     }
     store.canvasItems[index] = updatedItem;
@@ -98,7 +95,7 @@ const handleUpdate = (updatedItem: CanvasItem) => {
 
 watch(() => store.canvasItems, (newItems) => {
   newItems.forEach(item => {
-    if (item.type === 'Class' || item.type === 'Interface') {
+    if (['Class', 'Interface', 'Component', 'Package'].includes(item.type)) {
       item.height = calculateUmlItemHeight(item);
     }
   });
@@ -114,6 +111,11 @@ watch(() => store.canvasItems, (newItems) => {
         {{ tool.type }}
       </div>
       <hr />
+      <h4>Connections</h4>
+      <div v-for="tool in connectionTools" :key="tool.type" class="tool-item">
+        {{ tool.type }}
+      </div>
+      <hr />
       <button @click="store.showEventCanvas()">Back to Event Canvas</button>
     </div>
 
@@ -121,9 +123,12 @@ watch(() => store.canvasItems, (newItems) => {
       <v-stage 
         ref="stageRef" 
         :config="stageConfig"
+        @mousedown="handleMouseDown" 
+        @mousemove="handleMouseMove" 
+        @mouseup="handleMouseUp"
       >
         <v-layer>
-          <v-group v-for="item in store.canvasItems" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @click="handleItemClick($event, item)">
+          <v-group v-for="item in store.canvasItems" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
             <v-rect :config="{
               width: item.width,
               height: item.height,
