@@ -4,9 +4,9 @@ import Konva from 'konva';
 import { store } from "../store";
 import type { CanvasItem, Connection } from "../types";
 import PropertiesPanel from "./PropertiesPanel.vue";
-import ObjectProperties from "./ObjectProperties.vue";
 import ContextChildrenDialog from "./ContextChildrenDialog.vue";
 import { useCanvasLogic } from '../composables/useCanvasLogic';
+import EventItem from './canvas-items/EventItem.vue';
 
 const {
   selectedItems,
@@ -445,74 +445,17 @@ const connectionPoints = computed(() => {
         @mouseup="handleMouseUp"
       >
         <v-layer>
-          <!-- Bounded Contexts -->
-          <v-group v-for="item in categorizedItems.contextBoxes" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragstart="handleItemDragStart($event, item)" @dragmove="handleItemDragMove" @dragend="handleItemDragEnd($event)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
-            <v-rect :config="{
-              width: item.width,
-              height: item.height,
-              fill: colorMap[item.type],
-              stroke: highlightedItemIds.has(item.id) ? '#007bff' : '#adb5bd',
-              strokeWidth: 2,
-              dash: [10, 5]
-            }" />
-            <v-text :config="{ text: item.instanceName, fontSize: 18, fontStyle: 'bold', padding: 10 }" />
-            <!-- Children List Button -->
-            <v-group :config="{ x: item.width - 30, y: 10 }" @click="showContextChildren($event, item)">
-              <v-rect :config="{ width: 20, height: 20, fill: '#6c757d', cornerRadius: 3 }" />
-              <v-text :config="{ text: '...', fontSize: 16, fill: 'white', width: 20, height: 20, align: 'center', verticalAlign: 'middle', padding: 0, lineHeight: 1.2 }" />
-            </v-group>
-          </v-group>
-
-          <!-- Aggregates -->
-          <v-group v-for="item in categorizedItems.aggregates" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragstart="handleItemDragStart($event, item)" @dragmove="handleItemDragMove" @dragend="handleItemDragEnd($event)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
-            <v-rect :config="{
-              width: item.width,
-              height: item.height,
-              fill: colorMap[item.type],
-              stroke: highlightedItemIds.has(item.id) ? '#007bff' : 'black',
-              strokeWidth: 2,
-              cornerRadius: 5
-            }" />
-            <v-text :config="{ text: item.type, fontSize: 14, fontStyle: 'bold', width: item.width, padding: 10, align: 'center' }" />
-            <v-text :config="{ text: item.instanceName, fontSize: 16, width: item.width, padding: 30, align: 'center' }" />
-            <ObjectProperties :properties="item.properties" :itemWidth="item.width" />
-          </v-group>
-
-          <!-- Connections -->
-          <v-arrow v-for="(points, index) in connectionPoints" :key="`conn-${index}`" :config="{ points: points, stroke: 'black', fill: 'black', pointerLength: 10, pointerWidth: 10 }" />
-
-          <!-- Actors -->
-          <v-group v-for="item in categorizedItems.actors" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragstart="handleItemDragStart($event, item)" @dragmove="handleItemDragMove" @dragend="handleItemDragEnd($event)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
-            <v-rect :config="{
-              width: item.width,
-              height: item.height,
-              fill: item.parent ? 'transparent' : colorMap[item.type],
-              stroke: highlightedItemIds.has(item.id) ? '#007bff' : 'black',
-              strokeWidth: 2,
-              cornerRadius: 5
-            }" />
-            <v-group :config="{ x: item.width / 2, y: item.height / 2, scaleX: 0.4, scaleY: 0.4 }">
-              <v-circle :config="{ x: 0, y: -25, radius: 20, stroke: 'black', strokeWidth: 4 }"/>
-              <v-path :config="{ x: 0, y: 0, data: 'M -30 0 L 30 0 M 0 -5 L 0 40 M -30 0 L 0 40 L 30 0', stroke: 'black', strokeWidth: 4 }"/>
-            </v-group>
-            <v-text :config="{ text: item.instanceName, fontSize: 16, width: item.width, y: item.height - 30, align: 'center' }" />
-            <ObjectProperties :properties="item.properties" :itemWidth="item.width" />
-          </v-group>
-
-          <!-- Sticky Notes -->
-          <v-group v-for="item in categorizedItems.stickyNotes" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @dragstart="handleItemDragStart($event, item)" @dragmove="handleItemDragMove" @dragend="handleItemDragEnd($event)" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
-            <v-rect :config="{
-              width: item.width,
-              height: item.height,
-              fill: colorMap[item.type],
-              stroke: highlightedItemIds.has(item.id) ? '#007bff' : 'black',
-              strokeWidth: 2,
-              cornerRadius: 5
-            }" />
-            <v-text :config="{ text: item.type, fontSize: 14, fontStyle: 'bold', width: item.width, padding: 10, align: 'center' }" />
-            <v-text :config="{ text: item.instanceName, fontSize: 16, width: item.width, padding: 30, align: 'center' }" />
-            <ObjectProperties :properties="item.properties" :itemWidth="item.width" />
-          </v-group>
+          <EventItem 
+            v-for="item in store.canvasItems" 
+            :key="item.id" 
+            :item="item" 
+            :highlighted="highlightedItemIds.has(item.id)"
+            @click="handleItemClick($event, item)" 
+            @dragstart="handleItemDragStart($event, item)"
+            @dragmove="handleItemDragMove"
+            @dragend="handleItemDragEnd($event)"
+            @transformend="handleTransformEnd"
+          />
 
           <v-transformer 
             ref="transformerRef" 

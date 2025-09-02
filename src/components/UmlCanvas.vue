@@ -4,7 +4,7 @@ import Konva from 'konva';
 import { store } from "../store";
 import type { CanvasItem, Connection } from "../types";
 import PropertiesPanel from "./PropertiesPanel.vue";
-import ObjectProperties from "./ObjectProperties.vue";
+import UmlItem from "./canvas-items/UmlItem.vue";
 import { useCanvasLogic } from '../composables/useCanvasLogic';
 
 const {
@@ -128,20 +128,41 @@ watch(() => store.canvasItems, (newItems) => {
         @mouseup="handleMouseUp"
       >
         <v-layer>
-          <v-group v-for="item in store.canvasItems" :key="item.id" :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" @click="handleItemClick($event, item)" @transformend="handleTransformEnd">
-            <v-rect :config="{
-              width: item.width,
-              height: item.height,
-              fill: '#ffffff',
-              stroke: 'black',
-              strokeWidth: 2,
-            }" />
-            <v-text v-if="item.type === 'Interface'" :config="{ text: '<<interface>>', fontSize: 14, width: item.width, padding: 5, align: 'center' }" />
-            <v-text :config="{ text: item.instanceName, fontSize: 16, width: item.width, padding: item.type === 'Interface' ? 20 : 10, align: 'center' }" />
-            <v-line v-if="item.type === 'Class'" :config="{ points: [0, 40, item.width, 40], stroke: 'black', strokeWidth: 1 }" />
-            <ObjectProperties :attributes="item.attributes" :methods="item.methods" :itemWidth="item.width" />
-            <v-line v-if="item.type === 'Class'" :config="{ points: [0, 40 + (item.attributes?.length || 0) * 15 + 15, item.width, 40 + (item.attributes?.length || 0) * 15 + 15], stroke: 'black', strokeWidth: 1 }" />
-          </v-group>
+          <UmlItem 
+            v-for="item in store.canvasItems" 
+            :key="item.id" 
+            :item="item"
+            @click="handleItemClick($event, item)" 
+            @dragstart="handleItemDragStart($event, item)"
+            @dragmove="handleItemDragMove"
+            @dragend="handleItemDragEnd($event)"
+            @transformend="handleTransformEnd"
+          />
+
+          <v-transformer 
+            ref="transformerRef" 
+            :config="{
+              boundBoxFunc: (oldBox: { x: number; y: number; width: number; height: number; }, newBox: { x: number; y: number; width: number; height: number; }) => {
+                if (newBox.width < 5 || newBox.height < 5) {
+                  return oldBox;
+                }
+                return newBox;
+              },
+            }" 
+            @transformend="handleTransformEnd"
+          />
+
+          <v-rect 
+            ref="selectionRectRef" 
+            :config="{
+              x: Math.min(selection.x1, selection.x2),
+              y: Math.min(selection.y1, selection.y2),
+              width: Math.abs(selection.x1 - selection.x2),
+              height: Math.abs(selection.y1 - selection.y2),
+              fill: 'rgba(0, 161, 255, 0.3)',
+              visible: selection.visible,
+            }" 
+          />
         </v-layer>
       </v-stage>
     </div>
