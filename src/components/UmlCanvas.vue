@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, watch } from "vue";
-import Konva from 'konva';
+import { ref, computed } from "vue";
 import { store } from "../store";
-import type { CanvasItem, Connection } from "../types";
+import type { CanvasItem } from "../types";
 import PropertiesPanel from "./PropertiesPanel.vue";
 import UmlItem from "./canvas-items/UmlItem.vue";
+import UmlConnection from "./canvas-items/UmlConnection.vue";
 import { useCanvasLogic } from '../composables/useCanvasLogic';
 
 const {
@@ -25,6 +25,9 @@ const {
   handleItemDragEnd,
 } = useCanvasLogic();
 
+const canvasItemsJSON = computed(() => store.canvasItems?.toJSON() ?? []);
+const connectionsJSON = computed(() => store.connections?.toJSON() ?? []);
+
 const umlToolBox = ref([
   { id: 1, type: "Class" },
   { id: 2, type: "Interface" },
@@ -39,28 +42,10 @@ const connectionTools = ref([
     { type: 'Generalization' },
 ]);
 
-const connectionPoints = computed(() => {
-  return store.connections.map(conn => {
-    const fromItem = store.canvasItems.find(i => i.id === conn.from);
-    const toItem = store.canvasItems.find(i => i.id === conn.to);
-    if (!fromItem || !toItem) return null;
-
-    const fromX = fromItem.x + fromItem.width / 2;
-    const fromY = fromItem.y + fromItem.height / 2;
-    const toX = toItem.x + toItem.width / 2;
-    const toY = toItem.y + toItem.height / 2;
-
-    return {
-      id: conn.id,
-      points: [fromX, fromY, toX, toY]
-    };
-  }).filter(p => p !== null);
-});
-
 let draggedTool = ref<{id: number, type: string} | null>(null);
 const handleToolDragStart = (tool: {id: number, type: string}) => { draggedTool.value = tool; };
 
-const calculateUmlItemHeight = (item: CanvasItem) => {
+const calculateUmlItemHeight = (item: Partial<CanvasItem>) => {
   const nameHeight = 30;
   const stereotypeHeight = item.type === 'Interface' ? 20 : 0;
   const attrHeight = (item.attributes?.length || 0) * 15;
@@ -78,55 +63,40 @@ const handleDrop = (e: DragEvent) => {
   const pos = stage.getPointerPosition();
   if (!pos) return;
 
-  const newItem: CanvasItem = {
-    id: Date.now(),
+  const newItem: Omit<CanvasItem, 'id'> = {
     type: draggedTool.value.type,
     instanceName: `New ${draggedTool.value.type}`,
     properties: [],
     attributes: [],
     methods: [],
-    x: pos.x,
-    y: pos.y,
+    x: pos.x - 100,
+    y: pos.y - 50,
     width: 200,
     height: 100,
     rotation: 0,
     parent: null,
   };
+  
   if (['Class', 'Interface', 'Component', 'Package'].includes(newItem.type)) {
     newItem.height = calculateUmlItemHeight(newItem);
   }
 
-  // Adjust position to center the item on the cursor
-  newItem.x = pos.x - (newItem.width / 2);
-  newItem.y = pos.y - (newItem.height / 2);
-
-  store.canvasItems.push(newItem);
+  store.addItem(newItem);
   draggedTool.value = null;
-  store.pushState();
 };
 
 const handleUpdate = (updatedItem: CanvasItem) => {
-  const index = store.canvasItems.findIndex((i: CanvasItem) => i.id === updatedItem.id);
-  if (index !== -1) {
-    if (['Class', 'Interface', 'Component', 'Package'].includes(updatedItem.type)) {
-      updatedItem.height = calculateUmlItemHeight(updatedItem);
-    }
-    store.canvasItems[index] = updatedItem;
-    const selectionIndex = selectedItems.value.findIndex(i => i.id === updatedItem.id);
-    if (selectionIndex !== -1) {
-        selectedItems.value[selectionIndex] = updatedItem;
-    }
-    store.pushState();
+  if (['Class', 'Interface', 'Component', 'Package'].includes(updatedItem.type)) {
+    updatedItem.height = calculateUmlItemHeight(updatedItem);
   }
+  store.updateItem(updatedItem);
 };
 
-watch(() => store.canvasItems, (newItems) => {
-  newItems.forEach(item => {
-    if (['Class', 'Interface', 'Component', 'Package'].includes(item.type)) {
-      item.height = calculateUmlItemHeight(item);
-    }
-  });
-}, { deep: true, immediate: true });
+const getConnectionItems = (conn: any) => {
+    const fromItem = canvasItemsJSON.value.find(i => i.id === conn.from);
+    const toItem = canvasItemsJSON.value.find(i => i.id === conn.to);
+    return { fromItem, toItem };
+};
 
 </script>
 
@@ -155,39 +125,31 @@ watch(() => store.canvasItems, (newItems) => {
         @mouseup="handleMouseUp"
       >
         <v-layer>
+          <template v-for="conn in connectionsJSON" :key="conn.id">
+            <UmlConnection 
+              v-if="getConnectionItems(conn).fromItem && getConnectionItems(conn).toItem"
+              :connection="conn"
+              :fromItem="getConnectionItems(conn).fromItem!"
+              :toItem="getConnectionItems(conn).toItem!"
+            />
+          </template>
+
           <UmlItem 
-            v-for="item in store.canvasItems" 
+            v-for="item in canvasItemsJSON" 
             :key="item.id" 
             :item="item"
-            @click="handleItemClick($event, item)" 
-            @dragstart="handleItemDragStart($event, item)"
+            @click="(e) => handleItemClick(e, item)" 
+            @dragstart="(e) => handleItemDragStart(e, item)"
             @dragmove="handleItemDragMove"
-            @dragend="handleItemDragEnd($event)"
+            @dragend="handleItemDragEnd"
             @transformend="handleTransformEnd"
-          />
-
-          <v-arrow 
-            v-for="conn in connectionPoints" 
-            :key="conn.id" 
-            :config="{ 
-              points: conn.points, 
-              stroke: 'black', 
-              fill: 'black', 
-              strokeWidth: 2 
-            }" 
           />
 
           <v-transformer 
             ref="transformerRef" 
             :config="{
-              boundBoxFunc: (oldBox: { x: number; y: number; width: number; height: number; }, newBox: { x: number; y: number; width: number; height: number; }) => {
-                if (newBox.width < 5 || newBox.height < 5) {
-                  return oldBox;
-                }
-                return newBox;
-              },
+              boundBoxFunc: (oldBox, newBox) => newBox.width < 5 || newBox.height < 5 ? oldBox : newBox,
             }" 
-            @transformend="handleTransformEnd"
           />
 
           <v-rect 

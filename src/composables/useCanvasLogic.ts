@@ -1,7 +1,7 @@
-import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import Konva from 'konva';
 import { store } from '../store';
-import type { CanvasItem, Connection } from '../types';
+import type { CanvasItem } from '../types';
 
 export function useCanvasLogic() {
   const selectedItems = ref<CanvasItem[]>([]);
@@ -61,7 +61,9 @@ export function useCanvasLogic() {
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
       e.preventDefault();
-      selectedItems.value = [...store.canvasItems];
+      if (store.canvasItems) {
+        selectedItems.value = store.canvasItems.toJSON();
+      }
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
       e.preventDefault();
@@ -71,14 +73,21 @@ export function useCanvasLogic() {
       e.preventDefault();
       store.redo();
     }
-    if (e.key === 'Backspace') {
+    if (e.key === 'Backspace' || e.key === 'Delete') {
       e.preventDefault();
-      const idsToDelete = new Set(selectedItems.value.map(item => item.id));
-      if (idsToDelete.size > 0) {
-        store.canvasItems = store.canvasItems.filter(item => !idsToDelete.has(item.id));
-        store.connections = store.connections.filter(conn => !idsToDelete.has(conn.from) && !idsToDelete.has(conn.to));
+      const itemIdsToDelete = selectedItems.value.map(item => item.id);
+      if (itemIdsToDelete.length > 0) {
+        store.deleteItems(itemIdsToDelete);
+        // Also delete connections attached to these items
+        const connIdsToDelete: string[] = [];
+        store.connections?.forEach(conn => {
+            const connJson = conn.toJSON();
+            if (itemIdsToDelete.includes(connJson.from) || itemIdsToDelete.includes(connJson.to)) {
+                connIdsToDelete.push(connJson.id);
+            }
+        });
+        store.deleteConnections(connIdsToDelete);
         selectedItems.value = [];
-        store.pushState();
       }
     }
   };
@@ -137,11 +146,12 @@ export function useCanvasLogic() {
       selection.value.visible = false;
     }, 0);
 
-    if (!stageRef.value || !selectionRectRef.value) return;
+    if (!stageRef.value || !selectionRectRef.value || !store.canvasItems) return;
     const stage = stageRef.value.getStage();
     const box = selectionRectRef.value.getNode().getClientRect();
     const newlySelected: CanvasItem[] = [];
-    store.canvasItems.forEach((item: CanvasItem) => {
+    store.canvasItems.forEach((yItem) => {
+      const item = yItem.toJSON() as CanvasItem;
       const node = stage.findOne('.item-' + item.id);
       if (node) {
         const nodeBox = node.getClientRect();
@@ -168,14 +178,11 @@ export function useCanvasLogic() {
         connectionMode.value.from = item.id;
       } else {
         if (connectionMode.value.from !== item.id) {
-          const newConnection: Connection = {
-            id: `conn-${connectionMode.value.from}-${item.id}-${Date.now()}`,
+          store.addConnection({
             from: connectionMode.value.from,
             to: item.id,
             type: connectionMode.value.type,
-          };
-          store.connections.push(newConnection);
-          store.pushState();
+          });
         }
         cancelConnectionMode();
       }
@@ -203,29 +210,27 @@ export function useCanvasLogic() {
     const transformer = transformerRef.value.getNode();
     const nodes = (e.target as any) === transformer ? transformer.nodes() : [e.target];
     
-    nodes.forEach((node: Konva.Node) => {
-        const id = Number(node.name().split('-')[1]);
-        const item = store.canvasItems.find((i: CanvasItem) => i.id === id);
-        if (item) {
-            const scaleX = node.scaleX();
-            const scaleY = node.scaleY();
+    store.doc?.transact(() => {
+      nodes.forEach((node: Konva.Node) => {
+          const id = Number(node.name().split('-')[1]);
+          const index = store.canvasItems?.toArray().findIndex(i => i.get('id') === id);
+          if (index !== undefined && index > -1) {
+              const yItem = store.canvasItems!.get(index);
+              const scaleX = node.scaleX();
+              const scaleY = node.scaleY();
 
-            node.scaleX(1);
-            node.scaleY(1);
+              node.scaleX(1);
+              node.scaleY(1);
 
-            item.x = node.x();
-            item.y = node.y();
-            item.rotation = node.rotation();
-            item.width = Math.max(5, item.width * scaleX);
-            item.height = Math.max(5, item.height * scaleY);
-        }
+              yItem.set('x', node.x());
+              yItem.set('y', node.y());
+              yItem.set('rotation', node.rotation());
+              yItem.set('width', Math.max(5, yItem.get('width') * scaleX));
+              yItem.set('height', Math.max(5, yItem.get('height') * scaleY));
+          }
+      });
     });
     updateTransformer();
-    store.pushState();
-    const transformerNode = transformerRef.value?.getNode();
-    if (transformerNode) {
-      transformerNode.forceUpdate();
-    }
   };
 
   const updateTransformer = () => {
@@ -238,39 +243,67 @@ export function useCanvasLogic() {
     }).filter((n): n is Konva.Node => !!n);
 
     transformerNode.nodes(selectedNodes);
-    const layer = transformerNode.getLayer();
-    if (layer) {
-      layer.batchDraw();
-    }
+    transformerNode.getLayer()?.batchDraw();
   };
 
+  const dragStartPositions = ref<Map<number, {x: number, y: number}>>(new Map());
+
   const handleItemDragStart = (e: Konva.KonvaEventObject<DragEvent>, item: CanvasItem) => {
-    // placeholder for drag start logic
+    const stage = stageRef.value?.getStage();
+    if (!stage) return;
+
+    if (!selectedItems.value.some(i => i.id === item.id)) {
+      selectedItems.value = [item];
+    }
+    
+    dragStartPositions.value.clear();
+    selectedItems.value.forEach(selectedItem => {
+      const node = stage.findOne('.item-' + selectedItem.id);
+      if (node) {
+        dragStartPositions.value.set(selectedItem.id, { x: node.x(), y: node.y() });
+      }
+    });
   };
 
   const handleItemDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
-    const node = e.target;
-    const id = Number(node.name().split('-')[1]);
-    const item = store.canvasItems.find((i: CanvasItem) => i.id === id);
-    if (item) {
-      item.x = node.x();
-      item.y = node.y();
-    }
+    const stage = stageRef.value?.getStage();
+    const draggedNode = e.target;
+    const draggedItemId = Number(draggedNode.name().split('-')[1]);
+    
+    if (!stage || !dragStartPositions.value.has(draggedItemId)) return;
+
+    const startPos = dragStartPositions.value.get(draggedItemId);
+    if (!startPos) return;
+
+    const dx = draggedNode.x() - startPos.x;
+    const dy = draggedNode.y() - startPos.y;
+
+    store.doc?.transact(() => {
+      selectedItems.value.forEach(item => {
+        const node = stage.findOne('.item-' + item.id);
+        const initialPos = dragStartPositions.value.get(item.id);
+        if (node && initialPos) {
+          const index = store.canvasItems?.toArray().findIndex(i => i.get('id') === item.id);
+          if (index !== undefined && index > -1) {
+            const yItem = store.canvasItems!.get(index);
+            yItem.set('x', initialPos.x + dx);
+            yItem.set('y', initialPos.y + dy);
+          }
+        }
+      });
+    });
   };
 
   const handleItemDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
-    const node = e.target;
-    const id = Number(node.name().split('-')[1]);
-    const item = store.canvasItems.find((i: CanvasItem) => i.id === id);
-    if (item) {
-      item.x = node.x();
-      item.y = node.y();
-    }
-    store.pushState();
+    dragStartPositions.value.clear();
   };
 
-  watch(selectedItems, updateTransformer);
+  watch(selectedItems, updateTransformer, { deep: true });
   watch(() => store.activeBoard, () => { selectedItems.value = []; });
+  watch(() => store.canvasItems, () => {
+      // Force update transformer when items change from remote
+      updateTransformer();
+  }, { deep: true });
 
   return {
     selectedItems,

@@ -3,6 +3,7 @@ import { store } from './store';
 import BoardSwitcher from './components/BoardSwitcher.vue';
 import EventCanvas from './components/EventCanvas.vue';
 import UmlCanvas from './components/UmlCanvas.vue';
+import CodeGenerator from './components/CodeGenerator.vue';
 </script>
 
 <template>
@@ -11,14 +12,19 @@ import UmlCanvas from './components/UmlCanvas.vue';
       <BoardSwitcher />
     </header>
     <main>
-      <div v-if="store.activeBoard">
-        <EventCanvas v-if="store.currentView === 'event-canvas'" :key="store.activeBoard" />
-        <UmlCanvas v-else-if="store.currentView === 'uml-canvas'" :key="store.activeBoard" />
-      </div>
-      <div v-else class="no-board-selected">
-        <h2>No Board Selected</h2>
-        <p>Create a new board or select one to start.</p>
-      </div>
+      <template v-if="store.mainView === 'canvas'">
+        <div v-if="store.activeBoard">
+          <EventCanvas v-if="store.currentView === 'event-canvas'" :key="store.activeBoard" />
+          <UmlCanvas v-else-if="store.currentView === 'uml-canvas'" :key="store.activeBoard" />
+        </div>
+        <div v-else class="no-board-selected">
+          <h2>No Board Selected</h2>
+          <p>Create a new board or select one to start.</p>
+        </div>
+      </template>
+      <template v-else-if="store.mainView === 'code-generator'">
+        <CodeGenerator />
+      </template>
     </main>
   </div>
 </template>
@@ -42,7 +48,7 @@ header {
 }
 main {
   flex-grow: 1;
-  overflow: hidden; /* Prevent scrolling in the main area */
+  overflow: auto; /* Allow scrolling for code generator view */
 }
 main > div {
   height: 100%;

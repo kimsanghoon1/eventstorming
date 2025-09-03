@@ -1,28 +1,71 @@
-import { reactive, toRaw } from 'vue';
-import type { CanvasItem, Connection } from './types';
+import { reactive } from 'vue';
+import * as Y from 'yjs';
+import { WebsocketProvider } from 'y-websocket';
+import type { CanvasItem, Connection, Property, UmlAttribute, UmlOperation } from './types';
 
-interface HistoryState {
-  canvasItems: CanvasItem[];
-  connections: Connection[];
-}
+// Helper to convert deep JS objects to Y.Map
+const toYMap = (obj: Record<string, any>): Y.Map<any> => {
+  const map = new Y.Map();
+  for (const key in obj) {
+    const value = obj[key];
+    if (Array.isArray(value)) {
+      map.set(key, toYArray(value));
+    } else if (typeof value === 'object' && value !== null) {
+      map.set(key, toYMap(value));
+    } else {
+      map.set(key, value);
+    }
+  }
+  return map;
+};
+
+// Helper to convert deep JS arrays to Y.Array
+const toYArray = (arr: any[]): Y.Array<any> => {
+  const yArr = new Y.Array();
+  arr.forEach(value => {
+    if (Array.isArray(value)) {
+      yArr.push([toYArray(value)]);
+    } else if (typeof value === 'object' && value !== null) {
+      yArr.push([toYMap(value)]);
+    } else {
+      yArr.push([value]);
+    }
+  });
+  return yArr;
+};
+
 
 interface Store {
   boards: string[];
   activeBoard: string | null;
-  boardType: 'Eventstorming' | 'UML';
-  canvasItems: CanvasItem[];
-  connections: Connection[];
-  history: HistoryState[];
-  historyIndex: number;
+  
+  // Y.js related state
+  doc: Y.Doc | null;
+  provider: WebsocketProvider | null;
+  undoManager: Y.UndoManager | null;
+  canvasItems: Y.Array<Y.Map<any>> | null;
+  connections: Y.Array<Y.Map<any>> | null;
+  boardType: Y.Text | null;
+
+  mainView: 'canvas' | 'code-generator';
+  toggleView: () => void;
+
   currentView: 'event-canvas' | 'uml-canvas';
   editingAggregateId: number | null;
+
+  // Methods
   fetchBoards: () => Promise<void>;
   loadBoard: (name: string) => Promise<void>;
-  saveCurrentBoard: () => Promise<void>;
   createNewBoard: (name: string, boardType: 'Eventstorming' | 'UML') => Promise<void>;
   deleteBoard: (name: string) => Promise<void>;
+  
+  addItem: (item: Omit<CanvasItem, 'id'>) => void;
+  updateItem: (item: CanvasItem) => void;
+  deleteItems: (ids: number[]) => void;
+  addConnection: (connection: Omit<Connection, 'id' | 'type'> & { type?: string }) => void;
+  deleteConnections: (ids: string[]) => void;
+
   createTestObjects: () => void;
-  pushState: () => void;
   undo: () => void;
   redo: () => void;
   showUmlCanvas: (aggregateId: number) => void;
@@ -32,13 +75,22 @@ interface Store {
 export const store = reactive<Store>({
   boards: [],
   activeBoard: null,
-  boardType: 'Eventstorming',
-  canvasItems: [],
-  connections: [],
-  history: [],
-  historyIndex: -1,
+  
+  doc: null,
+  provider: null,
+  undoManager: null,
+  canvasItems: null,
+  connections: null,
+  boardType: null,
+
   currentView: 'event-canvas',
   editingAggregateId: null,
+
+  mainView: 'canvas',
+
+  toggleView() {
+    this.mainView = this.mainView === 'canvas' ? 'code-generator' : 'canvas';
+  },
 
   showUmlCanvas(aggregateId: number) {
     this.editingAggregateId = aggregateId;
@@ -50,91 +102,63 @@ export const store = reactive<Store>({
     this.currentView = 'event-canvas';
   },
 
-  pushState() {
-    // clear redo history
-    if (this.historyIndex < this.history.length - 1) {
-      this.history.splice(this.historyIndex + 1);
-    }
-    
-    const state = {
-      canvasItems: JSON.parse(JSON.stringify(toRaw(this.canvasItems))),
-      connections: JSON.parse(JSON.stringify(toRaw(this.connections))),
-    };
-    this.history.push(state);
-    this.historyIndex++;
-  },
-
   undo() {
-    if (this.historyIndex > 0) {
-      this.historyIndex--;
-      const previousState = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
-      this.canvasItems = previousState.canvasItems;
-      this.connections = previousState.connections;
-    }
+    this.undoManager?.undo();
   },
 
   redo() {
-    if (this.historyIndex < this.history.length - 1) {
-      this.historyIndex++;
-      const nextState = JSON.parse(JSON.stringify(this.history[this.historyIndex]));
-      this.canvasItems = nextState.canvasItems;
-      this.connections = nextState.connections;
-    }
+    this.undoManager?.redo();
   },
 
   async fetchBoards() {
-    const response = await fetch('/api/boards');
-    this.boards = await response.json();
-    if (this.boards.length > 0 && !this.activeBoard) {
-      await this.loadBoard(this.boards[0]);
-    } else if (this.boards.length === 0) {
-      this.activeBoard = null;
-      this.canvasItems = [];
-      this.connections = [];
+    try {
+      const response = await fetch('/api/boards');
+      this.boards = await response.json();
+      if (this.boards.length > 0 && !this.activeBoard) {
+        await this.loadBoard(this.boards[0]);
+      } else if (this.boards.length === 0) {
+        this.activeBoard = null;
+        this.doc?.destroy();
+        this.provider?.destroy();
+        this.doc = null;
+        this.provider = null;
+        this.canvasItems = null;
+        this.connections = null;
+      }
+    } catch (error) {
+      console.error("Failed to fetch boards:", error);
     }
   },
 
   async loadBoard(name: string) {
-    const response = await fetch(`/api/boards/${name}`);
-    const data = await response.json();
+    if (this.provider) {
+      this.provider.destroy();
+    }
+    if (this.doc) {
+      this.doc.destroy();
+    }
+
     this.activeBoard = name;
-    // Handle both old (array) and new (object) data structures
-    if (Array.isArray(data)) {
-      this.canvasItems = data;
-      this.connections = [];
-      this.boardType = 'Eventstorming';
-    } else {
-      this.canvasItems = data.items || [];
-      this.connections = data.connections || [];
-      this.boardType = data.boardType || 'Eventstorming';
-    }
+    const doc = new Y.Doc();
+    // Note: The server URL should be configured properly for production.
+    const provider = new WebsocketProvider('ws://localhost:3000', name, doc);
 
-    if (this.boardType === 'UML') {
-      this.currentView = 'uml-canvas';
-    } else {
-      this.currentView = 'event-canvas';
-    }
+    this.doc = doc;
+    this.provider = provider;
+    this.canvasItems = doc.getArray<Y.Map<any>>('canvasItems');
+    this.connections = doc.getArray<Y.Map<any>>('connections');
+    this.boardType = doc.getText('boardType');
+    this.undoManager = new Y.UndoManager([this.canvasItems, this.connections]);
 
-    this.history = [];
-    this.historyIndex = -1;
-    this.pushState();
-  },
-
-  async saveCurrentBoard() {
-    if (!this.activeBoard) return;
-    const boardData = {
-      items: this.canvasItems,
-      connections: this.connections,
-      boardType: this.boardType,
-    };
-    await fetch(`/api/boards/${this.activeBoard}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(boardData, null, 2),
+    provider.on('sync', (isSynced: boolean) => {
+      if (isSynced) {
+        if (this.boardType?.toString() === 'UML') {
+          this.currentView = 'uml-canvas';
+        } else {
+          this.currentView = 'event-canvas';
+        }
       }
-    );
-    alert(`${this.activeBoard} saved!`);
+    });
   },
 
   async createNewBoard(name: string, boardType: 'Eventstorming' | 'UML') {
@@ -142,15 +166,21 @@ export const store = reactive<Store>({
       alert('Invalid or duplicate board name.');
       return;
     }
-    this.canvasItems = [];
-    this.connections = [];
-    this.activeBoard = name;
-    this.boardType = boardType;
-    await this.saveCurrentBoard();
+    
+    // Create an empty board file on the server
+    const boardData = {
+      items: [],
+      connections: [],
+      boardType: boardType,
+    };
+    await fetch(`/api/boards/${name}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(boardData),
+    });
+
     await this.fetchBoards();
-    this.history = [];
-    this.historyIndex = -1;
-    this.pushState();
+    await this.loadBoard(name);
   },
 
   async deleteBoard(name: string) {
@@ -158,42 +188,97 @@ export const store = reactive<Store>({
     await fetch(`/api/boards/${name}`, { method: 'DELETE' });
     if (this.activeBoard === name) {
       this.activeBoard = null;
-      this.canvasItems = [];
-      this.connections = [];
-      this.history = [];
-      this.historyIndex = -1;
+      this.doc?.destroy();
+      this.provider?.destroy();
     }
     await this.fetchBoards();
   },
 
+  addItem(item: Omit<CanvasItem, 'id'>) {
+    if (!this.canvasItems) return;
+    const newItemMap = toYMap({ ...item, id: Date.now() });
+    this.canvasItems.push([newItemMap]);
+  },
+
+  updateItem(item: CanvasItem) {
+    if (!this.canvasItems) return;
+    const index = this.canvasItems.toArray().findIndex(i => i.get('id') === item.id);
+    if (index > -1) {
+      const yItem = this.canvasItems.get(index);
+      this.doc?.transact(() => {
+        for (const key in item) {
+            const a = key as keyof CanvasItem;
+            const value = item[a];
+            if (Array.isArray(value)) {
+                yItem.set(a, toYArray(value));
+            } else {
+                yItem.set(a, value);
+            }
+        }
+      });
+    }
+  },
+
+  deleteItems(ids: number[]) {
+    if (!this.canvasItems) return;
+    const idsSet = new Set(ids);
+    let i = this.canvasItems.length;
+    while (i--) {
+      const item = this.canvasItems.get(i);
+      if (idsSet.has(item.get('id'))) {
+        this.canvasItems.delete(i, 1);
+      }
+    }
+  },
+
+  addConnection(connection: Omit<Connection, 'id'>) {
+    if (!this.connections) return;
+    const newConnMap = toYMap({ 
+        ...connection, 
+        id: `conn-${connection.from}-${connection.to}-${Date.now()}` 
+    });
+    this.connections.push([newConnMap]);
+  },
+
+  deleteConnections(ids: string[]) {
+      if (!this.connections) return;
+      const idsSet = new Set(ids);
+      let i = this.connections.length;
+      while (i--) {
+          const conn = this.connections.get(i);
+          if (idsSet.has(conn.get('id'))) {
+              this.connections.delete(i, 1);
+          }
+      }
+  },
+
   createTestObjects() {
-    if (!this.activeBoard) {
+    if (!this.activeBoard || !this.canvasItems) {
       alert("Please select a board first.");
       return;
     }
-    const items = [];
     const toolTypes = ["Command", "Event", "Aggregate", "Policy", "Actor", "ReadModel"];
     const stageWidth = 3000;
     const stageHeight = 3000;
 
-    for (let i = 0; i < 1000; i++) {
-      const type = toolTypes[Math.floor(Math.random() * toolTypes.length)];
-      const newItem = {
-        id: Date.now() + i,
-        type: type,
-        instanceName: `Test ${type} ${i}`,
-        properties: [],
-        x: Math.random() * stageWidth,
-        y: Math.random() * stageHeight,
-        width: 200,
-        height: 100,
-        rotation: 0,
-        parent: null,
-      };
-      items.push(newItem);
-    }
-    this.canvasItems.push(...items);
-    this.pushState();
+    this.doc?.transact(() => {
+        for (let i = 0; i < 1000; i++) {
+            const type = toolTypes[Math.floor(Math.random() * toolTypes.length)];
+            const newItem = {
+                id: Date.now() + i,
+                type: type,
+                instanceName: `Test ${type} ${i}`,
+                properties: [],
+                x: Math.random() * stageWidth,
+                y: Math.random() * stageHeight,
+                width: 200,
+                height: 100,
+                rotation: 0,
+                parent: null,
+            };
+            this.canvasItems!.push([toYMap(newItem)]);
+        }
+    });
     alert('Created 1000 test objects.');
   },
 });

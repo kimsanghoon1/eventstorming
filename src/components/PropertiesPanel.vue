@@ -307,6 +307,7 @@ input, select {
   cursor: pointer;
   transition: background-color 0.2s;
 }
+
 .add-btn:hover {
   background-color: #218838;
 }

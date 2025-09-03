@@ -38,8 +38,8 @@ const createBoard = () => {
       </select>
       <button @click="createBoard">+ Create</button>
     </div>
-    <button @click="store.saveCurrentBoard()" class="save-all-btn">Save Current Board</button>
     <button @click="store.createTestObjects()" class="test-btn">Create 1000 Test Objects</button>
+    <button @click="store.toggleView()" class="toggle-view-btn">{{ store.mainView === 'canvas' ? 'Show Code Generator' : 'Show Canvas' }}</button>
   </div>
 </template>
 
@@ -105,6 +105,16 @@ h4 {
   padding: 10px;
   background-color: #ffc107;
   color: black;
+  border: none;
+  cursor: pointer;
+}
+
+.toggle-view-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #17a2b8;
+  color: white;
   border: none;
   cursor: pointer;
 }
