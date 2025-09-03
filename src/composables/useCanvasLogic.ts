@@ -16,10 +16,27 @@ export function useCanvasLogic() {
     y2: 0,
   });
 
+  const connectionMode = ref<{ active: boolean; type: string | null; from: number | null }>({ active: false, type: null, from: null });
+
   const stageConfig = ref({
     width: 100,
     height: 100,
   });
+
+  const startConnection = (type: string) => {
+    connectionMode.value = { active: true, type: type, from: null };
+    selectedItems.value = [];
+    if (stageRef.value) {
+        stageRef.value.getStage().container().style.cursor = 'crosshair';
+    }
+  };
+
+  const cancelConnectionMode = () => {
+    connectionMode.value = { active: false, type: null, from: null };
+    if (stageRef.value) {
+        stageRef.value.getStage().container().style.cursor = 'default';
+    }
+  };
 
   const handleResize = () => {
     const wrapper = document.querySelector('.canvas-wrapper');
@@ -36,7 +53,11 @@ export function useCanvasLogic() {
       return;
     }
     if (e.key === 'Escape') {
-      selectedItems.value = [];
+      if (connectionMode.value.active) {
+        cancelConnectionMode();
+      } else {
+        selectedItems.value = [];
+      }
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
       e.preventDefault();
@@ -74,7 +95,7 @@ export function useCanvasLogic() {
   });
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (e.target !== e.target.getStage()) {
+    if (e.target !== e.target.getStage() || connectionMode.value.active) {
       return;
     }
     e.evt.preventDefault();
@@ -142,19 +163,37 @@ export function useCanvasLogic() {
   };
 
   const handleItemClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
-    const isCtrlPressed = e.evt.ctrlKey || e.evt.metaKey;
-    const isItemAlreadySelected = selectedItems.value.some(i => i.id === item.id);
-
-    if (!isCtrlPressed) {
-      if (isItemAlreadySelected && selectedItems.value.length === 1) {
-        return;
-      }
-      selectedItems.value = [item];
-    } else {
-      if (isItemAlreadySelected) {
-        selectedItems.value = selectedItems.value.filter(i => i.id !== item.id);
+    if (connectionMode.value.active && connectionMode.value.type) {
+      if (connectionMode.value.from === null) {
+        connectionMode.value.from = item.id;
       } else {
-        selectedItems.value.push(item);
+        if (connectionMode.value.from !== item.id) {
+          const newConnection: Connection = {
+            id: `conn-${connectionMode.value.from}-${item.id}-${Date.now()}`,
+            from: connectionMode.value.from,
+            to: item.id,
+            type: connectionMode.value.type,
+          };
+          store.connections.push(newConnection);
+          store.pushState();
+        }
+        cancelConnectionMode();
+      }
+    } else {
+      const isCtrlPressed = e.evt.ctrlKey || e.evt.metaKey;
+      const isItemAlreadySelected = selectedItems.value.some(i => i.id === item.id);
+
+      if (!isCtrlPressed) {
+        if (isItemAlreadySelected && selectedItems.value.length === 1) {
+          return;
+        }
+        selectedItems.value = [item];
+      } else {
+        if (isItemAlreadySelected) {
+          selectedItems.value = selectedItems.value.filter(i => i.id !== item.id);
+        } else {
+          selectedItems.value.push(item);
+        }
       }
     }
   };
@@ -205,6 +244,31 @@ export function useCanvasLogic() {
     }
   };
 
+  const handleItemDragStart = (e: Konva.KonvaEventObject<DragEvent>, item: CanvasItem) => {
+    // placeholder for drag start logic
+  };
+
+  const handleItemDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const node = e.target;
+    const id = Number(node.name().split('-')[1]);
+    const item = store.canvasItems.find((i: CanvasItem) => i.id === id);
+    if (item) {
+      item.x = node.x();
+      item.y = node.y();
+    }
+  };
+
+  const handleItemDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const node = e.target;
+    const id = Number(node.name().split('-')[1]);
+    const item = store.canvasItems.find((i: CanvasItem) => i.id === id);
+    if (item) {
+      item.x = node.x();
+      item.y = node.y();
+    }
+    store.pushState();
+  };
+
   watch(selectedItems, updateTransformer);
   watch(() => store.activeBoard, () => { selectedItems.value = []; });
 
@@ -215,10 +279,14 @@ export function useCanvasLogic() {
     selectionRectRef,
     selection,
     stageConfig,
+    startConnection,
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
     handleItemClick,
     handleTransformEnd,
+    handleItemDragStart,
+    handleItemDragMove,
+    handleItemDragEnd,
   };
 }

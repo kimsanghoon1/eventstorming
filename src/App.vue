@@ -42,7 +42,12 @@ header {
 }
 main {
   flex-grow: 1;
-  overflow: auto; /* Allow main content to scroll if needed */
+  overflow: hidden; /* Prevent scrolling in the main area */
+}
+main > div {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 .no-board-selected {
   display: flex;

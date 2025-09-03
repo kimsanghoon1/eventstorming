@@ -14,11 +14,15 @@ const {
   selectionRectRef,
   selection,
   stageConfig,
+  startConnection,
   handleMouseDown,
   handleMouseMove,
   handleMouseUp,
   handleItemClick,
   handleTransformEnd,
+  handleItemDragStart,
+  handleItemDragMove,
+  handleItemDragEnd,
 } = useCanvasLogic();
 
 const umlToolBox = ref([
@@ -34,6 +38,24 @@ const connectionTools = ref([
     { type: 'Composition' },
     { type: 'Generalization' },
 ]);
+
+const connectionPoints = computed(() => {
+  return store.connections.map(conn => {
+    const fromItem = store.canvasItems.find(i => i.id === conn.from);
+    const toItem = store.canvasItems.find(i => i.id === conn.to);
+    if (!fromItem || !toItem) return null;
+
+    const fromX = fromItem.x + fromItem.width / 2;
+    const fromY = fromItem.y + fromItem.height / 2;
+    const toX = toItem.x + toItem.width / 2;
+    const toY = toItem.y + toItem.height / 2;
+
+    return {
+      id: conn.id,
+      points: [fromX, fromY, toX, toY]
+    };
+  }).filter(p => p !== null);
+});
 
 let draggedTool = ref<{id: number, type: string} | null>(null);
 const handleToolDragStart = (tool: {id: number, type: string}) => { draggedTool.value = tool; };
@@ -73,6 +95,11 @@ const handleDrop = (e: DragEvent) => {
   if (['Class', 'Interface', 'Component', 'Package'].includes(newItem.type)) {
     newItem.height = calculateUmlItemHeight(newItem);
   }
+
+  // Adjust position to center the item on the cursor
+  newItem.x = pos.x - (newItem.width / 2);
+  newItem.y = pos.y - (newItem.height / 2);
+
   store.canvasItems.push(newItem);
   draggedTool.value = null;
   store.pushState();
@@ -112,7 +139,7 @@ watch(() => store.canvasItems, (newItems) => {
       </div>
       <hr />
       <h4>Connections</h4>
-      <div v-for="tool in connectionTools" :key="tool.type" class="tool-item">
+      <div v-for="tool in connectionTools" :key="tool.type" class="tool-item" @click="startConnection(tool.type)">
         {{ tool.type }}
       </div>
       <hr />
@@ -137,6 +164,17 @@ watch(() => store.canvasItems, (newItems) => {
             @dragmove="handleItemDragMove"
             @dragend="handleItemDragEnd($event)"
             @transformend="handleTransformEnd"
+          />
+
+          <v-arrow 
+            v-for="conn in connectionPoints" 
+            :key="conn.id" 
+            :config="{ 
+              points: conn.points, 
+              stroke: 'black', 
+              fill: 'black', 
+              strokeWidth: 2 
+            }" 
           />
 
           <v-transformer 

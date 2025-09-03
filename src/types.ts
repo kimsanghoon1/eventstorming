@@ -3,11 +3,36 @@ export interface Property {
   value: string;
 }
 
+export interface UmlParameter {
+  name: string;
+  type: string;
+  direction: 'in' | 'out' | 'inout';
+}
+
+export interface UmlAttribute {
+  visibility: 'public' | 'private' | 'protected' | 'package';
+  name: string;
+  type: string;
+  defaultValue?: string;
+}
+
+export interface UmlOperation {
+  visibility: 'public' | 'private' | 'protected' | 'package';
+  name: string;
+  parameters: UmlParameter[];
+  returnType: string;
+}
+
 export interface CanvasItem {
   id: number;
-  type: string; // e.g., 'Command', 'Event'
-  instanceName: string; // e.g., 'CreateUser', 'UserCreated'
+  type: string;
+  instanceName: string;
   properties: Property[];
+  
+  attributes?: UmlAttribute[];
+  methods?: UmlOperation[];
+  isAggregateRoot?: boolean;
+
   x: number;
   y: number;
   width: number;
@@ -20,6 +45,9 @@ export interface CanvasItem {
 
 export interface Connection {
   id: string;
-  from: number; // ID of the source CanvasItem
-  to: number;   // ID of the target CanvasItem
+  from: number;
+  to: number;
+  type: string;
+  sourceMultiplicity?: string;
+  targetMultiplicity?: string;
 }
