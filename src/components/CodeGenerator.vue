@@ -1,26 +1,36 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import axios from 'axios';
+import { store } from '../store';
 
-const prompt = ref('');
 const apiKey = ref('');
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 
 const generateCode = async () => {
-  if (!prompt.value || !apiKey.value) {
-    error.value = 'Please provide a prompt and your API key.';
+  if (!store.activeBoard) {
+    error.value = 'Please select an active board first.';
+    return;
+  }
+  if (!apiKey.value) {
+    error.value = 'Please provide your API key.';
     return;
   }
 
   isLoading.value = true;
   error.value = null;
 
+  const modelData = {
+    items: store.canvasItems?.toJSON() ?? [],
+    connections: store.connections?.toJSON() ?? [],
+    boardType: store.boardType?.toString() ?? 'Eventstorming',
+  };
+
   try {
     const response = await axios.post(
       '/api/generate-code',
       {
-        prompt: prompt.value,
+        modelData: modelData,
         apiKey: apiKey.value,
       },
       {
@@ -31,7 +41,7 @@ const generateCode = async () => {
     const blob = new Blob([response.data], { type: 'application/zip' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'generated-code.zip';
+    link.download = `${store.activeBoard}-code.zip`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -51,21 +61,11 @@ const generateCode = async () => {
   <div class="code-generator-view">
     <div class="container">
       <h2>AI Code Generator (Clean Architecture)</h2>
-      <p>Describe the application or component you want to build. The AI will generate the code and provide it as a downloadable Zip file.</p>
+      <p>Click the button to generate source code based on the current diagram model. The AI will generate the code and provide it as a downloadable Zip file.</p>
       
       <div class="form-group">
         <label for="api-key">Gemini API Key</label>
         <input id="api-key" type="password" v-model="apiKey" placeholder="Enter your Gemini API Key" />
-      </div>
-
-      <div class="form-group">
-        <label for="prompt">Prompt</label>
-        <textarea 
-          id="prompt"
-          v-model="prompt"
-          rows="10"
-          placeholder="e.g., Create a simple CRUD API for a 'Product' entity in Express.js with in-memory storage. Include basic validation."
-        ></textarea>
       </div>
 
       <button @click="generateCode" :disabled="isLoading">
@@ -75,6 +75,10 @@ const generateCode = async () => {
 
       <div v-if="error" class="error-message">
         <p>{{ error }}</p>
+      </div>
+
+      <div class="notice">
+        <p><strong>Note:</strong> This tool sends the structure of your current diagram (names, properties, and relationships of items) to the Gemini API to generate code.</p>
       </div>
     </div>
   </div>
@@ -120,8 +124,7 @@ label {
   font-weight: bold;
 }
 
-input,
-textarea {
+input {
   width: 100%;
   padding: 0.75rem;
   border: 1px solid #ced4da;
@@ -159,5 +162,14 @@ button:not(:disabled):hover {
   padding: 1rem;
   border-radius: 4px;
   text-align: center;
+}
+
+.notice {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: #495057;
 }
 </style>

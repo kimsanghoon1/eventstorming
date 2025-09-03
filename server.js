@@ -164,18 +164,27 @@ app.delete('/api/boards/:name', (req, res) => {
 // --- New Code Generation Endpoint ---
 
 app.post('/api/generate-code', async (req, res) => {
-  const { prompt, apiKey } = req.body;
+  const { modelData, apiKey } = req.body;
 
-  if (!prompt || !apiKey) {
-    return res.status(400).send('Prompt and API key are required.');
+  if (!modelData || !apiKey) {
+    return res.status(400).send('Model data and API key are required.');
   }
 
-  const fullPrompt = `
-You are an expert software architect. Based on the following request, generate all the necessary files for the project. Your response must be a single, valid JSON object. This JSON object should have file paths as keys (e.g., 'src/index.js') and the corresponding code as string values.
+  const secretPrompt = `
+You are an expert software architect specializing in Domain-Driven Design and Clean Architecture. Your task is to generate a complete, runnable source code project based on the domain model provided below.
 
-Do not include any text, explanation, or markdown formatting before or after the JSON object. The entire response should be only the JSON object itself.
+The domain model is described using a simplified JSON format that represents elements from EventStorming and UML diagrams.
 
-Request: "${prompt}"
+**Instructions:**
+1.  Analyze the provided JSON model which includes canvas items (like Aggregates, Commands, Events, Policies, Actors, ReadModels, and UML Classes/Interfaces) and their connections.
+2.  Interpret the relationships between these elements to understand the business logic and system workflow.
+3.  Generate a full source code project that implements the described domain model.
+4.  The architecture of the generated code must strictly follow the principles of Clean Architecture. Organize the code into clear layers: Domain, Application, Infrastructure, and Presentation/API.
+5.  The final output must be a single, valid JSON object. This JSON object should have file paths as keys (e.g., 'src/domain/product.js') and the corresponding code as string values.
+6.  Do not include any text, explanation, or markdown formatting before or after the JSON object. The entire response must be only the JSON object itself.
+
+**Domain Model (JSON):**
+${JSON.stringify(modelData, null, 2)}
 `;
 
   try {
@@ -185,7 +194,7 @@ Request: "${prompt}"
         contents: [
           {
             parts: [
-              { text: fullPrompt },
+              { text: secretPrompt },
             ],
           },
         ],
