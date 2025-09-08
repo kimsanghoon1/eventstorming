@@ -1,20 +1,18 @@
-import express from 'express';
-import cors from 'cors';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import http from 'http';
-import { WebSocketServer } from 'ws';
-import * as Y from 'yjs';
-import { setupWSConnection, docs } from 'y-websocket/bin/utils.js';
-import axios from 'axios';
-import archiver from 'archiver';
+const express = require('express');
+const cors = require('cors');
+const fs = require('fs');
+const path = require('path');
+const http = require('http');
+const { WebSocketServer } = require('ws');
+const Y = require('yjs');
+const { setupWSConnection } = require('y-websocket/bin/utils');
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const docs = new Map();
+const axios = require('axios');
+const archiver = require('archiver');
 
 const app = express();
-const port = 3000;
+const port = 3001;
 
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
@@ -202,7 +200,7 @@ ${JSON.stringify(modelData, null, 2)}
     );
 
     const content = response.data.candidates[0].content.parts[0].text;
-    const cleanedContent = content.replace(/^\`\`\`json\n|\`\`\`$/g, '');
+    const cleanedContent = content.replace(/^```json\n|```$/g, '');
     const files = JSON.parse(cleanedContent);
 
     const archive = archiver('zip', {
