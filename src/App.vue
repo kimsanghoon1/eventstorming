@@ -2,7 +2,7 @@
 import { store } from './store';
 import BoardSwitcher from './components/BoardSwitcher.vue';
 import MainCanvas from './components/MainCanvas.vue';
-import CodeGenerator from './components/CodeGenerator.vue';
+import CodeGeneratorDialog from './components/CodeGeneratorDialog.vue';
 </script>
 
 <template>
@@ -11,13 +11,9 @@ import CodeGenerator from './components/CodeGenerator.vue';
       <BoardSwitcher />
     </header>
     <main>
-      <template v-if="store.mainView === 'canvas'">
-        <MainCanvas />
-      </template>
-      <template v-else-if="store.mainView === 'code-generator'">
-        <CodeGenerator />
-      </template>
+      <MainCanvas />
     </main>
+    <CodeGeneratorDialog v-if="store.isCodeGeneratorOpen" />
   </div>
 </template>
 
