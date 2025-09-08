@@ -47,6 +47,14 @@
       "type": "Composition",
       "sourceMultiplicity": "1",
       "targetMultiplicity": "1..*"
+    },
+    {
+      "id": "conn-1-3",
+      "from": 1,
+      "to": 3,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": ""
     }
   ],
   "boardType": "UML"

@@ -39,6 +39,7 @@ const connectionTools = ref([
     { type: 'Aggregation' },
     { type: 'Composition' },
     { type: 'Generalization' },
+    { type: 'Dependency' },
 ]);
 
 let draggedTool = ref<{id: number, type: string} | null>(null);

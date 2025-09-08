@@ -9,32 +9,32 @@ const props = defineProps({
 });
 
 const getEdgePoint = (source: CanvasItem, target: CanvasItem) => {
-    const sx = source.x + source.width / 2;
-    const sy = source.y + source.height / 2;
-    const tx = target.x + target.width / 2;
-    const ty = target.y + target.height / 2;
+    const sx = source.x;
+    const sy = source.y;
+    const sw = source.width;
+    const sh = source.height;
+    const tx = target.x;
+    const ty = target.y;
+    const tw = target.width;
+    const th = target.height;
 
-    const dx = tx - sx;
-    const dy = ty - sy;
+    const sourceCenter = { x: sx + sw / 2, y: sy + sh / 2 };
+    const targetCenter = { x: tx + tw / 2, y: ty + th / 2 };
+
+    const dx = targetCenter.x - sourceCenter.x;
+    const dy = targetCenter.y - sourceCenter.y;
 
     const angle = Math.atan2(dy, dx);
 
-    const halfW = source.width / 2;
-    const halfH = source.height / 2;
-
-    const tan = Math.tan(angle);
-    const region = (angle > -Math.PI / 4 && angle <= Math.PI / 4) ? 1 :
-                   (angle > Math.PI / 4 && angle <= 3 * Math.PI / 4) ? 2 :
-                   (angle > 3 * Math.PI / 4 || angle <= -3 * Math.PI / 4) ? 3 : 4;
-
-    let x, y;
-    switch (region) {
-        case 1: x = sx + halfW; y = sy + halfW * tan; break;
-        case 2: x = sx + halfH / tan; y = sy + halfH; break;
-        case 3: x = sx - halfW; y = sy - halfW * tan; break;
-        case 4: x = sx - halfH / tan; y = sy - halfH; break;
+    if (angle > -Math.PI / 4 && angle <= Math.PI / 4) { // Right
+        return { x: sx + sw, y: sourceCenter.y };
+    } else if (angle > Math.PI / 4 && angle <= 3 * Math.PI / 4) { // Bottom
+        return { x: sourceCenter.x, y: sy + sh };
+    } else if (angle > 3 * Math.PI / 4 || angle <= -3 * Math.PI / 4) { // Left
+        return { x: sx, y: sourceCenter.y };
+    } else { // Top
+        return { x: sourceCenter.x, y: sy };
     }
-    return { x, y };
 };
 
 const fromPos = computed(() => getEdgePoint(props.fromItem, props.toItem));
@@ -94,6 +94,16 @@ const diamondPos = computed(() => ({
                 rotation: (angle * 180 / Math.PI) + 45,
             }" />
         </v-group>
+
+        <!-- Dependency -->
+        <v-arrow v-else-if="connection.type === 'Dependency'" :config="{
+            points: [fromPos.x, fromPos.y, toPos.x, toPos.y],
+            stroke: 'black',
+            strokeWidth: 2,
+            pointerLength: arrowSize,
+            pointerWidth: arrowSize,
+            dash: [10, 5],
+        }" />
 
         <!-- Association (Default) -->
         <v-arrow v-else :config="{

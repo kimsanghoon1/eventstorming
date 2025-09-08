@@ -303,27 +303,20 @@ export function useCanvasLogic() {
   };
 
   const handleItemDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
-    const stage = stageRef.value?.getStage();
     const draggedNode = e.target;
-    const draggedItemId = Number(draggedNode.name().split('-')[1]);
-    
-    if (!stage || !dragStartPositions.value.has(draggedItemId)) return;
+    const startPos = dragStartPositions.value.get(Number(draggedNode.name().split('-')[1]));
 
-    const startPos = dragStartPositions.value.get(draggedItemId);
     if (!startPos) return;
 
     const dx = draggedNode.x() - startPos.x;
     const dy = draggedNode.y() - startPos.y;
 
-    store.doc?.transact(() => {
-      dragStartPositions.value.forEach((initialPos, itemId) => {
-        const index = store.canvasItems?.toArray().findIndex(i => i.get('id') === itemId);
-        if (index !== undefined && index > -1) {
-          const yItem = store.canvasItems!.get(index);
-          yItem.set('x', initialPos.x + dx);
-          yItem.set('y', initialPos.y + dy);
+    dragStartPositions.value.forEach((initialPos, itemId) => {
+        const node = stageRef.value?.getStage().findOne('.item-' + itemId);
+        if (node && node !== draggedNode) {
+            node.x(initialPos.x + dx);
+            node.y(initialPos.y + dy);
         }
-      });
     });
   };
 
@@ -334,6 +327,21 @@ export function useCanvasLogic() {
       return;
     }
 
+    store.doc?.transact(() => {
+        dragStartPositions.value.forEach((_, itemId) => {
+            const node = stage.findOne('.item-' + itemId);
+            if (node) {
+                const index = store.canvasItems!.toArray().findIndex(i => i.get('id') === itemId);
+                if (index > -1) {
+                    const yItem = store.canvasItems!.get(index);
+                    yItem.set('x', node.x());
+                    yItem.set('y', node.y());
+                }
+            }
+        });
+    });
+
+    // After updating the store, check for parent changes
     const draggedNode = e.target;
     const draggedItemId = Number(draggedNode.name().split('-')[1]);
     const draggedItem = store.canvasItems.toArray().find(i => i.get('id') === draggedItemId)?.toJSON();
