@@ -19,9 +19,40 @@ export function useCanvasLogic() {
   const connectionMode = ref<{ active: boolean; type: string | null; from: number | null }>({ active: false, type: null, from: null });
 
   const stageConfig = ref({
-    width: 100,
-    height: 100,
+    width: window.innerWidth,
+    height: window.innerHeight,
   });
+
+  const updateStageSize = () => {
+    const items = store.canvasItems?.toJSON() ?? [];
+    const padding = 200;
+    const wrapper = document.querySelector('.canvas-wrapper');
+    const viewportWidth = wrapper ? wrapper.clientWidth : window.innerWidth;
+    const viewportHeight = wrapper ? wrapper.clientHeight : window.innerHeight;
+
+    if (items.length === 0) {
+        stageConfig.value = {
+            width: viewportWidth,
+            height: viewportHeight,
+        };
+        return;
+    }
+
+    let maxX = 0;
+    let maxY = 0;
+
+    items.forEach(item => {
+        maxX = Math.max(maxX, item.x + item.width);
+        maxY = Math.max(maxY, item.y + item.height);
+    });
+
+    stageConfig.value = {
+        width: Math.max(maxX + padding, viewportWidth),
+        height: Math.max(maxY + padding, viewportHeight),
+    };
+  };
+
+  watch(() => store.canvasItems, updateStageSize, { deep: true });
 
   const startConnection = (type: string) => {
     connectionMode.value = { active: true, type: type, from: null };
@@ -35,16 +66,6 @@ export function useCanvasLogic() {
     connectionMode.value = { active: false, type: null, from: null };
     if (stageRef.value) {
         stageRef.value.getStage().container().style.cursor = 'default';
-    }
-  };
-
-  const handleResize = () => {
-    const wrapper = document.querySelector('.canvas-wrapper');
-    if (wrapper) {
-      stageConfig.value = {
-        width: wrapper.clientWidth,
-        height: wrapper.clientHeight,
-      };
     }
   };
 
@@ -93,14 +114,14 @@ export function useCanvasLogic() {
   };
 
   onMounted(() => {
-    handleResize();
-    window.addEventListener('resize', handleResize);
+    updateStageSize();
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', updateStageSize);
   });
 
   onBeforeUnmount(() => {
-    window.removeEventListener('resize', handleResize);
     window.removeEventListener('keydown', handleKeyDown);
+    window.removeEventListener('resize', updateStageSize);
   });
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -182,6 +203,8 @@ export function useCanvasLogic() {
             from: connectionMode.value.from,
             to: item.id,
             type: connectionMode.value.type,
+            sourceMultiplicity: '1',
+            targetMultiplicity: '1',
           });
         }
         cancelConnectionMode();

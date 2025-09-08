@@ -31,8 +31,7 @@ const connectionsJSON = computed(() => store.connections?.toJSON() ?? []);
 const umlToolBox = ref([
   { id: 1, type: "Class" },
   { id: 2, type: "Interface" },
-  { id: 3, type: "Component" },
-  { id: 4, type: "Package" },
+  { id: 3, type: "Enum" },
 ]);
 
 const connectionTools = ref([
@@ -173,5 +172,5 @@ const getConnectionItems = (conn: any) => {
 .container { display: flex; width: 100%; height: 100%; flex-direction: row; }
 .toolbox { width: 200px; padding: 15px; border-right: 1px solid #ccc; background-color: #f7f7f7; flex-shrink: 0; }
 .tool-item { padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; cursor: grab; text-align: center; font-weight: bold; }
-.canvas-wrapper { flex-grow: 1; overflow: hidden; }
+.canvas-wrapper { flex-grow: 1; overflow: auto; }
 </style>

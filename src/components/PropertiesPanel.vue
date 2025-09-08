@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { defineProps, defineEmits, ref, watch, nextTick, computed } from 'vue';
 import { store } from '../store';
-import type { CanvasItem, UmlAttribute, UmlOperation, UmlParameter, Property } from "../types";
+import type { CanvasItem, Connection, UmlAttribute, UmlOperation, UmlParameter, Property } from "../types";
 
 const props = defineProps({
   modelValue: Object as () => CanvasItem
@@ -10,6 +10,20 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue']);
 
 const localItem = ref<any>({});
+const newEnumValue = ref('');
+
+const classStereotypes = ['', 'AggregateRoot', 'Entity', 'ValueObject', 'Factory'];
+const interfaceStereotypes = ['', 'Service', 'Policy', 'Factory'];
+
+const availableStereotypes = computed(() => {
+    if (props.modelValue?.type === 'Class') {
+        return classStereotypes;
+    }
+    if (props.modelValue?.type === 'Interface') {
+        return interfaceStereotypes;
+    }
+    return [];
+});
 
 watch(() => props.modelValue, (newItem) => {
   if (newItem) {
@@ -21,11 +35,26 @@ const umlBoards = computed(() => {
   return store.boards.filter(b => b.type === 'UML');
 });
 
+const connections = computed(() => {
+    if (!store.connections || !props.modelValue) return [];
+    return store.connections.toJSON().filter(c => c.from === props.modelValue!.id || c.to === props.modelValue!.id);
+});
+
+const getConnectedItemName = (conn: Connection) => {
+    const otherId = conn.from === localItem.value.id ? conn.to : conn.from;
+    const otherItem = store.canvasItems?.toJSON().find(i => i.id === otherId);
+    return otherItem?.instanceName || 'Unknown';
+};
+
 const update = () => {
   nextTick(() => {
     emit('update:modelValue', localItem.value);
   });
 };
+
+const updateConnection = (conn: Connection) => {
+    store.updateConnection(conn);
+}
 
 const addProperty = () => {
   if (!localItem.value.properties) {
@@ -78,6 +107,22 @@ const removeMethod = (index: number) => {
   update();
 };
 
+const addEnumValue = () => {
+    if (!localItem.value.enumValues) {
+        localItem.value.enumValues = [];
+    }
+    if (newEnumValue.value) {
+        localItem.value.enumValues.push(newEnumValue.value);
+        newEnumValue.value = '';
+        update();
+    }
+};
+
+const removeEnumValue = (index: number) => {
+    localItem.value.enumValues.splice(index, 1);
+    update();
+};
+
 const formatParams = (params: UmlParameter[] | undefined) => {
   if (!params) return '';
   return params.map(p => `${p.name}: ${p.type}`).join(', ');
@@ -103,6 +148,15 @@ const goToLinkedDiagram = () => {
       <input v-model="localItem.instanceName" @blur="update" />
     </div>
 
+    <div v-if="modelValue.type === 'Class' || modelValue.type === 'Interface'" class="form-section">
+        <label>Stereotype:</label>
+        <select v-model="localItem.stereotype" @change="update">
+            <option v-for="stereotype in availableStereotypes" :key="stereotype" :value="stereotype || undefined">
+                {{ stereotype || 'None' }}
+            </option>
+        </select>
+    </div>
+
     <div v-if="modelValue.type === 'Aggregate'" class="form-section">
       <label for="linked-diagram">Linked UML Diagram:</label>
       <select id="linked-diagram" v-model="localItem.linkedDiagram" @change="update">
@@ -121,15 +175,8 @@ const goToLinkedDiagram = () => {
       </button>
     </div>
 
-    <div v-if="modelValue.type === 'Class'" class="form-section">
-        <label class="checkbox-label">
-            <input type="checkbox" v-model="localItem.isAggregateRoot" @change="update" />
-            <span>Is Aggregate Root</span>
-        </label>
-    </div>
-
     <!-- Generic Properties for EventCanvas -->
-    <div v-if="!['Class', 'Interface'].includes(modelValue.type)" class="properties-section">
+    <div v-if="!['Class', 'Interface', 'Enum'].includes(modelValue.type)" class="properties-section">
       <h4>Fields</h4>
       <div v-for="(prop, index) in localItem.properties" :key="index" class="property-item">
         <input v-model="prop.key" @blur="update" placeholder="Key" class="key-input" />
@@ -142,6 +189,23 @@ const goToLinkedDiagram = () => {
         </button>
       </div>
       <button @click="addProperty" class="add-btn">+ Add Field</button>
+    </div>
+
+    <!-- Enum Values -->
+    <div v-if="modelValue.type === 'Enum'" class="properties-section">
+        <h4>Enum Values</h4>
+        <div v-for="(enumValue, index) in localItem.enumValues" :key="index" class="property-item">
+            <input v-model="localItem.enumValues[index]" @blur="update" placeholder="Value" class="value-input" />
+            <button @click="removeEnumValue(index)" class="delete-btn" title="Remove Value">
+                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                    <path d="M 10 2 L 9 3 L 4 3 L 4 5 L 20 5 L 20 3 L 15 3 L 14 2 L 10 2 z M 5 7 L 5 22 L 19 22 L 19 7 L 5 7 z M 8 9 L 10 9 L 10 20 L 8 20 L 8 9 z M 14 9 L 16 9 L 16 20 L 14 20 L 14 9 z"/>
+                </svg>
+            </button>
+        </div>
+        <div class="property-item">
+            <input v-model="newEnumValue" @keyup.enter="addEnumValue" placeholder="New value" class="value-input" />
+            <button @click="addEnumValue" class="add-btn" style="margin-top: 0; width: auto; padding: 6px 10px;">+</button>
+        </div>
     </div>
 
     <!-- Specific Properties for UmlCanvas -->
@@ -188,6 +252,29 @@ const goToLinkedDiagram = () => {
         </button>
       </div>
       <button @click="addMethod" class="add-btn">+ Add Method</button>
+    </div>
+
+    <!-- Connections & Multiplicity -->
+    <div v-if="connections.length > 0" class="properties-section">
+        <h4>Connections</h4>
+        <div v-for="conn in connections" :key="conn.id" class="connection-item">
+            <div class="conn-name">{{ getConnectedItemName(conn) }}</div>
+            <div class="multiplicity-group">
+                <input 
+                    v-model="conn.sourceMultiplicity" 
+                    @blur="updateConnection(conn)" 
+                    :disabled="conn.to === localItem.id" 
+                    placeholder="src"
+                />
+                <span>..</span>
+                <input 
+                    v-model="conn.targetMultiplicity" 
+                    @blur="updateConnection(conn)" 
+                    :disabled="conn.from === localItem.id" 
+                    placeholder="tgt"
+                />
+            </div>
+        </div>
     </div>
 
   </div>
@@ -240,6 +327,7 @@ label {
     width: auto;
 }
 input, select {
+  width: 100%;
   padding: 6px;
   border: 1px solid #ced4da;
   border-radius: 4px;
@@ -253,7 +341,7 @@ input, select {
   font-size: 1.1em;
 }
 
-.property-item {
+.property-item, .attribute-item, .method-item, .connection-item {
   display: flex;
   align-items: center;
   margin-bottom: 8px;
@@ -262,18 +350,12 @@ input, select {
 .key-input { flex: 1; }
 .value-input { flex: 2; }
 
-.attribute-item, .method-item {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-  gap: 5px;
-}
-
 .attribute-item select {
-  flex: 1.2;
+  flex-basis: 100px;
+  flex-grow: 0;
 }
 .attribute-item input {
-  flex: 1.5;
+  flex-grow: 1;
 }
 
 .method-item {
@@ -288,11 +370,12 @@ input, select {
 }
 
 .method-main select {
-    flex: 1.2;
+    flex-basis: 100px;
+    flex-grow: 0;
 }
 
 .method-main input {
-    flex: 1.5;
+    flex-grow: 1;
 }
 
 .method-main .params {
@@ -338,5 +421,20 @@ input, select {
 
 .add-btn:hover {
   background-color: #218838;
+}
+
+.connection-item {
+    justify-content: space-between;
+}
+.conn-name {
+    font-weight: bold;
+}
+.multiplicity-group {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+.multiplicity-group input {
+    width: 60px;
 }
 </style>

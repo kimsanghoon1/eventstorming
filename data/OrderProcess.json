@@ -1,0 +1,27 @@
+{
+  "items": [
+    { "id": 1, "type": "Actor", "instanceName": "Customer", "x": 50, "y": 200, "width": 150, "height": 80 },
+    { "id": 2, "type": "Command", "instanceName": "PlaceOrder", "x": 250, "y": 200, "width": 150, "height": 80 },
+    { "id": 3, "type": "Aggregate", "instanceName": "Order", "linkedDiagram": "OrderAggregate", "x": 450, "y": 200, "width": 150, "height": 80 },
+    { "id": 4, "type": "Event", "instanceName": "OrderPlaced", "x": 650, "y": 200, "width": 150, "height": 80 },
+    { "id": 5, "type": "Policy", "instanceName": "Check Inventory on Order", "x": 850, "y": 200, "width": 150, "height": 80 },
+    { "id": 6, "type": "Command", "instanceName": "ReserveInventory", "x": 1050, "y": 350, "width": 150, "height": 80 },
+    { "id": 7, "type": "Aggregate", "instanceName": "Inventory", "linkedDiagram": "InventoryAggregate", "x": 1250, "y": 350, "width": 150, "height": 80 },
+    { "id": 8, "type": "Event", "instanceName": "InventoryReserved", "x": 1450, "y": 350, "width": 150, "height": 80 },
+    { "id": 9, "type": "Command", "instanceName": "ConfirmOrder", "x": 1650, "y": 200, "width": 150, "height": 80 },
+    { "id": 10, "type": "Event", "instanceName": "OrderConfirmed", "x": 1850, "y": 200, "width": 150, "height": 80 }
+  ],
+  "connections": [
+    { "id": "c1", "from": 1, "to": 2, "type": "Association" },
+    { "id": "c2", "from": 2, "to": 3, "type": "Association" },
+    { "id": "c3", "from": 3, "to": 4, "type": "Association" },
+    { "id": "c4", "from": 4, "to": 5, "type": "Association" },
+    { "id": "c5", "from": 5, "to": 6, "type": "Association" },
+    { "id": "c6", "from": 6, "to": 7, "type": "Association" },
+    { "id": "c7", "from": 7, "to": 8, "type": "Association" },
+    { "id": "c8", "from": 8, "to": 9, "type": "Association" },
+    { "id": "c9", "from": 9, "to": 3, "type": "Association" },
+    { "id": "c10", "from": 3, "to": 10, "type": "Association" }
+  ],
+  "boardType": "Eventstorming"
+}

@@ -6,9 +6,10 @@ const path = require('path');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const Y = require('yjs');
-const { setupWSConnection } = require('y-websocket/bin/utils');
-
-const docs = new Map();
+const syncProtocol = require('y-protocols/sync');
+const awarenessProtocol = require('y-protocols/awareness');
+const encoding = require('lib0/encoding');
+const decoding = require('lib0/decoding');
 const axios = require('axios');
 const archiver = require('archiver');
 
@@ -28,6 +29,11 @@ app.use(express.json({ limit: '50mb' }));
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
+const docs = new Map();
+
+const messageSync = 0;
+const messageAwareness = 1;
+
 const debounce = (fn, delay) => {
   let timeoutId;
   return (...args) => {
@@ -36,67 +42,113 @@ const debounce = (fn, delay) => {
   };
 };
 
+const debouncedSave = debounce((doc, docName) => {
+    const filePath = path.join(dataDir, `${docName}.json`);
+    const yItems = doc.getArray('canvasItems');
+    const yConnections = doc.getArray('connections');
+    const yBoardType = doc.getText('boardType');
+    const boardData = {
+        items: yItems.toJSON(),
+        connections: yConnections.toJSON(),
+        boardType: yBoardType.toString(),
+    };
+    fs.writeFile(filePath, JSON.stringify(boardData, null, 2), err => {
+        if (err) {
+            console.error('Error saving board:', err);
+        }
+    });
+}, 2000);
+
 const getDoc = (docname, gc = true) => {
-  const doc = docs.get(docname) || new Y.Doc();
-  doc.gc = gc;
-  
-  if (!docs.has(docname)) {
+  let doc = docs.get(docname);
+  if (doc === undefined) {
+    doc = new Y.Doc();
+    doc.gc = gc;
+    doc.name = docname;
+
     const filePath = path.join(dataDir, `${docname}.json`);
-    
     if (fs.existsSync(filePath)) {
       try {
         const fileContent = fs.readFileSync(filePath, 'utf8');
-        const boardData = JSON.parse(fileContent);
-        const yItems = doc.getArray('canvasItems');
-        const yConnections = doc.getArray('connections');
-        const yBoardType = doc.getText('boardType');
-        
-        doc.transact(() => {
-          if (boardData.boardType) {
-            yBoardType.insert(0, boardData.boardType);
-          }
-          (boardData.items || []).forEach(item => yItems.push([new Y.Map(Object.entries(item))]));
-          (boardData.connections || []).forEach(conn => yConnections.push([new Y.Map(Object.entries(conn))]));
-        });
+        if (fileContent) {
+            const boardData = JSON.parse(fileContent);
+            const yItems = doc.getArray('canvasItems');
+            const yConnections = doc.getArray('connections');
+            const yBoardType = doc.getText('boardType');
+            
+            doc.transact(() => {
+              if (boardData.boardType) {
+                yBoardType.insert(0, boardData.boardType);
+              }
+              (boardData.items || []).forEach(item => yItems.push([new Y.Map(Object.entries(item))]));
+              (boardData.connections || []).forEach(conn => yConnections.push([new Y.Map(Object.entries(conn))]));
+            });
+        }
       } catch (e) {
         console.error('Error parsing board data on load:', e);
       }
     }
 
-    const saveDebounced = debounce(() => {
-      const yItems = doc.getArray('canvasItems');
-      const yConnections = doc.getArray('connections');
-      const yBoardType = doc.getText('boardType');
+    doc.on('update', (update, origin) => {
+        const encoder = encoding.createEncoder();
+        encoding.writeVarUint(encoder, messageSync);
+        syncProtocol.writeUpdate(encoder, update);
+        const message = encoding.toUint8Array(encoder);
+        doc.conns.forEach(conn => conn.send(message));
+    });
 
-      const boardData = {
-        items: yItems.toJSON(),
-        connections: yConnections.toJSON(),
-        boardType: yBoardType.toString(),
-      };
+    doc.on('update', () => debouncedSave(doc, docname));
 
-      fs.writeFile(filePath, JSON.stringify(boardData, null, 2), (err) => {
-        if (err) {
-          console.error('Error saving board:', err);
-        }
-      });
-    }, 2000);
-
-    doc.on('update', saveDebounced);
     docs.set(docname, doc);
   }
   return doc;
 };
 
 wss.on('connection', (conn, req) => {
+  conn.binaryType = 'arraybuffer';
   const url = new URL(req.url, `http://${req.headers.host}`);
   const docName = url.searchParams.get('room');
 
-  if (docName) {
-    const doc = getDoc(docName);
-    setupWSConnection(conn, req, { doc });
-  } else {
+  if (!docName) {
     conn.close();
+    return;
   }
+
+  const doc = getDoc(docName);
+  doc.conns = doc.conns || new Set();
+  doc.conns.add(conn);
+
+  conn.on('message', (message) => {
+    try {
+        const encoder = encoding.createEncoder();
+        const decoder = decoding.createDecoder(new Uint8Array(message));
+        const messageType = decoding.readVarUint(decoder);
+
+        switch (messageType) {
+            case messageSync:
+                encoding.writeVarUint(encoder, messageSync);
+                syncProtocol.readSyncMessage(decoder, encoder, doc, null);
+                if (encoding.length(encoder) > 1) {
+                    conn.send(encoding.toUint8Array(encoder));
+                }
+                break;
+        }
+    } catch (err) {
+        console.error(err);
+    }
+  });
+
+  conn.on('close', () => {
+    if (doc.conns) {
+        doc.conns.delete(conn);
+    }
+  });
+
+  // Send initial state
+  const encoder = encoding.createEncoder();
+  encoding.writeVarUint(encoder, messageSync);
+  syncProtocol.writeSyncStep1(encoder, doc);
+  conn.send(encoding.toUint8Array(encoder));
 });
 
 
@@ -156,6 +208,7 @@ app.post('/api/boards/:name', (req, res) => {
     if (err) {
       return res.status(500).send('Error saving board');
     }
+    // Prime the doc cache
     getDoc(boardName); 
     res.status(200).send('Board saved successfully');
   });

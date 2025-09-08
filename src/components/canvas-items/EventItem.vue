@@ -27,10 +27,15 @@ const colorMap: Record<string, string> = {
       fill: colorMap[item.type],
       stroke: highlighted ? '#007bff' : 'black',
       strokeWidth: 2,
-      cornerRadius: 5
+      cornerRadius: 5,
+      shadowColor: 'black',
+      shadowBlur: 10,
+      shadowOpacity: 0.3,
+      shadowOffsetX: 5,
+      shadowOffsetY: 5
     }" />
-    <v-text :config="{ text: item.type, fontSize: 14, fontStyle: 'bold', width: item.width, padding: 10, align: 'center' }" />
-    <v-text :config="{ text: item.instanceName, fontSize: 16, width: item.width, padding: 30, align: 'center' }" />
-    <ObjectProperties :properties="item.properties" :itemWidth="item.width" />
+    <v-text :config="{ text: item.type, fontSize: 14, fontStyle: 'bold', width: item.width, padding: 10, align: 'center', fontFamily: 'cursive' }" />
+    <v-text :config="{ text: item.instanceName, fontSize: 16, width: item.width, padding: 30, align: 'center', fontFamily: 'cursive' }" />
+    <ObjectProperties :properties="item.properties" :itemWidth="item.width" fontFamily="cursive" />
   </v-group>
 </template>

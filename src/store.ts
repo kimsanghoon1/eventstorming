@@ -63,6 +63,7 @@ interface Store {
   deleteItems: (ids: number[]) => void;
   addConnection: (connection: Omit<Connection, 'id' | 'type'> & { type?: string }) => void;
   deleteConnections: (ids: string[]) => void;
+  updateConnection: (connection: Connection) => void;
 
   createTestObjects: () => void;
   undo: () => void;
@@ -118,7 +119,7 @@ export const store = reactive<Store>({
   },
 
   async loadBoard(name: string) {
-    if (this.activeBoard === name && this.provider?.wsconnected) {
+    if (this.activeBoard === name) {
         return;
     }
 
@@ -132,34 +133,42 @@ export const store = reactive<Store>({
     this.activeBoard = name;
     this.currentView = 'loading';
 
-    const doc = new Y.Doc();
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
-    const provider = new WebsocketProvider(wsUrl, name, doc);
+    try {
+        const response = await fetch(`/api/boards/${name}`);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch board: ${response.statusText}`);
+        }
+        const boardData = await response.json();
 
-    this.doc = doc;
-    this.provider = provider;
-    this.canvasItems = doc.getArray<Y.Map<any>>('canvasItems');
-    this.connections = doc.getArray<Y.Map<any>>('connections');
-    this.boardType = doc.getText('boardType');
-    this.undoManager = new Y.UndoManager([this.canvasItems, this.connections]);
+        const doc = new Y.Doc();
+        const canvasItems = doc.getArray<Y.Map<any>>('canvasItems');
+        const connections = doc.getArray<Y.Map<any>>('connections');
+        const boardType = doc.getText('boardType');
 
-    const setViewFromBoardType = () => {
-      const type = this.boardType?.toString();
-      if (type === 'UML') {
-        this.currentView = 'uml-canvas';
-      } else {
-        // Default to eventstorming
-        this.currentView = 'event-canvas';
-      }
-    };
+        doc.transact(() => {
+            (boardData.items || []).forEach((item: any) => canvasItems.push([toYMap(item)]));
+            (boardData.connections || []).forEach((conn: any) => connections.push([toYMap(conn)]));
+            if (boardData.boardType) {
+                boardType.insert(0, boardData.boardType);
+            }
+        });
 
-    provider.on('sync', (isSynced: boolean) => {
-      if (isSynced) {
-        setViewFromBoardType();
-        this.boardType?.observe(setViewFromBoardType);
-      }
-    });
+        this.doc = doc;
+        this.canvasItems = canvasItems;
+        this.connections = connections;
+        this.boardType = boardType;
+        this.undoManager = new Y.UndoManager([this.canvasItems, this.connections]);
+
+        const type = this.boardType.toString();
+        this.currentView = type === 'UML' ? 'uml-canvas' : 'event-canvas';
+
+        this.provider = new WebsocketProvider('ws://localhost:3000', name, doc);
+
+    } catch (error) {
+        console.error("Failed to load board:", error);
+        this.activeBoard = null;
+        this.currentView = 'event-canvas'; // Fallback to a default view
+    }
   },
 
   async createNewBoard(name: string, boardType: 'Eventstorming' | 'UML') {
@@ -251,6 +260,18 @@ export const store = reactive<Store>({
               this.connections.delete(i, 1);
           }
       }
+  },
+
+  updateConnection(connection: Connection) {
+    if (!this.connections) return;
+    const index = this.connections.toArray().findIndex(c => c.get('id') === connection.id);
+    if (index > -1) {
+      const yConn = this.connections.get(index);
+      this.doc?.transact(() => {
+        yConn.set('sourceMultiplicity', connection.sourceMultiplicity);
+        yConn.set('targetMultiplicity', connection.targetMultiplicity);
+      });
+    }
   },
 
   createTestObjects() {

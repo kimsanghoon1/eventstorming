@@ -84,7 +84,7 @@ const handleDrop = (e: DragEvent) => {
     y: pos.y - 50,
     width: draggedTool.value.type === 'ContextBox' ? 400 : 200,
     height: 100,
-    rotation: 0,
+    rotation: Math.random() * 4 - 2, // Random rotation between -2 and +2 degrees
     parent: null,
   };
   newItem.height = calculateItemHeight(newItem);
@@ -208,7 +208,7 @@ const connectionPoints = computed(() => {
 .container { display: flex; width: 100%; height: 100%; flex-direction: row; }
 .toolbox { width: 200px; padding: 15px; border-right: 1px solid #ccc; background-color: #f7f7f7; flex-shrink: 0; }
 .tool-item { padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; cursor: grab; text-align: center; font-weight: bold; }
-.canvas-wrapper { flex-grow: 1; overflow: hidden; }
+.canvas-wrapper { flex-grow: 1; overflow: auto; }
 .connect-btn { width: 100%; padding: 10px; background-color: #ffc107; border: none; cursor: pointer; }
 .connect-btn.active { background-color: #e0a800; font-weight: bold; }
 </style>

@@ -1,11 +1,29 @@
 <script setup lang="ts">
-import { defineProps } from "vue";
+import { defineProps, computed } from "vue";
 import type { CanvasItem } from "../../types";
 import ObjectProperties from "./ObjectProperties.vue";
 
 const props = defineProps<{
   item: CanvasItem;
 }>();
+
+const stereotypeY = 5;
+
+const interfaceLabelY = computed(() => {
+    let y = 5;
+    if (props.item.stereotype) y += 15;
+    return y;
+});
+
+const nameY = computed(() => {
+    let y = 10;
+    if (props.item.stereotype) y += 15;
+    if (props.item.type === 'Interface') y += 15;
+    return y;
+});
+
+const propertiesY = computed(() => nameY.value + 25);
+
 </script>
 
 <template>
@@ -13,41 +31,35 @@ const props = defineProps<{
     <v-rect :config="{
       width: item.width,
       height: item.height,
-      fill: '#ffffff',
+      fill: item.type === 'Enum' ? '#e9ecef' : '#ffffff',
       stroke: 'black',
       strokeWidth: 2,
     }" />
-    <v-text v-if="item.isAggregateRoot" :config="{ text: '<<AggregateRoot>>', fontSize: 14, fontStyle: 'italic', width: item.width, y: 5, align: 'center' }" />
-    <v-text v-if="item.type === 'Interface'" :config="{ text: '<<interface>>', fontSize: 14, fontStyle: 'italic', width: item.width, y: item.isAggregateRoot ? 20 : 5, align: 'center' }" />
-    <v-text :config="{ text: item.instanceName, fontSize: 16, fontStyle: 'bold', width: item.width, y: (item.isAggregateRoot ? 15 : 0) + (item.type === 'Interface' ? 15 : 0) + 10, align: 'center' }" />
     
+    <!-- Stereotypes and Name -->
+    <v-text v-if="item.stereotype" :config="{ text: `<<${item.stereotype}>>`, fontSize: 14, fontStyle: 'italic', width: item.width, y: stereotypeY, align: 'center' }" />
+    <v-text v-if="item.type === 'Interface'" :config="{ text: '<<interface>>', fontSize: 14, fontStyle: 'italic', width: item.width, y: interfaceLabelY, align: 'center' }" />
+    <v-text :config="{ text: item.instanceName, fontSize: 16, fontStyle: 'bold', width: item.width, y: nameY, align: 'center' }" />
+    
+    <!-- Separator Line -->
+    <v-line v-if="item.type !== 'Package'" :config="{ points: [0, nameY + 20, item.width, nameY + 20], stroke: 'black', strokeWidth: 1 }" />
+
+    <!-- Class/Interface Properties -->
     <template v-if="item.type === 'Class' || item.type === 'Interface'">
-      <v-line :config="{ points: [0, 40, item.width, 40], stroke: 'black', strokeWidth: 1 }" />
-      <ObjectProperties :attributes="item.attributes" :methods="item.methods" :itemWidth="item.width" />
-      <v-line :config="{ points: [0, 40 + (item.attributes?.length || 0) * 15 + 15, item.width, 40 + (item.attributes?.length || 0) * 15 + 15], stroke: 'black', strokeWidth: 1 }" />
-    </template>
-    
-    <template v-if="item.type === 'Component'">
-      <v-rect :config="{ x: item.width - 30, y: 5, width: 25, height: 20, fill: '#ffffff', stroke: 'black', strokeWidth: 1 }" />
-      <v-rect :config="{ x: item.width - 35, y: 10, width: 10, height: 5, fill: '#ffffff', stroke: 'black', strokeWidth: 1 }" />
-      <v-rect :config="{ x: item.width - 35, y: 20, width: 10, height: 5, fill: '#ffffff', stroke: 'black', strokeWidth: 1 }" />
+      <ObjectProperties :attributes="item.attributes" :methods="item.methods" :itemWidth="item.width" :yOffset="propertiesY" />
+      <v-line :config="{ points: [0, propertiesY + (item.attributes?.length || 0) * 15 + 10, item.width, propertiesY + (item.attributes?.length || 0) * 15 + 10], stroke: 'black', strokeWidth: 1 }" />
     </template>
 
-    <template v-if="item.type === 'Package'">
-      <v-rect :config="{
-        width: item.width,
-        height: item.height,
-        fill: '#ffffff',
-        stroke: 'black',
-        strokeWidth: 2,
-      }" />
-      <v-rect :config="{
-        width: item.width / 3,
-        height: 20,
-        fill: '#ffffff',
-        stroke: 'black',
-        strokeWidth: 2,
-      }" />
+    <!-- Enum Properties -->
+    <template v-if="item.type === 'Enum'">
+        <v-text v-for="(val, index) in item.enumValues" :key="index" :config="{
+            text: val,
+            fontSize: 14,
+            y: propertiesY + index * 15,
+            width: item.width - 20,
+            padding: 10,
+            align: 'left'
+        }" />
     </template>
 
   </v-group>

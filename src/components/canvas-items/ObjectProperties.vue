@@ -1,12 +1,13 @@
 <template>
-  <v-group>
+  <v-group :config="{ y: yOffset }">
     <v-text
       v-for="(prop, index) in properties"
       :key="index"
       :config="{
         text: `${prop.key}: ${prop.value}`,
         fontSize: 12,
-        y: 50 + index * 15,
+        fontFamily: fontFamily,
+        y: index * 15,
         width: itemWidth - 20,
         padding: 10,
         align: 'left'
@@ -18,7 +19,8 @@
       :config="{
         text: formatAttribute(attr),
         fontSize: 14,
-        y: 45 + (properties?.length || 0) * 15 + index * 15,
+        fontFamily: fontFamily,
+        y: (properties?.length || 0) * 15 + index * 15,
         width: itemWidth - 20,
         padding: 10,
         align: 'left'
@@ -30,7 +32,8 @@
       :config="{
         text: formatOperation(method),
         fontSize: 14,
-        y: 75 + (properties?.length || 0) * 15 + (attributes?.length || 0) * 15 + index * 15,
+        fontFamily: fontFamily,
+        y: (properties?.length || 0) * 15 + (attributes?.length || 0) * 15 + 25 + index * 15,
         width: itemWidth - 20,
         padding: 10,
         align: 'left'
@@ -44,10 +47,12 @@ import { defineProps, PropType } from 'vue';
 import type { Property, UmlAttribute, UmlOperation } from '../../types';
 
 defineProps({
-  properties: Array as PropType<Property[]>,
-  attributes: Array as PropType<UmlAttribute[]>,
-  methods: Array as PropType<UmlOperation[]>,
-  itemWidth: { type: Number, default: 200 }
+  properties: Array as PropType<Property[]|undefined>,
+  attributes: Array as PropType<UmlAttribute[]|undefined>,
+  methods: Array as PropType<UmlOperation[]|undefined>,
+  itemWidth: { type: Number, default: 200 },
+  yOffset: { type: Number, default: 50 },
+  fontFamily: { type: String, default: 'sans-serif' },
 });
 
 const getVisibilitySymbol = (visibility: 'public' | 'private' | 'protected' | 'package'): string => {

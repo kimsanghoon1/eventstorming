@@ -103,5 +103,19 @@ const diamondPos = computed(() => ({
             pointerLength: arrowSize,
             pointerWidth: arrowSize,
         }" />
+
+        <!-- Multiplicity Labels -->
+        <v-text :config="{
+            x: fromPos.x + Math.cos(angle + 0.2) * 15 - 10,
+            y: fromPos.y + Math.sin(angle + 0.2) * 15 - 10,
+            text: connection.sourceMultiplicity,
+            fontSize: 14,
+        }" />
+        <v-text :config="{
+            x: toPos.x - Math.cos(angle - 0.2) * 35 - 10,
+            y: toPos.y - Math.sin(angle - 0.2) * 35 - 10,
+            text: connection.targetMultiplicity,
+            fontSize: 14,
+        }" />
     </v-group>
 </template>
