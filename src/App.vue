@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { store } from './store';
 import BoardSwitcher from './components/BoardSwitcher.vue';
-import EventCanvas from './components/EventCanvas.vue';
-import UmlCanvas from './components/UmlCanvas.vue';
+import MainCanvas from './components/MainCanvas.vue';
 import CodeGenerator from './components/CodeGenerator.vue';
 </script>
 
@@ -13,14 +12,7 @@ import CodeGenerator from './components/CodeGenerator.vue';
     </header>
     <main>
       <template v-if="store.mainView === 'canvas'">
-        <div v-if="store.activeBoard">
-          <EventCanvas v-if="store.currentView === 'event-canvas'" :key="store.activeBoard" />
-          <UmlCanvas v-else-if="store.currentView === 'uml-canvas'" :key="store.activeBoard" />
-        </div>
-        <div v-else class="no-board-selected">
-          <h2>No Board Selected</h2>
-          <p>Create a new board or select one to start.</p>
-        </div>
+        <MainCanvas />
       </template>
       <template v-else-if="store.mainView === 'code-generator'">
         <CodeGenerator />
@@ -49,18 +41,5 @@ header {
 main {
   flex-grow: 1;
   overflow: auto; /* Allow scrolling for code generator view */
-}
-main > div {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-.no-board-selected {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-  flex-direction: column;
-  color: #6c757d;
 }
 </style>

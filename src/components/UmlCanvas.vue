@@ -112,8 +112,6 @@ const getConnectionItems = (conn: any) => {
       <div v-for="tool in connectionTools" :key="tool.type" class="tool-item" @click="startConnection(tool.type)">
         {{ tool.type }}
       </div>
-      <hr />
-      <button @click="store.showEventCanvas()">Back to Event Canvas</button>
     </div>
 
     <div class="canvas-wrapper" @drop="handleDrop" @dragover.prevent>

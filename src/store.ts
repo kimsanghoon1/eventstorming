@@ -50,7 +50,7 @@ interface Store {
   mainView: 'canvas' | 'code-generator';
   toggleView: () => void;
 
-  currentView: 'event-canvas' | 'uml-canvas';
+  currentView: 'event-canvas' | 'uml-canvas' | 'loading';
 
   // Methods
   fetchBoards: () => Promise<void>;
@@ -80,7 +80,7 @@ export const store = reactive<Store>({
   connections: null,
   boardType: null,
 
-  currentView: 'event-canvas',
+  currentView: 'loading',
 
   mainView: 'canvas',
 
@@ -110,6 +110,7 @@ export const store = reactive<Store>({
         this.provider = null;
         this.canvasItems = null;
         this.connections = null;
+        this.currentView = 'loading';
       }
     } catch (error) {
       console.error("Failed to fetch boards:", error);
@@ -117,6 +118,10 @@ export const store = reactive<Store>({
   },
 
   async loadBoard(name: string) {
+    if (this.activeBoard === name && this.provider?.wsconnected) {
+        return;
+    }
+
     if (this.provider) {
       this.provider.destroy();
     }
@@ -125,9 +130,12 @@ export const store = reactive<Store>({
     }
 
     this.activeBoard = name;
+    this.currentView = 'loading';
+
     const doc = new Y.Doc();
-    // Note: The server URL should be configured properly for production.
-    const provider = new WebsocketProvider('ws://localhost:3000', name, doc);
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+    const provider = new WebsocketProvider(wsUrl, name, doc);
 
     this.doc = doc;
     this.provider = provider;
@@ -136,13 +144,20 @@ export const store = reactive<Store>({
     this.boardType = doc.getText('boardType');
     this.undoManager = new Y.UndoManager([this.canvasItems, this.connections]);
 
+    const setViewFromBoardType = () => {
+      const type = this.boardType?.toString();
+      if (type === 'UML') {
+        this.currentView = 'uml-canvas';
+      } else {
+        // Default to eventstorming
+        this.currentView = 'event-canvas';
+      }
+    };
+
     provider.on('sync', (isSynced: boolean) => {
       if (isSynced) {
-        if (this.boardType?.toString() === 'UML') {
-          this.currentView = 'uml-canvas';
-        } else {
-          this.currentView = 'event-canvas';
-        }
+        setViewFromBoardType();
+        this.boardType?.observe(setViewFromBoardType);
       }
     });
   },
