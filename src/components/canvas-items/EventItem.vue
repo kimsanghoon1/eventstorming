@@ -24,7 +24,7 @@ const stickyFont = "'Gowun Dodum', sans-serif";
 
 <template>
   <v-group :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }">
-    <v-rect :config="{
+        <v-rect :config="{
       width: item.width,
       height: item.height,
       fill: colorMap[item.type],

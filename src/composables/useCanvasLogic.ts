@@ -3,18 +3,6 @@ import Konva from 'konva';
 import { store } from '../store';
 import type { CanvasItem } from '../types';
 
-function debounce(fn: Function, delay: number) {
-  let timeoutId: number | null = null;
-  return (...args: any[]) => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-    }
-    timeoutId = setTimeout(() => {
-      fn(...args);
-    }, delay);
-  };
-}
-
 
 export function useCanvasLogic() {
   const selectedItems = ref<CanvasItem[]>([]);
@@ -241,20 +229,12 @@ export function useCanvasLogic() {
     }
   };
 
-  const debouncedUpdate = debounce((updateFunc: () => void) => {
-      updateFunc();
-  }, 50);
-
-  const debouncedTransact = debounce((transaction: () => void) => {
-      store.doc?.transact(transaction);
-  }, 50);
-
   const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
     if (!transformerRef.value) return;
     const transformer = transformerRef.value.getNode();
     const nodes = (e.target as any) === transformer ? transformer.nodes() : [e.target];
     
-    const transaction = () => {
+    store.doc?.transact(() => {
       nodes.forEach((node: Konva.Node) => {
           const id = Number(node.name().split('-')[1]);
           const index = store.canvasItems?.toArray().findIndex(i => i.get('id') === id);
@@ -273,9 +253,8 @@ export function useCanvasLogic() {
               yItem.set('height', Math.max(5, yItem.get('height') * scaleY));
           }
       });
-    };
+    });
 
-    debouncedTransact(transaction);
     updateTransformer();
     updateStageSize();
   };
@@ -351,7 +330,7 @@ export function useCanvasLogic() {
       return;
     }
 
-    const transaction = () => {
+    store.doc?.transact(() => {
         dragStartPositions.value.forEach((_, itemId) => {
             const node = stage.findOne('.item-' + itemId);
             if (node) {
@@ -363,9 +342,7 @@ export function useCanvasLogic() {
                 }
             }
         });
-    };
-
-    debouncedTransact(transaction);
+    });
 
     // After updating the store, check for parent changes
     const draggedNode = e.target;

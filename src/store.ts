@@ -47,7 +47,8 @@ interface Store {
   connections: Y.Array<Y.Map<any>> | null;
   boardType: Y.Text | null;
 
-  revision: number;
+  reactiveItems: CanvasItem[];
+  reactiveConnections: Connection[];
 
   mainView: 'canvas' | 'code-generator';
   toggleView: () => void;
@@ -84,7 +85,8 @@ export const store = reactive<Store>({
   connections: null,
   boardType: null,
 
-  revision: 0,
+  reactiveItems: [],
+  reactiveConnections: [],
 
   currentView: 'loading',
 
@@ -137,41 +139,50 @@ export const store = reactive<Store>({
 
     this.activeBoard = name;
     this.currentView = 'loading';
+    this.reactiveItems = [];
+    this.reactiveConnections = [];
 
     try {
-        const response = await fetch(`/api/boards/${name}`);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch board: ${response.statusText}`);
-        }
-        const boardData = await response.json();
-
         const doc = new Y.Doc();
-        const canvasItems = doc.getArray<Y.Map<any>>('canvasItems');
-        const connections = doc.getArray<Y.Map<any>>('connections');
-        const boardType = doc.getText('boardType');
+        this.doc = doc;
+        this.canvasItems = doc.getArray<Y.Map<any>>('canvasItems');
+        this.connections = doc.getArray<Y.Map<any>>('connections');
+        this.boardType = doc.getText('boardType');
+        const meta = doc.getMap('meta');
 
-        doc.transact(() => {
-            (boardData.items || []).forEach((item: any) => canvasItems.push([toYMap(item)]));
-            (boardData.connections || []).forEach((conn: any) => connections.push([toYMap(conn)]));
-            if (boardData.boardType) {
-                boardType.insert(0, boardData.boardType);
+        this.reactiveItems = this.canvasItems.toJSON();
+        this.reactiveConnections = this.connections.toJSON();
+
+        doc.on('update', () => {
+            this.reactiveItems = this.canvasItems!.toJSON();
+            this.reactiveConnections = this.connections!.toJSON();
+            const type = this.boardType!.toString();
+            if(type && this.currentView === 'loading') {
+              this.currentView = type === 'UML' ? 'uml-canvas' : 'event-canvas';
             }
         });
 
-        this.doc = doc;
-        this.canvasItems = canvasItems;
-        this.connections = connections;
-        this.boardType = boardType;
-        this.undoManager = new Y.UndoManager([this.canvasItems, this.connections]);
+        this.provider = new WebsocketProvider('ws://localhost:3000', name, doc);
 
-        const type = this.boardType.toString();
-        this.currentView = type === 'UML' ? 'uml-canvas' : 'event-canvas';
-
-        doc.on('update', () => {
-            this.revision++;
+        this.provider.on('sync', async (isSynced: boolean) => {
+          if (isSynced && !meta.get('isInitialized')) {
+            const response = await fetch(`/api/boards/${name}`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch board: ${response.statusText}`);
+            }
+            const boardData = await response.json();
+            doc.transact(() => {
+                (boardData.items || []).forEach((item: any) => this.canvasItems!.push([toYMap(item)]));
+                (boardData.connections || []).forEach((conn: any) => this.connections!.push([toYMap(conn)]));
+                if (boardData.boardType) {
+                    this.boardType!.insert(0, boardData.boardType);
+                }
+                meta.set('isInitialized', true);
+            });
+          }
         });
 
-        this.provider = new WebsocketProvider('ws://localhost:3000', name, doc);
+        this.undoManager = new Y.UndoManager([this.canvasItems, this.connections]);
 
     } catch (error) {
         console.error("Failed to load board:", error);
