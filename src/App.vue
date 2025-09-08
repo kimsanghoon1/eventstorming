@@ -22,10 +22,16 @@ import CodeGenerator from './components/CodeGenerator.vue';
 </template>
 
 <style>
-body {
+html, body {
   margin: 0;
+  padding: 0;
+  height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  overflow: hidden; /* Prevent body scroll */
+  overflow: hidden;
+}
+
+#app {
+    height: 100%;
 }
 </style>
 
@@ -35,11 +41,15 @@ body {
   flex-direction: column;
   height: 100vh;
 }
+
 header {
   flex-shrink: 0;
+  z-index: 20; /* Ensure header is above canvas actions */
 }
+
 main {
   flex-grow: 1;
-  overflow: auto; /* Allow scrolling for code generator view */
+  position: relative; /* Needed for canvas actions positioning */
+  overflow: hidden; /* Prevent scrolling in main area */
 }
 </style>
