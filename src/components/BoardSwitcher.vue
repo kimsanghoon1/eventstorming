@@ -1,134 +1,182 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { store } from '../store';
 
 const newBoardName = ref('');
 const newBoardType = ref('Eventstorming');
+const isDropdownOpen = ref(false);
 
 onMounted(() => {
   store.fetchBoards();
 });
 
 const createBoard = () => {
-  store.createNewBoard(newBoardName.value, newBoardType.value as any);
-  newBoardName.value = '';
+  if (newBoardName.value.trim()) {
+    store.createNewBoard(newBoardName.value, newBoardType.value as any);
+    newBoardName.value = '';
+    isDropdownOpen.value = false;
+  }
+};
+
+const activeBoardDisplayName = computed(() => {
+  if (store.activeBoard) {
+    const board = store.boards.find(b => b.name === store.activeBoard);
+    return board ? `${board.name} (${board.type})` : 'Select a board';
+  }
+  return 'Select a board';
+});
+
+const switchBoard = (name: string) => {
+  store.loadBoard(name);
+  isDropdownOpen.value = false;
 };
 
 </script>
 
 <template>
-  <div class="board-switcher">
-    <h4>Boards</h4>
-    <div class="board-list">
-      <div 
-        v-for="board in store.boards" 
-        :key="board.name"
-        class="board-item"
-        :class="{ active: board.name === store.activeBoard }"
-      >
-        <span @click="store.loadBoard(board.name)">{{ board.name }} ({{board.type}})</span>
-        <button @click="store.deleteBoard(board.name)" class="delete-btn">x</button>
+  <div class="switcher-container">
+    <div class="dropdown">
+      <button @click="isDropdownOpen = !isDropdownOpen" class="dropdown-toggle">
+        {{ activeBoardDisplayName }}
+      </button>
+      <div v-if="isDropdownOpen" class="dropdown-menu">
+        <div
+          v-for="board in store.boards"
+          :key="board.name"
+          class="dropdown-item"
+          :class="{ active: board.name === store.activeBoard }"
+          @click="switchBoard(board.name)"
+        >
+          <span>{{ board.name }} ({{ board.type }})</span>
+          <button @click.stop="store.deleteBoard(board.name)" class="delete-btn">x</button>
+        </div>
+        <hr v-if="store.boards.length > 0"/>
+        <div class="new-board-actions">
+          <p>Create new board:</p>
+          <input v-model="newBoardName" @keyup.enter="createBoard" placeholder="New board name..." />
+          <select v-model="newBoardType">
+            <option value="Eventstorming">Eventstorming</option>
+            <option value="UML">UML</option>
+          </select>
+          <button @click="createBoard">+ Create</button>
+        </div>
       </div>
     </div>
-    <div class="board-actions">
-      <input v-model="newBoardName" @keyup.enter="createBoard" placeholder="New board name..." />
-      <select v-model="newBoardType">
-        <option value="Eventstorming">Eventstorming</option>
-        <option value="UML">UML</option>
-      </select>
-      <button @click="createBoard">+ Create</button>
-    </div>
-    <button @click="store.saveActiveBoard()" class="save-btn">Save Board</button>
-    <button @click="store.createTestObjects()" class="test-btn">Create 1000 Test Objects</button>
-    <button @click="store.toggleView()" class="toggle-view-btn">{{ store.mainView === 'canvas' ? 'Show Code Generator' : 'Show Canvas' }}</button>
   </div>
 </template>
 
 <style scoped>
-.board-switcher {
-  padding: 15px;
-  background-color: #e9ecef;
-  border-bottom: 1px solid #ccc;
+.switcher-container {
+  padding: 8px;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  display: flex;
+  align-items: center;
+  height: 50px;
 }
-h4 {
-  margin: 0 0 10px 0;
+
+.dropdown {
+  position: relative;
+  display: inline-block;
 }
-.board-list {
-  margin-bottom: 15px;
-}
-.board-item {
+
+.dropdown-toggle {
+  background-color: #fff;
+  border: 1px solid #ced4da;
+  border-radius: .25rem;
+  padding: .375rem .75rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  cursor: pointer;
+  min-width: 220px;
+  text-align: left;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px;
+}
+
+.dropdown-toggle::after {
+  content: '▼';
+  font-size: 12px;
+  margin-left: 10px;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  display: block;
+  min-width: 100%;
+  background-color: #fff;
+  border: 1px solid rgba(0,0,0,.15);
+  border-radius: .25rem;
+  box-shadow: 0 .5rem 1rem rgba(0,0,0,.175);
+  padding: .5rem 0;
+  margin-top: .125rem;
+}
+
+.dropdown-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .5rem 1rem;
   cursor: pointer;
+  white-space: nowrap;
 }
-.board-item:hover {
-  background-color: #dee2e6;
+
+.dropdown-item:hover {
+  background-color: #f1f1f1;
 }
-.board-item.active {
+
+.dropdown-item.active {
   background-color: #007bff;
   color: white;
 }
-.board-item span {
-  flex-grow: 1;
-}
+
 .delete-btn {
   background: #dc3545;
   color: white;
   border: none;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   cursor: pointer;
-  line-height: 20px;
+  line-height: 18px;
   text-align: center;
-}
-.board-actions {
-  display: flex;
-}
-.board-actions input {
-  flex-grow: 1;
-  margin-right: 5px;
-}
-.save-btn {
-  width: 100%;
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #28a745;
-  color: white;
-  border: none;
-  cursor: pointer;
-}
-.save-btn:hover {
-    background-color: #218838;
-}
-.save-all-btn {
-  width: 100%;
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #28a745;
-  color: white;
-  border: none;
+  font-size: 11px;
+  margin-left: 10px;
 }
 
-.test-btn {
-  width: 100%;
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #ffc107;
-  color: black;
-  border: none;
-  cursor: pointer;
+hr {
+  margin: .5rem 0;
+  border-color: #e9ecef;
 }
 
-.toggle-view-btn {
+.new-board-actions {
+  padding: .5rem 1rem;
+}
+
+.new-board-actions p {
+    margin: 0 0 5px 0;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.new-board-actions input,
+.new-board-actions select,
+.new-board-actions button {
   width: 100%;
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #17a2b8;
+  box-sizing: border-box;
+  padding: .375rem .75rem;
+  margin-bottom: 5px;
+  border: 1px solid #ced4da;
+  border-radius: .25rem;
+}
+
+.new-board-actions button {
+  background-color: #28a745;
   color: white;
-  border: none;
   cursor: pointer;
 }
 </style>
