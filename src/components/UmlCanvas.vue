@@ -25,8 +25,14 @@ const {
   handleItemDragEnd,
 } = useCanvasLogic();
 
-const canvasItemsJSON = computed(() => store.canvasItems?.toJSON() ?? []);
-const connectionsJSON = computed(() => store.connections?.toJSON() ?? []);
+const canvasItemsJSON = computed(() => {
+    const _ = store.revision; // Depend on revision
+    return store.canvasItems?.toJSON() ?? [];
+});
+const connectionsJSON = computed(() => {
+    const _ = store.revision; // Depend on revision
+    return store.connections?.toJSON() ?? [];
+});
 
 const umlToolBox = ref([
   { id: 1, type: "Class" },

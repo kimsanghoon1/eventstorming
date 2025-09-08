@@ -6,17 +6,12 @@ const path = require('path');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const Y = require('yjs');
-const syncProtocol = require('y-protocols/sync');
-const awarenessProtocol = require('y-protocols/awareness');
-const encoding = require('lib0/encoding');
-const decoding = require('lib0/decoding');
-const debounce = require('lodash.debounce');
+const { setupWSConnection } = require('y-websocket/bin/utils');
 const axios = require('axios');
 const archiver = require('archiver');
 
 const app = express();
 const port = 3000;
-
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir);
@@ -25,154 +20,14 @@ if (!fs.existsSync(dataDir)) {
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
-// --- Y.js WebSocket Server Setup ---
-
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
-const docs = new Map();
-
-const messageSync = 0;
-const messageAwareness = 1;
-
-const debouncedSave = debounce((doc) => {
-    const filePath = path.join(dataDir, `${doc.name}.json`);
-    const yItems = doc.getArray('canvasItems');
-    const yConnections = doc.getArray('connections');
-    const yBoardType = doc.getText('boardType');
-    const boardData = {
-        items: yItems.toJSON(),
-        connections: yConnections.toJSON(),
-        boardType: yBoardType.toString(),
-    };
-    fs.writeFile(filePath, JSON.stringify(boardData, null, 2), err => {
-        if (err) {
-            console.error('Error saving board:', err);
-        }
-    });
-}, 2000);
-
-const getDoc = (docname, gc = true) => {
-  let doc = docs.get(docname);
-  if (doc === undefined) {
-    doc = new Y.Doc();
-    doc.gc = gc;
-    doc.name = docname;
-
-    const filePath = path.join(dataDir, `${docname}.json`);
-    if (fs.existsSync(filePath)) {
-      try {
-        const fileContent = fs.readFileSync(filePath, 'utf8');
-        if (fileContent) {
-            const boardData = JSON.parse(fileContent);
-            const yItems = doc.getArray('canvasItems');
-            const yConnections = doc.getArray('connections');
-            const yBoardType = doc.getText('boardType');
-            
-            doc.transact(() => {
-              if (boardData.boardType) {
-                yBoardType.insert(0, boardData.boardType);
-              }
-              (boardData.items || []).forEach(item => yItems.push([new Y.Map(Object.entries(item))]));
-              (boardData.connections || []).forEach(conn => yConnections.push([new Y.Map(Object.entries(conn))]));
-            });
-        }
-      } catch (e) {
-        console.error('Error parsing board data on load:', e);
-      }
-    }
-
-    doc.on('update', (update, origin) => {
-        const encoder = encoding.createEncoder();
-        encoding.writeVarUint(encoder, messageSync);
-        syncProtocol.writeUpdate(encoder, update);
-        const message = encoding.toUint8Array(encoder);
-        
-        doc.conns.forEach((_, conn) => {
-            if (conn !== origin) {
-                conn.send(message);
-            }
-        });
-    });
-
-    doc.on('update', () => debouncedSave(doc));
-    docs.set(docname, doc);
-  }
-  return doc;
-};
-
-const setupWSConnection = (conn, req) => {
-    conn.binaryType = 'arraybuffer';
-    const url = new URL(req.url, `http://${req.headers.host}`);
-    const docName = url.searchParams.get('room');
-
-    if (!docName) {
-        conn.close();
-        return;
-    }
-
-    const doc = getDoc(docName);
-    doc.conns = doc.conns || new Map();
-    doc.conns.set(conn, new Set());
-
-    const awareness = doc.awareness || (doc.awareness = new awarenessProtocol.Awareness(doc));
-
-    conn.on('message', message => {
-        try {
-            const encoder = encoding.createEncoder();
-            const decoder = decoding.createDecoder(new Uint8Array(message));
-            const messageType = decoding.readVarUint(decoder);
-
-            switch (messageType) {
-                case messageSync:
-                    encoding.writeVarUint(encoder, messageSync);
-                    syncProtocol.readSyncMessage(decoder, encoder, doc, conn);
-                    if (encoding.length(encoder) > 1) {
-                        conn.send(encoding.toUint8Array(encoder));
-                    }
-                    break;
-                case messageAwareness:
-                    awarenessProtocol.applyAwarenessUpdate(awareness, decoding.readVarUint8Array(decoder), conn);
-                    break;
-            }
-        } catch (err) {
-            console.error(err);
-            conn.close();
-        }
-    });
-
-    const awarenessUpdateHandler = ({ added, updated, removed }, origin) => {
-        const changedClients = added.concat(updated, removed);
-        if (origin !== conn) {
-            const encoder = encoding.createEncoder();
-            encoding.writeVarUint(encoder, messageAwareness);
-            encoding.writeVarUint8Array(encoder, awarenessProtocol.encodeAwarenessUpdate(awareness, changedClients));
-            conn.send(encoding.toUint8Array(encoder));
-        }
-    };
-
-    awareness.on('update', awarenessUpdateHandler);
-
-    conn.on('close', () => {
-        awareness.off('update', awarenessUpdateHandler);
-        doc.conns.delete(conn);
-    });
-
-    // Send initial state
-    const syncEncoder = encoding.createEncoder();
-    encoding.writeVarUint(syncEncoder, messageSync);
-    syncProtocol.writeSyncStep1(syncEncoder, doc);
-    conn.send(encoding.toUint8Array(syncEncoder));
-
-    const awarenessEncoder = encoding.createEncoder();
-    encoding.writeVarUint(awarenessEncoder, messageAwareness);
-    encoding.writeVarUint8Array(awarenessEncoder, awarenessProtocol.encodeAwarenessUpdate(awareness, Array.from(awareness.getStates().keys())));
-    conn.send(encoding.toUint8Array(awarenessEncoder));
-};
-
+// Use the standard y-websocket setup utility. It handles doc management in memory.
+// Persistence will be handled via API calls, separating concerns.
 wss.on('connection', setupWSConnection);
 
-// --- API Endpoints ---
+// --- API Endpoints for Persistence ---
 
 app.get('/api/boards', async (req, res) => {
   try {
@@ -204,6 +59,7 @@ app.get('/api/boards', async (req, res) => {
   }
 });
 
+// Get the content of a specific board
 app.get('/api/boards/:name', (req, res) => {
   const boardName = req.params.name;
   const filePath = path.join(dataDir, `${boardName}.json`);
@@ -211,6 +67,7 @@ app.get('/api/boards/:name', (req, res) => {
   fs.readFile(filePath, 'utf8', (err, data) => {
     if (err) {
       if (err.code === 'ENOENT') {
+        // If file doesn't exist, return a default empty board structure
         return res.status(200).json({ items: [], connections: [], boardType: 'Eventstorming' });
       }
       return res.status(500).send('Error loading board');
@@ -219,6 +76,7 @@ app.get('/api/boards/:name', (req, res) => {
   });
 });
 
+// Save a board's content
 app.post('/api/boards/:name', (req, res) => {
   const boardName = req.params.name;
   const filePath = path.join(dataDir, `${boardName}.json`);
@@ -228,7 +86,6 @@ app.post('/api/boards/:name', (req, res) => {
     if (err) {
       return res.status(500).send('Error saving board');
     }
-    getDoc(boardName); 
     res.status(200).send('Board saved successfully');
   });
 });
@@ -240,11 +97,6 @@ app.delete('/api/boards/:name', (req, res) => {
   fs.unlink(filePath, (err) => {
     if (err) {
       return res.status(500).send('Error deleting board');
-    }
-    const doc = docs.get(boardName);
-    if (doc) {
-      doc.destroy();
-      docs.delete(boardName);
     }
     res.status(200).send('Board deleted successfully');
   });

@@ -38,6 +38,7 @@ const createBoard = () => {
       </select>
       <button @click="createBoard">+ Create</button>
     </div>
+    <button @click="store.saveActiveBoard()" class="save-btn">Save Board</button>
     <button @click="store.createTestObjects()" class="test-btn">Create 1000 Test Objects</button>
     <button @click="store.toggleView()" class="toggle-view-btn">{{ store.mainView === 'canvas' ? 'Show Code Generator' : 'Show Canvas' }}</button>
   </div>
@@ -89,6 +90,18 @@ h4 {
 .board-actions input {
   flex-grow: 1;
   margin-right: 5px;
+}
+.save-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+.save-btn:hover {
+    background-color: #218838;
 }
 .save-all-btn {
   width: 100%;

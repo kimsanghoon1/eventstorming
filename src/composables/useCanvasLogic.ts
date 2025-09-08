@@ -3,6 +3,19 @@ import Konva from 'konva';
 import { store } from '../store';
 import type { CanvasItem } from '../types';
 
+function debounce(fn: Function, delay: number) {
+  let timeoutId: number | null = null;
+  return (...args: any[]) => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => {
+      fn(...args);
+    }, delay);
+  };
+}
+
+
 export function useCanvasLogic() {
   const selectedItems = ref<CanvasItem[]>([]);
   const stageRef = ref<{ getStage: () => Konva.Stage } | null>(null);
@@ -52,7 +65,7 @@ export function useCanvasLogic() {
     };
   };
 
-  watch(() => store.canvasItems, updateStageSize, { deep: true });
+  watch(() => store.canvasItems?.length, updateStageSize);
 
   const startConnection = (type: string) => {
     connectionMode.value = { active: true, type: type, from: null };
@@ -228,12 +241,20 @@ export function useCanvasLogic() {
     }
   };
 
+  const debouncedUpdate = debounce((updateFunc: () => void) => {
+      updateFunc();
+  }, 50);
+
+  const debouncedTransact = debounce((transaction: () => void) => {
+      store.doc?.transact(transaction);
+  }, 50);
+
   const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
     if (!transformerRef.value) return;
     const transformer = transformerRef.value.getNode();
     const nodes = (e.target as any) === transformer ? transformer.nodes() : [e.target];
     
-    store.doc?.transact(() => {
+    const transaction = () => {
       nodes.forEach((node: Konva.Node) => {
           const id = Number(node.name().split('-')[1]);
           const index = store.canvasItems?.toArray().findIndex(i => i.get('id') === id);
@@ -252,8 +273,11 @@ export function useCanvasLogic() {
               yItem.set('height', Math.max(5, yItem.get('height') * scaleY));
           }
       });
-    });
+    };
+
+    debouncedTransact(transaction);
     updateTransformer();
+    updateStageSize();
   };
 
   const updateTransformer = () => {
@@ -327,7 +351,7 @@ export function useCanvasLogic() {
       return;
     }
 
-    store.doc?.transact(() => {
+    const transaction = () => {
         dragStartPositions.value.forEach((_, itemId) => {
             const node = stage.findOne('.item-' + itemId);
             if (node) {
@@ -339,7 +363,9 @@ export function useCanvasLogic() {
                 }
             }
         });
-    });
+    };
+
+    debouncedTransact(transaction);
 
     // After updating the store, check for parent changes
     const draggedNode = e.target;
@@ -375,6 +401,7 @@ export function useCanvasLogic() {
     }
     
     dragStartPositions.value.clear();
+    updateStageSize();
   };
 
   watch(selectedItems, updateTransformer, { deep: true });

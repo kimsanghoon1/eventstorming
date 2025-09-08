@@ -25,6 +25,7 @@ const {
 } = useCanvasLogic();
 
 const canvasItemsJSON = computed(() => {
+  const _ = store.revision; // Depend on revision to force re-computation
   const items = store.canvasItems?.toJSON() ?? [];
   return items.sort((a, b) => {
     if (a.type === 'ContextBox' && b.type !== 'ContextBox') {
@@ -36,7 +37,10 @@ const canvasItemsJSON = computed(() => {
     return 0;
   });
 });
-const connectionsJSON = computed(() => store.connections?.toJSON() ?? []);
+const connectionsJSON = computed(() => {
+    const _ = store.revision; // Depend on revision to force re-computation
+    return store.connections?.toJSON() ?? [];
+});
 
 const toolBox = ref([
   { id: 1, type: "Command" },

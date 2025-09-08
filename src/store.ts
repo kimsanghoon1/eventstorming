@@ -47,6 +47,8 @@ interface Store {
   connections: Y.Array<Y.Map<any>> | null;
   boardType: Y.Text | null;
 
+  revision: number;
+
   mainView: 'canvas' | 'code-generator';
   toggleView: () => void;
 
@@ -68,6 +70,7 @@ interface Store {
   createTestObjects: () => void;
   undo: () => void;
   redo: () => void;
+  saveActiveBoard: () => Promise<void>;
 }
 
 export const store = reactive<Store>({
@@ -80,6 +83,8 @@ export const store = reactive<Store>({
   canvasItems: null,
   connections: null,
   boardType: null,
+
+  revision: 0,
 
   currentView: 'loading',
 
@@ -161,6 +166,10 @@ export const store = reactive<Store>({
 
         const type = this.boardType.toString();
         this.currentView = type === 'UML' ? 'uml-canvas' : 'event-canvas';
+
+        doc.on('update', () => {
+            this.revision++;
+        });
 
         this.provider = new WebsocketProvider('ws://localhost:3000', name, doc);
 
@@ -302,5 +311,32 @@ export const store = reactive<Store>({
         }
     });
     alert('Created 1000 test objects.');
+  },
+
+  async saveActiveBoard() {
+    if (!this.activeBoard || !this.doc) {
+      alert("No active board to save.");
+      return;
+    }
+    const boardData = {
+      items: this.doc.getArray('canvasItems').toJSON(),
+      connections: this.doc.getArray('connections').toJSON(),
+      boardType: this.doc.getText('boardType').toString(),
+    };
+    try {
+      const response = await fetch(`/api/boards/${this.activeBoard}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(boardData),
+        });
+      if (!response.ok) {
+        throw new Error('Save failed');
+      }
+      alert('Board saved successfully!');
+    } catch (error) {
+      console.error('Failed to save board:', error);
+      alert('Error saving board.');
+    }
   },
 });
