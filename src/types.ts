@@ -32,6 +32,7 @@ export interface CanvasItem {
   attributes?: UmlAttribute[];
   methods?: UmlOperation[];
   isAggregateRoot?: boolean;
+  linkedDiagram?: string | null;
 
   x: number;
   y: number;

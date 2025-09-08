@@ -22,12 +22,12 @@ const createBoard = () => {
     <div class="board-list">
       <div 
         v-for="board in store.boards" 
-        :key="board"
+        :key="board.name"
         class="board-item"
-        :class="{ active: board === store.activeBoard }"
+        :class="{ active: board.name === store.activeBoard }"
       >
-        <span @click="store.loadBoard(board)">{{ board }}</span>
-        <button @click="store.deleteBoard(board)" class="delete-btn">x</button>
+        <span @click="store.loadBoard(board.name)">{{ board.name }} ({{board.type}})</span>
+        <button @click="store.deleteBoard(board.name)" class="delete-btn">x</button>
       </div>
     </div>
     <div class="board-actions">

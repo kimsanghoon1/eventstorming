@@ -36,7 +36,7 @@ const toYArray = (arr: any[]): Y.Array<any> => {
 
 
 interface Store {
-  boards: string[];
+  boards: Array<{ name: string, type: string }>;
   activeBoard: string | null;
   
   // Y.js related state
@@ -51,7 +51,6 @@ interface Store {
   toggleView: () => void;
 
   currentView: 'event-canvas' | 'uml-canvas';
-  editingAggregateId: number | null;
 
   // Methods
   fetchBoards: () => Promise<void>;
@@ -68,8 +67,6 @@ interface Store {
   createTestObjects: () => void;
   undo: () => void;
   redo: () => void;
-  showUmlCanvas: (aggregateId: number) => void;
-  showEventCanvas: () => void;
 }
 
 export const store = reactive<Store>({
@@ -84,22 +81,11 @@ export const store = reactive<Store>({
   boardType: null,
 
   currentView: 'event-canvas',
-  editingAggregateId: null,
 
   mainView: 'canvas',
 
   toggleView() {
     this.mainView = this.mainView === 'canvas' ? 'code-generator' : 'canvas';
-  },
-
-  showUmlCanvas(aggregateId: number) {
-    this.editingAggregateId = aggregateId;
-    this.currentView = 'uml-canvas';
-  },
-
-  showEventCanvas() {
-    this.editingAggregateId = null;
-    this.currentView = 'event-canvas';
   },
 
   undo() {
@@ -115,7 +101,7 @@ export const store = reactive<Store>({
       const response = await fetch('/api/boards');
       this.boards = await response.json();
       if (this.boards.length > 0 && !this.activeBoard) {
-        await this.loadBoard(this.boards[0]);
+        await this.loadBoard(this.boards[0].name);
       } else if (this.boards.length === 0) {
         this.activeBoard = null;
         this.doc?.destroy();
@@ -162,7 +148,7 @@ export const store = reactive<Store>({
   },
 
   async createNewBoard(name: string, boardType: 'Eventstorming' | 'UML') {
-    if (this.boards.includes(name) || !name.trim()) {
+    if (this.boards.some(b => b.name === name) || !name.trim()) {
       alert('Invalid or duplicate board name.');
       return;
     }

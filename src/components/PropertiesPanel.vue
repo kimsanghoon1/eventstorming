@@ -17,6 +17,10 @@ watch(() => props.modelValue, (newItem) => {
   }
 }, { deep: true, immediate: true });
 
+const umlBoards = computed(() => {
+  return store.boards.filter(b => b.type === 'UML');
+});
+
 const update = () => {
   nextTick(() => {
     emit('update:modelValue', localItem.value);
@@ -79,6 +83,12 @@ const formatParams = (params: UmlParameter[] | undefined) => {
   return params.map(p => `${p.name}: ${p.type}`).join(', ');
 };
 
+const goToLinkedDiagram = () => {
+  if (localItem.value.linkedDiagram) {
+    store.loadBoard(localItem.value.linkedDiagram);
+  }
+};
+
 </script>
 
 <template>
@@ -91,6 +101,24 @@ const formatParams = (params: UmlParameter[] | undefined) => {
     <div class="form-section">
       <label>Instance Name:</label>
       <input v-model="localItem.instanceName" @blur="update" />
+    </div>
+
+    <div v-if="modelValue.type === 'Aggregate'" class="form-section">
+      <label for="linked-diagram">Linked UML Diagram:</label>
+      <select id="linked-diagram" v-model="localItem.linkedDiagram" @change="update">
+        <option :value="null">None</option>
+        <option v-for="board in umlBoards" :key="board.name" :value="board.name">
+          {{ board.name }}
+        </option>
+      </select>
+      <button 
+        @click="goToLinkedDiagram" 
+        :disabled="!localItem.linkedDiagram" 
+        class="add-btn" 
+        style="margin-top: 10px; background-color: #17a2b8;"
+      >
+        Go to Diagram
+      </button>
     </div>
 
     <div v-if="modelValue.type === 'Class'" class="form-section">

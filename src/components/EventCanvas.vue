@@ -24,7 +24,18 @@ const {
   handleItemDragEnd,
 } = useCanvasLogic();
 
-const canvasItemsJSON = computed(() => store.canvasItems?.toJSON() ?? []);
+const canvasItemsJSON = computed(() => {
+  const items = store.canvasItems?.toJSON() ?? [];
+  return items.sort((a, b) => {
+    if (a.type === 'ContextBox' && b.type !== 'ContextBox') {
+      return -1;
+    }
+    if (a.type !== 'ContextBox' && b.type === 'ContextBox') {
+      return 1;
+    }
+    return 0;
+  });
+});
 const connectionsJSON = computed(() => store.connections?.toJSON() ?? []);
 
 const toolBox = ref([
@@ -86,18 +97,45 @@ const handleUpdate = (updatedItem: CanvasItem) => {
   store.updateItem(updatedItem);
 };
 
+const getEdgePoint = (source: CanvasItem, target: CanvasItem) => {
+    const sx = source.x + source.width / 2;
+    const sy = source.y + source.height / 2;
+    const tx = target.x + target.width / 2;
+    const ty = target.y + target.height / 2;
+
+    const dx = tx - sx;
+    const dy = ty - sy;
+
+    const angle = Math.atan2(dy, dx);
+
+    const halfW = source.width / 2;
+    const halfH = source.height / 2;
+
+    const tan = Math.tan(angle);
+    const region = (angle > -Math.PI / 4 && angle <= Math.PI / 4) ? 1 :
+                   (angle > Math.PI / 4 && angle <= 3 * Math.PI / 4) ? 2 :
+                   (angle > 3 * Math.PI / 4 || angle <= -3 * Math.PI / 4) ? 3 : 4;
+
+    let x, y;
+    switch (region) {
+        case 1: x = sx + halfW; y = sy + halfW * tan; break;
+        case 2: x = sx + halfH / tan; y = sy + halfH; break;
+        case 3: x = sx - halfW; y = sy - halfW * tan; break;
+        case 4: x = sx - halfH / tan; y = sy - halfH; break;
+    }
+    return { x, y };
+};
+
 const connectionPoints = computed(() => {
   return connectionsJSON.value.map((conn) => {
     const fromNode = canvasItemsJSON.value.find((item) => item.id === conn.from);
     const toNode = canvasItemsJSON.value.find((item) => item.id === conn.to);
     if (!fromNode || !toNode) return null;
 
-    const fromX = fromNode.x + fromNode.width / 2;
-    const fromY = fromNode.y + fromNode.height / 2;
-    const toX = toNode.x + toNode.width / 2;
-    const toY = toNode.y + toNode.height / 2;
+    const fromPoint = getEdgePoint(fromNode, toNode);
+    const toPoint = getEdgePoint(toNode, fromNode);
 
-    return [fromX, fromY, toX, toY];
+    return [fromPoint.x, fromPoint.y, toPoint.x, toPoint.y];
 
   }).filter((p): p is number[] => p !== null);
 });

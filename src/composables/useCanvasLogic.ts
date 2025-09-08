@@ -257,10 +257,24 @@ export function useCanvasLogic() {
     }
     
     dragStartPositions.value.clear();
+    const itemsToDrag = new Set<number>();
+
     selectedItems.value.forEach(selectedItem => {
-      const node = stage.findOne('.item-' + selectedItem.id);
+      itemsToDrag.add(selectedItem.id);
+      if (selectedItem.type === 'ContextBox') {
+        store.canvasItems?.forEach(childYMap => {
+          const child = childYMap.toJSON();
+          if (child.parent === selectedItem.id) {
+            itemsToDrag.add(child.id);
+          }
+        });
+      }
+    });
+
+    itemsToDrag.forEach(itemId => {
+      const node = stage.findOne('.item-' + itemId);
       if (node) {
-        dragStartPositions.value.set(selectedItem.id, { x: node.x(), y: node.y() });
+        dragStartPositions.value.set(itemId, { x: node.x(), y: node.y() });
       }
     });
   };
@@ -279,22 +293,56 @@ export function useCanvasLogic() {
     const dy = draggedNode.y() - startPos.y;
 
     store.doc?.transact(() => {
-      selectedItems.value.forEach(item => {
-        const node = stage.findOne('.item-' + item.id);
-        const initialPos = dragStartPositions.value.get(item.id);
-        if (node && initialPos) {
-          const index = store.canvasItems?.toArray().findIndex(i => i.get('id') === item.id);
-          if (index !== undefined && index > -1) {
-            const yItem = store.canvasItems!.get(index);
-            yItem.set('x', initialPos.x + dx);
-            yItem.set('y', initialPos.y + dy);
-          }
+      dragStartPositions.value.forEach((initialPos, itemId) => {
+        const index = store.canvasItems?.toArray().findIndex(i => i.get('id') === itemId);
+        if (index !== undefined && index > -1) {
+          const yItem = store.canvasItems!.get(index);
+          yItem.set('x', initialPos.x + dx);
+          yItem.set('y', initialPos.y + dy);
         }
       });
     });
   };
 
   const handleItemDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+    const stage = stageRef.value?.getStage();
+    if (!stage || !store.canvasItems) {
+      dragStartPositions.value.clear();
+      return;
+    }
+
+    const draggedNode = e.target;
+    const draggedItemId = Number(draggedNode.name().split('-')[1]);
+    const draggedItem = store.canvasItems.toArray().find(i => i.get('id') === draggedItemId)?.toJSON();
+
+    if (draggedItem && draggedItem.type !== 'ContextBox') {
+      const contextBoxes = store.canvasItems.toArray().filter(i => i.get('type') === 'ContextBox');
+      let newParentId: number | null = null;
+
+      const itemRect = draggedNode.getClientRect();
+
+      for (const yCb of contextBoxes) {
+        const cb = yCb.toJSON();
+        const cbNode = stage.findOne('.item-' + cb.id);
+        if (cbNode) {
+          const cbRect = cbNode.getClientRect();
+          if (
+            itemRect.x > cbRect.x &&
+            itemRect.y > cbRect.y &&
+            itemRect.x + itemRect.width < cbRect.x + cbRect.width &&
+            itemRect.y + itemRect.height < cbRect.y + cbRect.height
+          ) {
+            newParentId = cb.id;
+            break;
+          }
+        }
+      }
+
+      if (draggedItem.parent !== newParentId) {
+        store.updateItem({ ...draggedItem, parent: newParentId });
+      }
+    }
+    
     dragStartPositions.value.clear();
   };
 

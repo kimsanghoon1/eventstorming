@@ -12,7 +12,7 @@ const axios = require('axios');
 const archiver = require('archiver');
 
 const app = express();
-const port = 3001;
+const port = 3000;
 
 const dataDir = path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
@@ -106,10 +106,38 @@ app.get('/api/boards', (req, res) => {
     if (err) {
       return res.status(500).send('Error reading boards directory');
     }
-    const boardNames = files
-      .filter(file => file.endsWith('.json'))
-      .map(file => file.replace('.json', ''));
-    res.status(200).json(boardNames);
+
+    const jsonFiles = files.filter(file => file.endsWith('.json'));
+    if (jsonFiles.length === 0) {
+        return res.status(200).json([]);
+    }
+
+    const boardPromises = jsonFiles.map(file => {
+        return new Promise((resolve) => {
+            const filePath = path.join(dataDir, file);
+            fs.readFile(filePath, 'utf8', (err, fileContent) => {
+                if (err) {
+                    console.error(`Error reading board file ${file}:`, err);
+                    return resolve(null); // Resolve with null if error
+                }
+                try {
+                    const boardData = JSON.parse(fileContent);
+                    resolve({
+                        name: file.replace('.json', ''),
+                        type: boardData.boardType || 'Eventstorming'
+                    });
+                } catch (e) {
+                    console.error(`Error parsing board file ${file}:`, e);
+                    resolve(null); // Resolve with null if error
+                }
+            });
+        });
+    });
+
+    Promise.all(boardPromises).then(results => {
+        const boards = results.filter(b => b !== null);
+        res.status(200).json(boards);
+    });
   });
 });
 
