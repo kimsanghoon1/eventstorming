@@ -50,8 +50,8 @@ interface Store {
   reactiveItems: CanvasItem[];
   reactiveConnections: Connection[];
 
-  mainView: 'canvas' | 'code-generator';
-  toggleView: () => void;
+  isCodeGeneratorOpen: boolean;
+  toggleCodeGenerator: (isOpen: boolean) => void;
 
   currentView: 'event-canvas' | 'uml-canvas' | 'loading';
 
@@ -88,12 +88,12 @@ export const store = reactive<Store>({
   reactiveItems: [],
   reactiveConnections: [],
 
+  isCodeGeneratorOpen: false,
+
   currentView: 'loading',
 
-  mainView: 'canvas',
-
-  toggleView() {
-    this.mainView = this.mainView === 'canvas' ? 'code-generator' : 'canvas';
+  toggleCodeGenerator(isOpen: boolean) {
+    this.isCodeGeneratorOpen = isOpen;
   },
 
   undo() {

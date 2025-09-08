@@ -13,7 +13,7 @@ const generateCode = async () => {
     return;
   }
   if (!apiKey.value) {
-    error.value = 'Please provide your API key.';
+    error.value = 'Please provide your Gemini API Key.';
     return;
   }
 
@@ -58,10 +58,11 @@ const generateCode = async () => {
 </script>
 
 <template>
-  <div class="code-generator-view">
-    <div class="container">
+  <div class="dialog-overlay" @click.self="store.toggleCodeGenerator(false)">
+    <div class="dialog-content">
+      <button class="close-button" @click="store.toggleCodeGenerator(false)">×</button>
       <h2>AI Code Generator (Clean Architecture)</h2>
-      <p>Click the button to generate source code based on the current diagram model. The AI will generate the code and provide it as a downloadable Zip file.</p>
+      <p>The AI will generate source code based on the current diagram and provide it as a Zip file.</p>
       
       <div class="form-group">
         <label for="api-key">Gemini API Key</label>
@@ -78,33 +79,49 @@ const generateCode = async () => {
       </div>
 
       <div class="notice">
-        <p><strong>Note:</strong> This tool sends the structure of your current diagram (names, properties, and relationships of items) to the Gemini API to generate code.</p>
+        <p><strong>Note:</strong> This tool sends the structure of your current diagram to the Gemini API.</p>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.code-generator-view {
-  padding: 2rem;
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  height: 100%;
-  background-color: #f8f9fa;
+  align-items: center;
+  z-index: 1000;
 }
 
-.container {
-  width: 100%;
-  max-width: 800px;
+.dialog-content {
+  position: relative;
   background: white;
   padding: 2rem;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 600px;
+}
+
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
 }
 
 h2 {
   text-align: center;
+  margin-top: 0;
   margin-bottom: 0.5rem;
 }
 
@@ -130,10 +147,10 @@ input {
   border: 1px solid #ced4da;
   border-radius: 4px;
   font-size: 1rem;
-  font-family: inherit;
+  box-sizing: border-box;
 }
 
-button {
+button:not(.close-button) {
   width: 100%;
   padding: 0.85rem;
   background-color: #007bff;
@@ -150,7 +167,7 @@ button:disabled {
   cursor: not-allowed;
 }
 
-button:not(:disabled):hover {
+button:not(.close-button):not(:disabled):hover {
   background-color: #0056b3;
 }
 

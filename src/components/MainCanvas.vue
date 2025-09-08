@@ -8,7 +8,7 @@ import UmlCanvas from './UmlCanvas.vue';
   <div class="canvas-container">
     <div class="canvas-actions">
         <button @click="store.saveActiveBoard()" title="Save Board">💾</button>
-        <button @click="store.toggleView()" :title="store.mainView === 'canvas' ? 'Show Code Generator' : 'Show Canvas'">💻</button>
+        <button @click="store.toggleCodeGenerator(true)" title="Generate Code">💻</button>
     </div>
     <div v-if="store.activeBoard" class="canvas-wrapper">
       <div v-if="store.currentView === 'loading'" class="loading">
