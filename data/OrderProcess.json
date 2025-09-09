@@ -9,7 +9,11 @@
     { "id": 7, "type": "Aggregate", "instanceName": "Inventory", "linkedDiagram": "InventoryAggregate", "x": 1250, "y": 350, "width": 150, "height": 80 },
     { "id": 8, "type": "Event", "instanceName": "InventoryReserved", "x": 1450, "y": 350, "width": 150, "height": 80 },
     { "id": 9, "type": "Command", "instanceName": "ConfirmOrder", "x": 1650, "y": 200, "width": 150, "height": 80 },
-    { "id": 10, "type": "Event", "instanceName": "OrderConfirmed", "x": 1850, "y": 200, "width": 150, "height": 80 }
+    { "id": 10, "type": "Event", "instanceName": "OrderConfirmed", "x": 1850, "y": 200, "width": 150, "height": 80 },
+    { "id": 11, "type": "ContextBox", "instanceName": "Order Service", "x": 20, "y": 100, "width": 2000, "height": 200 },
+    { "id": 12, "type": "ContextBox", "instanceName": "Inventory Service", "x": 1030, "y": 290, "width": 600, "height": 200 },
+    { "id": 13, "type": "ContextBox", "instanceName": "Product Service", "x": 430, "y": 290, "width": 200, "height": 200 },
+    { "id": 14, "type": "Aggregate", "instanceName": "Product", "linkedDiagram": "ProductAggregate", "x": 450, "y": 350, "width": 150, "height": 80 }
   ],
   "connections": [
     { "id": "c1", "from": 1, "to": 2, "type": "Association" },
@@ -21,7 +25,8 @@
     { "id": "c7", "from": 7, "to": 8, "type": "Association" },
     { "id": "c8", "from": 8, "to": 9, "type": "Association" },
     { "id": "c9", "from": 9, "to": 3, "type": "Association" },
-    { "id": "c10", "from": 3, "to": 10, "type": "Association" }
+    { "id": "c10", "from": 3, "to": 10, "type": "Association" },
+    { "id": "c11", "from": 3, "to": 14, "type": "Association" }
   ],
   "boardType": "Eventstorming"
 }
