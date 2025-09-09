@@ -3,7 +3,6 @@ import { ref } from 'vue';
 import axios from 'axios';
 import { store } from '../store';
 
-const apiKey = ref('');
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 
@@ -12,26 +11,15 @@ const generateCode = async () => {
     error.value = 'Please select an active board first.';
     return;
   }
-  if (!apiKey.value) {
-    error.value = 'Please provide your Gemini API Key.';
-    return;
-  }
 
   isLoading.value = true;
   error.value = null;
-
-  const modelData = {
-    items: store.canvasItems?.toJSON() ?? [],
-    connections: store.connections?.toJSON() ?? [],
-    boardType: store.boardType?.toString() ?? 'Eventstorming',
-  };
 
   try {
     const response = await axios.post(
       '/api/generate-code',
       {
-        modelData: modelData,
-        apiKey: apiKey.value,
+        boardName: store.activeBoard,
       },
       {
         responseType: 'blob',
@@ -61,13 +49,8 @@ const generateCode = async () => {
   <div class="dialog-overlay" @click.self="store.toggleCodeGenerator(false)">
     <div class="dialog-content">
       <button class="close-button" @click="store.toggleCodeGenerator(false)">×</button>
-      <h2>AI Code Generator (Clean Architecture)</h2>
-      <p>The AI will generate source code based on the current diagram and provide it as a Zip file.</p>
-      
-      <div class="form-group">
-        <label for="api-key">Gemini API Key</label>
-        <input id="api-key" type="password" v-model="apiKey" placeholder="Enter your Gemini API Key" />
-      </div>
+      <h2>AI Code Generator</h2>
+      <p>The AI will generate a complete Java project based on the current diagram and provide it as a Zip file.</p>
 
       <button @click="generateCode" :disabled="isLoading">
         <span v-if="isLoading">Generating...</span>
@@ -79,7 +62,7 @@ const generateCode = async () => {
       </div>
 
       <div class="notice">
-        <p><strong>Note:</strong> This tool sends the structure of your current diagram to the Gemini API.</p>
+        <p><strong>Note:</strong> This tool sends the name of your current board to the server to generate code.</p>
       </div>
     </div>
   </div>
