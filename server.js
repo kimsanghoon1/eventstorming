@@ -210,7 +210,6 @@ ${JSON.stringify(boardData, null, 2)}`;
         const response = await openai.chat.completions.create({
             model: 'openai/gpt-oss-120b',
             messages: messagesForFinalCall,
-            response_format: { type: 'json_object' },
         });
 
         const content = response.choices[0].message.content;
