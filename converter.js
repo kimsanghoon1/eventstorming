@@ -39,29 +39,32 @@ ${procedureCode}`;
         const response = await openai.chat.completions.create({
             model: 'openai/gpt-oss-120b',
             messages: messages,
-            response_format: { type: "json_object" },
         });
 
-        const content = response.choices[0].message.content;
+        const choice = response.choices[0];
+        const content = choice.message.content;
 
-        if (typeof content !== 'string') {
-            console.error("Error: LLM response content is null or not a string.");
-            throw new Error('LLM failed to generate valid analysis.');
+        if (!content || typeof content !== 'string' || content.trim() === '') {
+            console.error("Error: LLM response content is null, empty, or not a string. Full choice object:", choice);
+            throw new Error(`LLM failed to generate valid analysis. Finish reason: ${choice.finish_reason}`);
         }
 
         console.log("LLM returned analysis. Extracting and parsing JSON...");
 
-        const jsonStart = content.indexOf('{');
-        const jsonEnd = content.lastIndexOf('}');
+        // Broader search for JSON block, more robust to markdown/text
+        const jsonMatch = content.match(/```(json)?\s*(\{[\s\S]*\})\s*```|(\{[\s\S]*\})/);
 
-        if (jsonStart === -1 || jsonEnd === -1 || jsonEnd < jsonStart) {
+        if (!jsonMatch) {
             console.error("Error: Could not find a valid JSON object in the LLM analysis response.", content);
             throw new Error('LLM failed to return a JSON object from analysis.');
         }
 
-        const jsonString = content.substring(jsonStart, jsonEnd + 1);
+        // The actual JSON string is in one of the capture groups
+        const jsonString = jsonMatch[2] || jsonMatch[3];
         
         try {
+            // It's good practice to sanitize, but modern parsers are robust. 
+            // Let's keep it for safety against weird control characters.
             const sanitizedJsonString = jsonString.replace(/[\u0000-\u001F\u007F-\u009F]/g, "");
             return JSON.parse(sanitizedJsonString);
         } catch (error) {
@@ -112,43 +115,8 @@ ${procedureCode}
 
 3.  **Input Parameter Logic (Crucial):** You MUST analyze how every input parameter of the stored procedure is used. If a parameter is used for filtering, this logic must be perfectly replicated.
     - **Conditional Filtering:** Pay special attention to filters that only apply if a parameter is not null or empty. This is a common pattern.
-    - **Example:** A SQL clause like \`DECODE(P_PLANT_CODE, '', '1', PLANT_CODE) = DECODE(P_PLANT_CODE, '', '1', P_PLANT_CODE)\` is a conditional filter. It means: "If the input parameter \`P_PLANT_CODE\` is not an empty string, then filter the results \`WHERE PLANT_CODE = P_PLANT_CODE\`." Your generated Java code MUST implement this \`if/else\` logic in the service layer before querying the database.
-
-4.  **Logic-to-Code Mapping:** In the generated Java Service class, you MUST add comments to explain how the Java code maps back to the original procedure's logic. For each significant block of Java code, add a comment indicating which part of the SQL it corresponds to. This is a mandatory requirement for verification.
-
-    *Example Commenting Style:*
-    
-\`\`\`java
-    // Corresponds to the main SELECT...FROM...WHERE clause in the procedure
-    List<Entity> initialData = repository.findBy(...);
-
-    // Implements the logic from the first UNION ALL and subsequent filtering
-    ...
-    \`\`\`
-
-**Project Requirements:**
-
-1.  **\`pom.xml\`:** Generate a complete Maven POM file.
-
-2.  **\`src/main/resources/application.properties\`:** Create a standard properties file.
-
-3.  **Application Structure (package \`com.example\`)**: Create a standard Spring Boot application structure with controllers, services, repositories, and entities.
-
-4.  **Code Quality:**
-    *   **Exception Handling:** Implement proper exception handling for all database operations.
-
-5.  **Strict No-Native-Query JPA Conversion Mandate:**
-    Your primary goal is to convert the provided SQL into a high-quality, maintainable Java implementation using **pure Spring Data JPA without any native SQL**.
-
-    1.  **Absolute Prohibition of Native Queries:** You are strictly forbidden from using native queries for any reason. This includes \`@Query(nativeQuery = true)\`, \`JdbcTemplate\`, or \`EntityManager.createNativeQuery()\`. The entire data access layer must be implemented using only standard Spring Data JPA features (Query Methods, JPQL, or Criteria API).
-
-    2.  **Handling UNION Clauses:** To handle \`UNION\` or \`UNION ALL\` clauses, you MUST adopt the following "multi-repository fetch" strategy:
-        a. For **each and every table** appearing in the \`UNION ALL\` clause, you must generate a corresponding JPA Entity class and a Spring Data JpaRepository interface.
-        b. In the main \`@Service\` class, you will then inject all of these newly created repositories.
-        c. To gather the data, you will call the appropriate find method on **each repository individually** and then combine all the results into a single \`List\` in your Java code.
-        d. This approach will result in a large number of new Entity and Repository files. This is the required and expected outcome.
-
-    3.  **Decomposition of Logic:** All other logic, such as \`MERGE\`, \`JOIN\`s, and filtering, must be decomposed and handled in the Java service layer. For 'MERGE' or 'UPSERT' operations, you must implement a "read-then-write" pattern: check if a record exists using a repository \`find\` method, then either update it or insert it using \`save()\`.`;
+    - **Example:** A SQL clause like \`DECODE(P_PLANT_CODE, '', '1', PLANT_CODE) = DECODE(P_PLANT_CODE, '', '1', P_PLANT_CODE)\` is a conditional filter. It means: 
+`;
 
         const messages = [
             { role: 'system', content: systemPrompt },
@@ -163,22 +131,23 @@ ${procedureCode}
 
         const content = response.choices[0].message.content;
 
-        if (typeof content !== 'string') {
-            console.error("Error: LLM response content is null or not a string.");
+        if (typeof content !== 'string' || content.trim() === '') {
+            console.error("Error: LLM response content is null, empty, or not a string.");
             throw new Error('LLM failed to generate valid code content.');
         }
 
         console.log("LLM returned content. Extracting JSON...");
 
-        const jsonStart = content.indexOf('{');
-        const jsonEnd = content.lastIndexOf('}');
+        // Broader search for JSON block, more robust to markdown/text
+        const jsonMatch = content.match(/```(json)?\s*({[\s\S]*})\s*```|({[\s\S]*})/);
 
-        if (jsonStart === -1 || jsonEnd === -1 || jsonEnd < jsonStart) {
+        if (!jsonMatch) {
             console.error("Error: Could not find a valid JSON object in the LLM response.", content);
             throw new Error('LLM failed to return a JSON object.');
         }
 
-        const jsonString = content.substring(jsonStart, jsonEnd + 1);
+        // The actual JSON string is in one of the capture groups
+        const jsonString = jsonMatch[2] || jsonMatch[3];
         let files;
         try {
             files = JSON.parse(jsonString);
