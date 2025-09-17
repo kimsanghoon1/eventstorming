@@ -1,18 +1,11 @@
 <script setup lang="ts">
 import { store } from './store';
-import BoardSwitcher from './components/BoardSwitcher.vue';
-import MainCanvas from './components/MainCanvas.vue';
 import CodeGeneratorDialog from './components/CodeGeneratorDialog.vue';
 </script>
 
 <template>
   <div id="layout">
-    <header>
-      <BoardSwitcher />
-    </header>
-    <main>
-      <MainCanvas />
-    </main>
+    <router-view />
     <CodeGeneratorDialog v-if="store.isCodeGeneratorOpen" />
   </div>
 </template>

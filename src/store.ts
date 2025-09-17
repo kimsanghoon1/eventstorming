@@ -36,8 +36,10 @@ const toYArray = (arr: any[]): Y.Array<any> => {
 
 
 interface Store {
-  boards: Array<{ name: string, type: string }>;
+  boards: Array<{ name: string, type: string, savedAt: string, snapshotUrl: string | null }>;
+  umlBoards: Array<{ name: string, type: string, savedAt: string, snapshotUrl: string | null }>;
   activeBoard: string | null;
+  activeStage: any | null; // To hold the Konva stage reference
   
   // Y.js related state
   doc: Y.Doc | null;
@@ -57,9 +59,12 @@ interface Store {
 
   // Methods
   fetchBoards: () => Promise<void>;
+  fetchUmlBoards: () => Promise<void>;
   loadBoard: (name: string) => Promise<void>;
+  unloadBoard: () => void;
   createNewBoard: (name: string, boardType: 'Eventstorming' | 'UML') => Promise<void>;
   deleteBoard: (name: string) => Promise<void>;
+  setActiveStage: (stage: any) => void;
   
   addItem: (item: Omit<CanvasItem, 'id'>) => void;
   updateItem: (item: CanvasItem) => void;
@@ -67,16 +72,20 @@ interface Store {
   addConnection: (connection: Omit<Connection, 'id' | 'type'> & { type?: string }) => void;
   deleteConnections: (ids: string[]) => void;
   updateConnection: (connection: Connection) => void;
+  syncAttributesToChildren: (aggregateId: number) => void;
 
   createTestObjects: () => void;
   undo: () => void;
   redo: () => void;
   saveActiveBoard: () => Promise<void>;
+  reverseEngineerCode: (zipFile: File) => Promise<void>;
 }
 
 export const store = reactive<Store>({
   boards: [],
+  umlBoards: [],
   activeBoard: null,
+  activeStage: null,
   
   doc: null,
   provider: null,
@@ -96,6 +105,28 @@ export const store = reactive<Store>({
     this.isCodeGeneratorOpen = isOpen;
   },
 
+  setActiveStage(stage: any) {
+    this.activeStage = stage;
+  },
+
+  unloadBoard() {
+    if (this.provider) {
+      this.provider.destroy();
+    }
+    if (this.doc) {
+      this.doc.destroy();
+    }
+    this.activeBoard = null;
+    this.doc = null;
+    this.provider = null;
+    this.canvasItems = null;
+    this.connections = null;
+    this.boardType = null;
+    this.reactiveItems = [];
+    this.reactiveConnections = [];
+    this.fetchBoards(); // Refresh the board list
+  },
+
   undo() {
     this.undoManager?.undo();
   },
@@ -108,39 +139,31 @@ export const store = reactive<Store>({
     try {
       const response = await fetch('/api/boards');
       this.boards = await response.json();
-      if (this.boards.length > 0 && !this.activeBoard) {
-        await this.loadBoard(this.boards[0].name);
-      } else if (this.boards.length === 0) {
-        this.activeBoard = null;
-        this.doc?.destroy();
-        this.provider?.destroy();
-        this.doc = null;
-        this.provider = null;
-        this.canvasItems = null;
-        this.connections = null;
-        this.currentView = 'loading';
-      }
     } catch (error) {
       console.error("Failed to fetch boards:", error);
     }
   },
 
+  async fetchUmlBoards() {
+    try {
+      const response = await fetch('/api/boards/uml');
+      this.umlBoards = await response.json();
+    } catch (error) {
+      console.error("Failed to fetch UML boards:", error);
+    }
+  },
+
   async loadBoard(name: string) {
-    if (this.activeBoard === name) {
+    if (this.activeBoard === name && this.doc) { // also check for doc to prevent no-op
         return;
     }
 
-    if (this.provider) {
-      this.provider.destroy();
-    }
-    if (this.doc) {
-      this.doc.destroy();
-    }
+    // Clean up previous board connection if it exists
+    if (this.provider) this.provider.destroy();
+    if (this.doc) this.doc.destroy();
 
     this.activeBoard = name;
     this.currentView = 'loading';
-    this.reactiveItems = [];
-    this.reactiveConnections = [];
 
     try {
         const doc = new Y.Doc();
@@ -148,46 +171,55 @@ export const store = reactive<Store>({
         this.canvasItems = doc.getArray<Y.Map<any>>('canvasItems');
         this.connections = doc.getArray<Y.Map<any>>('connections');
         this.boardType = doc.getText('boardType');
-        const meta = doc.getMap('meta');
-
-        this.reactiveItems = this.canvasItems.toJSON();
-        this.reactiveConnections = this.connections.toJSON();
-
-        doc.on('update', () => {
-            this.reactiveItems = this.canvasItems!.toJSON();
-            this.reactiveConnections = this.connections!.toJSON();
-            const type = this.boardType!.toString();
-            if(type && this.currentView === 'loading') {
-              this.currentView = type === 'UML' ? 'uml-canvas' : 'event-canvas';
-            }
-        });
 
         this.provider = new WebsocketProvider('ws://localhost:3000', name, doc);
 
-        this.provider.on('sync', async (isSynced: boolean) => {
-          if (isSynced && !meta.get('isInitialized')) {
-            const response = await fetch(`/api/boards/${name}`);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch board: ${response.statusText}`);
-            }
-            const boardData = await response.json();
-            doc.transact(() => {
-                (boardData.items || []).forEach((item: any) => this.canvasItems!.push([toYMap(item)]));
-                (boardData.connections || []).forEach((conn: any) => this.connections!.push([toYMap(conn)]));
-                if (boardData.boardType) {
-                    this.boardType!.insert(0, boardData.boardType);
+        this.provider.on('synced', async (isSynced: boolean) => {
+            if (isSynced && this.canvasItems?.length === 0) {
+                // 1. Fetch initial data from REST API only if the doc is empty after sync
+                console.log('Document is empty after sync, fetching initial state from REST API...');
+                try {
+                    const response = await fetch(`/api/boards/${name}`);
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch board: ${response.statusText}`);
+                    }
+                    const boardData = await response.json();
+
+                    // 2. Populate the doc
+                    doc.transact(() => {
+                        (boardData.items || []).forEach((item: any) => this.canvasItems!.push([toYMap(item)]));
+                        (boardData.connections || []).forEach((conn: any) => this.connections!.push([toYMap(conn)]));
+                        if (boardData.boardType && this.boardType!.length === 0) {
+                            this.boardType!.insert(0, boardData.boardType);
+                        }
+                    });
+                } catch (e) {
+                    console.error("Failed to fetch initial board state:", e);
                 }
-                meta.set('isInitialized', true);
-            });
-          }
+            }
+            // This will now be populated, triggering the initial render
+            this.reactiveItems = this.canvasItems!.toJSON();
+            this.reactiveConnections = this.connections!.toJSON();
+            const type = this.boardType!.toString();
+            if (type) {
+                this.currentView = type === 'UML' ? 'uml-canvas' : 'event-canvas';
+            }
         });
 
+        // Set up update handler for subsequent changes from any client
+        doc.on('update', () => {
+            if (this.canvasItems && this.connections) {
+              this.reactiveItems = this.canvasItems.toJSON();
+              this.reactiveConnections = this.connections.toJSON();
+            }
+        });
+        
         this.undoManager = new Y.UndoManager([this.canvasItems, this.connections]);
 
     } catch (error) {
         console.error("Failed to load board:", error);
         this.activeBoard = null;
-        this.currentView = 'event-canvas'; // Fallback to a default view
+        this.currentView = 'event-canvas'; // Fallback
     }
   },
 
@@ -197,11 +229,11 @@ export const store = reactive<Store>({
       return;
     }
     
-    // Create an empty board file on the server
     const boardData = {
       items: [],
       connections: [],
       boardType: boardType,
+      snapshot: null,
     };
     await fetch(`/api/boards/${name}`, {
       method: 'POST',
@@ -210,18 +242,17 @@ export const store = reactive<Store>({
     });
 
     await this.fetchBoards();
-    await this.loadBoard(name);
+    // Navigation is now handled by the component
   },
 
   async deleteBoard(name: string) {
     if (!confirm(`Are you sure you want to delete ${name}?`)) return;
     await fetch(`/api/boards/${name}`, { method: 'DELETE' });
     if (this.activeBoard === name) {
-      this.activeBoard = null;
-      this.doc?.destroy();
-      this.provider?.destroy();
+      this.unloadBoard();
+    } else {
+      await this.fetchBoards();
     }
-    await this.fetchBoards();
   },
 
   addItem(item: Omit<CanvasItem, 'id'>) {
@@ -271,15 +302,43 @@ export const store = reactive<Store>({
   },
 
   deleteConnections(ids: string[]) {
-      if (!this.connections) return;
+      if (!this.connections || !this.doc) return;
+      this.doc.transact(() => {
+        const idsSet = new Set(ids);
+        let i = this.connections!.length;
+        while (i--) {
+            const conn = this.connections!.get(i);
+            if (idsSet.has(conn.get('id'))) {
+                this.connections!.delete(i, 1);
+            }
+        }
+      });
+  },
+
+  deleteItemsAndAttachedConnections(ids: number[]) {
+    if (!this.doc || !this.canvasItems || !this.connections) return;
+
+    this.doc.transact(() => {
       const idsSet = new Set(ids);
-      let i = this.connections.length;
+
+      // 1. Delete items
+      let i = this.canvasItems!.length;
       while (i--) {
-          const conn = this.connections.get(i);
-          if (idsSet.has(conn.get('id'))) {
-              this.connections.delete(i, 1);
-          }
+        const item = this.canvasItems!.get(i);
+        if (idsSet.has(item.get('id'))) {
+          this.canvasItems!.delete(i, 1);
+        }
       }
+
+      // 2. Delete attached connections
+      let j = this.connections!.length;
+      while (j--) {
+        const conn = this.connections!.get(j);
+        if (idsSet.has(conn.get('from')) || idsSet.has(conn.get('to'))) {
+          this.connections!.delete(j, 1);
+        }
+      }
+    });
   },
 
   updateConnection(connection: Connection) {
@@ -292,6 +351,33 @@ export const store = reactive<Store>({
         yConn.set('targetMultiplicity', connection.targetMultiplicity);
       });
     }
+  },
+
+  syncAttributesToChildren(aggregateId: number) {
+    if (!this.canvasItems) return;
+
+    const aggregate = this.reactiveItems.find(i => i.id === aggregateId);
+    if (!aggregate || aggregate.type !== 'Aggregate' || !aggregate.attributes) {
+      console.warn('Target is not a valid aggregate or has no attributes.');
+      return;
+    }
+
+    const parentContextId = aggregate.parent;
+    if (parentContextId === null) return;
+
+    const childrenToUpdate = this.reactiveItems.filter(item => 
+      item.parent === parentContextId &&
+      ['Command', 'Event', 'Policy'].includes(item.type)
+    );
+
+    this.doc?.transact(() => {
+      childrenToUpdate.forEach(child => {
+        const updatedChild = { ...child, attributes: aggregate.attributes };
+        this.updateItem(updatedChild);
+      });
+    });
+
+    alert(`${childrenToUpdate.length} child items have been updated with attributes from ${aggregate.instanceName}.`);
   },
 
   createTestObjects() {
@@ -325,15 +411,21 @@ export const store = reactive<Store>({
   },
 
   async saveActiveBoard() {
-    if (!this.activeBoard || !this.doc) {
-      alert("No active board to save.");
+    if (!this.activeBoard || !this.doc || !this.activeStage) {
+      alert("No active board or stage to save.");
       return;
     }
+
+    // Generate snapshot
+    const snapshot = this.activeStage.toDataURL({ pixelRatio: 0.1 });
+
     const boardData = {
       items: this.doc.getArray('canvasItems').toJSON(),
       connections: this.doc.getArray('connections').toJSON(),
       boardType: this.doc.getText('boardType').toString(),
+      snapshot: snapshot,
     };
+
     try {
       const response = await fetch(`/api/boards/${this.activeBoard}`,
         {
@@ -345,9 +437,37 @@ export const store = reactive<Store>({
         throw new Error('Save failed');
       }
       alert('Board saved successfully!');
+      await this.fetchBoards(); // Refresh board list to show new snapshot
     } catch (error) {
       console.error('Failed to save board:', error);
       alert('Error saving board.');
+    }
+  },
+
+  async reverseEngineerCode(zipFile) {
+    // const formData = new FormData();
+    // formData.append('zipFile', zipFile);
+
+    try {
+      const response = await fetch('/api/reverse-engineer', {
+        method: 'POST',
+        // body: formData,
+      });
+      if (!response.ok) throw new Error('Failed to reverse engineer code');
+      const modelData = await response.json();
+
+      // Load the model into the current board
+      if (this.doc) {
+        this.doc.transact(() => {
+          this.canvasItems.delete(0, this.canvasItems.length);
+          this.connections.delete(0, this.connections.length);
+          modelData.items.forEach(item => this.canvasItems.push([toYMap(item)]));
+          modelData.connections.forEach(conn => this.connections.push([toYMap(conn)]));
+        });
+      }
+    } catch (error) {
+      console.error('Failed to reverse engineer code:', error);
+      throw error;
     }
   },
 });

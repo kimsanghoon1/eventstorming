@@ -9,6 +9,7 @@ import { useCanvasLogic } from '../composables/useCanvasLogic';
 
 const {
   selectedItems,
+  selectedConnections,
   stageRef,
   transformerRef,
   selectionRectRef,
@@ -19,6 +20,7 @@ const {
   handleMouseMove,
   handleMouseUp,
   handleItemClick,
+  handleConnectionClick,
   handleTransformEnd,
   handleItemDragStart,
   handleItemDragMove,
@@ -123,15 +125,6 @@ const getConnectionItems = (conn: any) => {
         @mouseup="handleMouseUp"
       >
         <v-layer>
-          <template v-for="conn in connectionsJSON" :key="conn.id">
-            <UmlConnection 
-              v-if="getConnectionItems(conn).fromItem && getConnectionItems(conn).toItem"
-              :connection="conn"
-              :fromItem="getConnectionItems(conn).fromItem!"
-              :toItem="getConnectionItems(conn).toItem!"
-            />
-          </template>
-
           <UmlItem 
             v-for="item in canvasItemsJSON" 
             :key="item.id" 
@@ -142,6 +135,17 @@ const getConnectionItems = (conn: any) => {
             @dragend="handleItemDragEnd"
             @transformend="handleTransformEnd"
           />
+
+          <template v-for="conn in connectionsJSON" :key="conn.id">
+            <UmlConnection 
+              v-if="getConnectionItems(conn).fromItem && getConnectionItems(conn).toItem"
+              :connection="conn"
+              :fromItem="getConnectionItems(conn).fromItem!"
+              :toItem="getConnectionItems(conn).toItem!"
+              :isSelected="selectedConnections.some(c => c.id === conn.id)"
+              @connection-click="handleConnectionClick($event, conn)"
+            />
+          </template>
 
           <v-transformer 
             ref="transformerRef" 

@@ -8,6 +8,7 @@ import EventItem from './canvas-items/EventItem.vue';
 
 const {
   selectedItems,
+  selectedConnections,
   stageRef,
   transformerRef,
   selectionRectRef,
@@ -18,6 +19,7 @@ const {
   handleMouseMove,
   handleMouseUp,
   handleItemClick,
+  handleConnectionClick,
   handleTransformEnd,
   handleItemDragStart,
   handleItemDragMove,
@@ -125,7 +127,7 @@ const getEdgePoint = (source: CanvasItem, target: CanvasItem) => {
     }
 };
 
-const connectionPoints = computed(() => {
+const connectionsWithDetails = computed(() => {
   return connectionsJSON.value.map((conn) => {
     const fromNode = canvasItemsJSON.value.find((item) => item.id === conn.from);
     const toNode = canvasItemsJSON.value.find((item) => item.id === conn.to);
@@ -134,9 +136,14 @@ const connectionPoints = computed(() => {
     const fromPoint = getEdgePoint(fromNode, toNode);
     const toPoint = getEdgePoint(toNode, fromNode);
 
-    return [fromPoint.x, fromPoint.y, toPoint.x, toPoint.y];
-
-  }).filter((p): p is number[] => p !== null);
+    return {
+      ...conn,
+      id: conn.id,
+      points: [fromPoint.x, fromPoint.y, toPoint.x, toPoint.y],
+      fromNode,
+      toNode,
+    };
+  }).filter((c): c is NonNullable<typeof c> => c !== null);
 });
 
 </script>
@@ -163,7 +170,6 @@ const connectionPoints = computed(() => {
         @mouseup="handleMouseUp"
       >
         <v-layer>
-          <v-arrow v-for="(points, index) in connectionPoints" :key="index" :config="{ points: points, stroke: 'black', fill: 'black', strokeWidth: 2 }" />
           <EventItem 
             v-for="item in canvasItemsJSON" 
             :key="item.id" 
@@ -175,6 +181,15 @@ const connectionPoints = computed(() => {
             @dragend="handleItemDragEnd"
             @transformend="handleTransformEnd"
           />
+          <v-arrow v-for="conn in connectionsWithDetails" :key="conn.id" :config="{
+              points: conn.points,
+              stroke: selectedConnections.some(c => c.id === conn.id) ? '#007bff' : 'black',
+              fill: selectedConnections.some(c => c.id === conn.id) ? '#007bff' : 'black',
+              strokeWidth: selectedConnections.some(c => c.id === conn.id) ? 3 : 2,
+              dash: (conn.fromNode.type === 'Event' && conn.toNode.type === 'Policy') ? [10, 5] : undefined,
+              pointerLength: 10,
+              pointerWidth: 10,
+          }" @click="handleConnectionClick($event, conn)" />
 
           <v-transformer 
             ref="transformerRef" 

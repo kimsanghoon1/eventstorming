@@ -1,0 +1,52 @@
+{
+  "items": [
+    {
+      "id": 2041,
+      "type": "Class",
+      "instanceName": "Inventory",
+      "stereotype": "AggregateRoot",
+      "x": 100,
+      "y": 100,
+      "width": 250,
+      "height": 150,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "productId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "quantity",
+          "type": "int"
+        }
+      ],
+      "methods": [
+        {
+          "visibility": "public",
+          "name": "reserve",
+          "returnType": "boolean",
+          "parameters": [
+            {
+              "name": "amount",
+              "type": "int"
+            }
+          ]
+        },
+        {
+          "visibility": "public",
+          "name": "release",
+          "returnType": "void",
+          "parameters": [
+            {
+              "name": "amount",
+              "type": "int"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "connections": [],
+  "boardType": "UML"
+}

@@ -5,6 +5,19 @@ import { store } from '../store';
 
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+const elapsedTime = ref(0);
+let timer: number | undefined;
+
+const startTimer = () => {
+  elapsedTime.value = 0;
+  timer = setInterval(() => {
+    elapsedTime.value++;
+  }, 1000);
+};
+
+const stopTimer = () => {
+  clearInterval(timer);
+};
 
 const generateCode = async () => {
   if (!store.activeBoard) {
@@ -14,6 +27,7 @@ const generateCode = async () => {
 
   isLoading.value = true;
   error.value = null;
+  startTimer();
 
   try {
     const response = await axios.post(
@@ -41,6 +55,7 @@ const generateCode = async () => {
     console.error(err);
   } finally {
     isLoading.value = false;
+    stopTimer();
   }
 };
 </script>
@@ -53,7 +68,7 @@ const generateCode = async () => {
       <p>The AI will generate a complete Java project based on the current diagram and provide it as a Zip file.</p>
 
       <button @click="generateCode" :disabled="isLoading">
-        <span v-if="isLoading">Generating...</span>
+        <span v-if="isLoading">Generating... ({{ elapsedTime }}s elapsed)</span>
         <span v-else>Generate & Download Zip</span>
       </button>
 

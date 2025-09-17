@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineProps, defineEmits, ref, watch, nextTick, computed } from 'vue';
+import { defineProps, defineEmits, ref, watch, nextTick, computed, onMounted } from 'vue';
 import { store } from '../store';
 import type { CanvasItem, Connection, UmlAttribute, UmlOperation, UmlParameter, Property } from "../types";
 
@@ -31,8 +31,14 @@ watch(() => props.modelValue, (newItem) => {
   }
 }, { deep: true, immediate: true });
 
+onMounted(() => {
+  if (store.umlBoards.length === 0) {
+    store.fetchUmlBoards();
+  }
+});
+
 const umlBoards = computed(() => {
-  return store.boards.filter(b => b.type === 'UML');
+  return store.umlBoards;
 });
 
 const connections = computed(() => {
@@ -134,6 +140,12 @@ const goToLinkedDiagram = () => {
   }
 };
 
+const syncAttributes = () => {
+    if (localItem.value && localItem.value.id) {
+        store.syncAttributesToChildren(localItem.value.id);
+    }
+};
+
 </script>
 
 <template>
@@ -165,14 +177,28 @@ const goToLinkedDiagram = () => {
           {{ board.name }}
         </option>
       </select>
-      <button 
-        @click="goToLinkedDiagram" 
-        :disabled="!localItem.linkedDiagram" 
-        class="add-btn" 
-        style="margin-top: 10px; background-color: #17a2b8;"
-      >
-        Go to Diagram
+      <div v-if="localItem.linkedDiagram">
+        <button @click="goToLinkedDiagram" class="add-btn" style="margin-top: 10px; background-color: #17a2b8;">
+          Edit Diagram
+        </button>
+        <button @click="syncAttributes" class="add-btn" style="margin-top: 10px; background-color: #ffc107; color: #212529;">
+          자식 요소에 속성 동기화
+        </button>
+      </div>
+      <button v-else @click="createAndLinkDiagram" class="add-btn" style="margin-top: 10px; background-color: #28a745;">
+        Create & Link Diagram
       </button>
+    </div>
+
+    <!-- Produces Event for Command/Policy -->
+    <div v-if="modelValue.type === 'Command' || modelValue.type === 'Policy'" class="form-section">
+      <label for="produces-event">Produces Event:</label>
+      <select id="produces-event" v-model="localItem.producesEventId" @change="update">
+        <option :value="null">None</option>
+        <option v-for="event in availableEvents" :key="event.id" :value="event.id">
+          {{ event.instanceName }}
+        </option>
+      </select>
     </div>
 
     <!-- Generic Properties for EventCanvas -->
@@ -209,8 +235,11 @@ const goToLinkedDiagram = () => {
     </div>
 
     <!-- Specific Properties for UmlCanvas -->
-    <div v-if="modelValue.type === 'Class' || modelValue.type === 'Interface'" class="properties-section">
+    <div v-if="['Class', 'Interface', 'Aggregate', 'Command', 'Event', 'Policy'].includes(modelValue.type)" class="properties-section">
       <h4>Attributes</h4>
+      <datalist id="available-types">
+        <option v-for="type in availableTypes" :key="type" :value="type" />
+      </datalist>
       <div v-for="(attr, index) in localItem.attributes" :key="index" class="attribute-item">
         <select v-model="attr.visibility" @change="update">
           <option>public</option>
@@ -218,9 +247,8 @@ const goToLinkedDiagram = () => {
           <option>protected</option>
           <option>package</option>
         </select>
+        <input v-model="attr.type" @blur="update" placeholder="Type" list="available-types" />
         <input v-model="attr.name" @blur="update" placeholder="Name" />
-        <span class="separator">:</span>
-        <input v-model="attr.type" @blur="update" placeholder="Type" />
         <button @click="removeAttribute(index)" class="delete-btn" title="Remove Attribute">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
             <path d="M 10 2 L 9 3 L 4 3 L 4 5 L 20 5 L 20 3 L 15 3 L 14 2 L 10 2 z M 5 7 L 5 22 L 19 22 L 19 7 L 5 7 z M 8 9 L 10 9 L 10 20 L 8 20 L 8 9 z M 14 9 L 16 9 L 16 20 L 14 20 L 14 9 z"/>
@@ -234,16 +262,10 @@ const goToLinkedDiagram = () => {
       <h4>Methods</h4>
       <div v-for="(method, index) in localItem.methods" :key="index" class="method-item">
         <div class="method-main">
-            <select v-model="method.visibility" @change="update">
-              <option>public</option>
-              <option>private</option>
-              <option>protected</option>
-              <option>package</option>
-            </select>
             <input v-model="method.name" @blur="update" placeholder="Name" />
             <span class="params">({{ formatParams(method.parameters) }})</span>
             <span class="separator">:</span>
-            <input v-model="method.returnType" @blur="update" placeholder="Return" />
+            <input v-model="method.returnType" @blur="update" placeholder="Return" list="available-types" />
         </div>
         <button @click="removeMethod(index)" class="delete-btn" title="Remove Method">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="16" height="16">

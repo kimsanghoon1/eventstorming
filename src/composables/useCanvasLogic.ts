@@ -1,11 +1,11 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import Konva from 'konva';
 import { store } from '../store';
-import type { CanvasItem } from '../types';
-
+import type { CanvasItem, Connection } from '../types';
 
 export function useCanvasLogic() {
   const selectedItems = ref<CanvasItem[]>([]);
+  const selectedConnections = ref<Connection[]>([]);
   const stageRef = ref<{ getStage: () => Konva.Stage } | null>(null);
   const transformerRef = ref<{ getNode: () => Konva.Transformer } | null>(null);
   const selectionRectRef = ref<{ getNode: () => Konva.Rect } | null>(null);
@@ -24,8 +24,14 @@ export function useCanvasLogic() {
     height: window.innerHeight,
   });
 
+  watch(stageRef, (stage) => {
+    if (stage) {
+      store.setActiveStage(stage.getStage());
+    }
+  }, { immediate: true });
+
   const updateStageSize = () => {
-    const items = store.canvasItems?.toJSON() ?? [];
+    const items = store.reactiveItems ?? [];
     const padding = 200;
     const wrapper = document.querySelector('.canvas-wrapper');
     const viewportWidth = wrapper ? wrapper.clientWidth : window.innerWidth;
@@ -53,11 +59,12 @@ export function useCanvasLogic() {
     };
   };
 
-  watch(() => store.canvasItems?.length, updateStageSize);
+  watch(() => store.reactiveItems.length, updateStageSize);
 
   const startConnection = (type: string) => {
     connectionMode.value = { active: true, type: type, from: null };
     selectedItems.value = [];
+    selectedConnections.value = [];
     if (stageRef.value) {
         stageRef.value.getStage().container().style.cursor = 'crosshair';
     }
@@ -79,13 +86,13 @@ export function useCanvasLogic() {
         cancelConnectionMode();
       } else {
         selectedItems.value = [];
+        selectedConnections.value = [];
       }
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
       e.preventDefault();
-      if (store.canvasItems) {
-        selectedItems.value = store.canvasItems.toJSON();
-      }
+      selectedItems.value = store.reactiveItems;
+      selectedConnections.value = [];
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
       e.preventDefault();
@@ -99,17 +106,13 @@ export function useCanvasLogic() {
       e.preventDefault();
       const itemIdsToDelete = selectedItems.value.map(item => item.id);
       if (itemIdsToDelete.length > 0) {
-        store.deleteItems(itemIdsToDelete);
-        // Also delete connections attached to these items
-        const connIdsToDelete: string[] = [];
-        store.connections?.forEach(conn => {
-            const connJson = conn.toJSON();
-            if (itemIdsToDelete.includes(connJson.from) || itemIdsToDelete.includes(connJson.to)) {
-                connIdsToDelete.push(connJson.id);
-            }
-        });
-        store.deleteConnections(connIdsToDelete);
+        store.deleteItemsAndAttachedConnections(itemIdsToDelete);
         selectedItems.value = [];
+      }
+      const connIdsToDelete = selectedConnections.value.map(conn => conn.id);
+      if (connIdsToDelete.length > 0) {
+        store.deleteConnections(connIdsToDelete);
+        selectedConnections.value = [];
       }
     }
   };
@@ -143,6 +146,7 @@ export function useCanvasLogic() {
     };
     if (!e.evt.ctrlKey && !e.evt.metaKey) {
       selectedItems.value = [];
+      selectedConnections.value = [];
     }
   };
 
@@ -168,12 +172,11 @@ export function useCanvasLogic() {
       selection.value.visible = false;
     }, 0);
 
-    if (!stageRef.value || !selectionRectRef.value || !store.canvasItems) return;
+    if (!stageRef.value || !selectionRectRef.value) return;
     const stage = stageRef.value.getStage();
     const box = selectionRectRef.value.getNode().getClientRect();
     const newlySelected: CanvasItem[] = [];
-    store.canvasItems.forEach((yItem) => {
-      const item = yItem.toJSON() as CanvasItem;
+    store.reactiveItems.forEach((item) => {
       const node = stage.findOne('.item-' + item.id);
       if (node) {
         const nodeBox = node.getClientRect();
@@ -197,8 +200,18 @@ export function useCanvasLogic() {
   const handleItemClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
     if (connectionMode.value.active && connectionMode.value.type) {
       if (connectionMode.value.from === null) {
+        if (item.type === 'Aggregate') {
+          alert("Connections cannot originate from an Aggregate.");
+          cancelConnectionMode();
+          return;
+        }
         connectionMode.value.from = item.id;
       } else {
+        if (item.type === 'Aggregate') {
+          alert("Connections cannot target an Aggregate.");
+          cancelConnectionMode();
+          return;
+        }
         if (connectionMode.value.from !== item.id) {
           store.addConnection({
             from: connectionMode.value.from,
@@ -213,6 +226,7 @@ export function useCanvasLogic() {
     } else {
       const isCtrlPressed = e.evt.ctrlKey || e.evt.metaKey;
       const isItemAlreadySelected = selectedItems.value.some(i => i.id === item.id);
+      selectedConnections.value = [];
 
       if (!isCtrlPressed) {
         if (isItemAlreadySelected && selectedItems.value.length === 1) {
@@ -229,6 +243,26 @@ export function useCanvasLogic() {
     }
   };
 
+  const handleConnectionClick = (e: Konva.KonvaEventObject<MouseEvent>, conn: Connection) => {
+    e.evt.preventDefault();
+    const isCtrlPressed = e.evt.ctrlKey || e.evt.metaKey;
+    const isConnAlreadySelected = selectedConnections.value.some(c => c.id === conn.id);
+    selectedItems.value = [];
+
+    if (!isCtrlPressed) {
+      if (isConnAlreadySelected && selectedConnections.value.length === 1) {
+        return;
+      }
+      selectedConnections.value = [conn];
+    } else {
+      if (isConnAlreadySelected) {
+        selectedConnections.value = selectedConnections.value.filter(c => c.id !== conn.id);
+      } else {
+        selectedConnections.value.push(conn);
+      }
+    }
+  };
+
   const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
     if (!transformerRef.value) return;
     const transformer = transformerRef.value.getNode();
@@ -237,9 +271,8 @@ export function useCanvasLogic() {
     store.doc?.transact(() => {
       nodes.forEach((node: Konva.Node) => {
           const id = Number(node.name().split('-')[1]);
-          const index = store.canvasItems?.toArray().findIndex(i => i.get('id') === id);
-          if (index !== undefined && index > -1) {
-              const yItem = store.canvasItems!.get(index);
+          const yItem = store.canvasItems?.toArray().find(i => i.get('id') === id);
+          if (yItem) {
               const scaleX = node.scaleX();
               const scaleY = node.scaleY();
 
@@ -280,6 +313,7 @@ export function useCanvasLogic() {
 
     if (!selectedItems.value.some(i => i.id === item.id)) {
       selectedItems.value = [item];
+      selectedConnections.value = [];
     }
     
     dragStartPositions.value.clear();
@@ -288,8 +322,7 @@ export function useCanvasLogic() {
     selectedItems.value.forEach(selectedItem => {
       itemsToDrag.add(selectedItem.id);
       if (selectedItem.type === 'ContextBox') {
-        store.canvasItems?.forEach(childYMap => {
-          const child = childYMap.toJSON();
+        store.reactiveItems.forEach(child => {
           if (child.parent === selectedItem.id) {
             itemsToDrag.add(child.id);
           }
@@ -325,7 +358,7 @@ export function useCanvasLogic() {
 
   const handleItemDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     const stage = stageRef.value?.getStage();
-    if (!stage || !store.canvasItems) {
+    if (!stage) {
       dragStartPositions.value.clear();
       return;
     }
@@ -334,9 +367,8 @@ export function useCanvasLogic() {
         dragStartPositions.value.forEach((_, itemId) => {
             const node = stage.findOne('.item-' + itemId);
             if (node) {
-                const index = store.canvasItems!.toArray().findIndex(i => i.get('id') === itemId);
-                if (index > -1) {
-                    const yItem = store.canvasItems!.get(index);
+                const yItem = store.canvasItems?.toArray().find(i => i.get('id') === itemId);
+                if (yItem) {
                     yItem.set('x', node.x());
                     yItem.set('y', node.y());
                 }
@@ -344,19 +376,17 @@ export function useCanvasLogic() {
         });
     });
 
-    // After updating the store, check for parent changes
     const draggedNode = e.target;
     const draggedItemId = Number(draggedNode.name().split('-')[1]);
-    const draggedItem = store.canvasItems.toArray().find(i => i.get('id') === draggedItemId)?.toJSON();
+    const draggedItem = store.reactiveItems.find(i => i.id === draggedItemId);
 
     if (draggedItem && draggedItem.type !== 'ContextBox') {
-      const contextBoxes = store.canvasItems.toArray().filter(i => i.get('type') === 'ContextBox');
+      const contextBoxes = store.reactiveItems.filter(i => i.type === 'ContextBox');
       let newParentId: number | null = null;
 
       const itemRect = draggedNode.getClientRect();
 
-      for (const yCb of contextBoxes) {
-        const cb = yCb.toJSON();
+      for (const cb of contextBoxes) {
         const cbNode = stage.findOne('.item-' + cb.id);
         if (cbNode) {
           const cbRect = cbNode.getClientRect();
@@ -382,14 +412,17 @@ export function useCanvasLogic() {
   };
 
   watch(selectedItems, updateTransformer, { deep: true });
-  watch(() => store.activeBoard, () => { selectedItems.value = []; });
-  watch(() => store.canvasItems, () => {
-      // Force update transformer when items change from remote
+  watch(() => store.activeBoard, () => {
+    selectedItems.value = [];
+    selectedConnections.value = [];
+  });
+  watch(() => store.reactiveItems, () => {
       updateTransformer();
   }, { deep: true });
 
   return {
     selectedItems,
+    selectedConnections,
     stageRef,
     transformerRef,
     selectionRectRef,
@@ -400,6 +433,7 @@ export function useCanvasLogic() {
     handleMouseMove,
     handleMouseUp,
     handleItemClick,
+    handleConnectionClick,
     handleTransformEnd,
     handleItemDragStart,
     handleItemDragMove,

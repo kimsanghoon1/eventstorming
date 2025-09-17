@@ -1,0 +1,252 @@
+{
+  "items": [
+    {
+      "id": 100,
+      "type": "ContextBox",
+      "instanceName": "Order Context",
+      "x": 246.38232625441543,
+      "y": 305.96199391395163,
+      "width": 597.2353474911693,
+      "height": 299.9999999999996,
+      "rotation": 0
+    },
+    {
+      "id": 200,
+      "type": "ContextBox",
+      "instanceName": "Inventory Context",
+      "x": 881.4201228878654,
+      "y": 305.836712694949,
+      "width": 546.1597542242691,
+      "height": 550.331125827814,
+      "rotation": 0
+    },
+    {
+      "id": 101,
+      "type": "Actor",
+      "instanceName": "Customer",
+      "parent": 100,
+      "x": 71,
+      "y": 405.96199391395294,
+      "width": 150,
+      "height": 100
+    },
+    {
+      "id": 102,
+      "type": "Command",
+      "instanceName": "PlaceOrder",
+      "parent": 100,
+      "producesEventId": 104,
+      "x": 319,
+      "y": 391.9640690332723,
+      "width": 150,
+      "height": 100,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "orderId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "customerId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "orderLines",
+          "type": "List<OrderLine>"
+        },
+        {
+          "visibility": "private",
+          "name": "status",
+          "type": "OrderStatus"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "type": "Aggregate",
+      "instanceName": "Order",
+      "parent": 100,
+      "linkedDiagram": "Order (UML)",
+      "x": 471,
+      "y": 405.96199391395294,
+      "width": 150,
+      "height": 100,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "orderId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "customerId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "orderLines",
+          "type": "List<OrderLine>"
+        },
+        {
+          "visibility": "private",
+          "name": "status",
+          "type": "OrderStatus"
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "type": "Event",
+      "instanceName": "OrderPlaced",
+      "parent": 100,
+      "x": 621,
+      "y": 403.96229035957,
+      "width": 150,
+      "height": 100,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "orderId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "customerId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "orderLines",
+          "type": "List<OrderLine>"
+        },
+        {
+          "visibility": "private",
+          "name": "status",
+          "type": "OrderStatus"
+        }
+      ]
+    },
+    {
+      "id": 202,
+      "type": "Policy",
+      "instanceName": "ReserveInventoryPolicy",
+      "parent": 200,
+      "x": 935,
+      "y": 393.00405091435675,
+      "width": 150,
+      "height": 100,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "productId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "quantity",
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "id": 204,
+      "type": "Aggregate",
+      "instanceName": "Inventory",
+      "parent": 200,
+      "linkedDiagram": "Inventory (UML)",
+      "x": 1086,
+      "y": 422.99961265060557,
+      "width": 150,
+      "height": 100,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "productId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "quantity",
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "id": 205,
+      "type": "Event",
+      "instanceName": "InventoryReserved",
+      "parent": 200,
+      "x": 1237,
+      "y": 391.00434679860683,
+      "width": 150,
+      "height": 100,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "productId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "quantity",
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "id": 206,
+      "type": "Event",
+      "instanceName": "InventoryReservationFailed",
+      "parent": 200,
+      "x": 1236,
+      "y": 504.9874813963522,
+      "width": 150,
+      "height": 100,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "productId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "quantity",
+          "type": "int"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-101-102",
+      "from": 101,
+      "to": 102,
+      "type": "Association"
+    },
+    {
+      "id": "conn-104-202",
+      "from": 104,
+      "to": 202,
+      "type": "Association"
+    },
+    {
+      "from": 102,
+      "to": 104,
+      "type": "Association",
+      "sourceMultiplicity": "1",
+      "targetMultiplicity": "1",
+      "id": "conn-102-104-1758086055454"
+    },
+    {
+      "from": 202,
+      "to": 205,
+      "type": "Association",
+      "sourceMultiplicity": "1",
+      "targetMultiplicity": "1",
+      "id": "conn-202-205-1758086100078"
+    }
+  ],
+  "boardType": "Eventstorming"
+}

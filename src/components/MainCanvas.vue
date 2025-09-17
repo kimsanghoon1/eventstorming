@@ -2,11 +2,27 @@
 import { store } from '../store';
 import EventCanvas from './EventCanvas.vue';
 import UmlCanvas from './UmlCanvas.vue';
+import { onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import { useRouter } from 'vue-router';
+
+const route = useRoute();
+const router = useRouter();
+onMounted(() => {
+  store.loadBoard(route.params.boardName as string);
+});
+
+const goBack = () => {
+  router.push('/');
+};
 </script>
+
+
 
 <template>
   <div class="canvas-container">
     <div class="canvas-actions">
+        <button @click="goBack()" title="Back to Board List">🔙</button>
         <button @click="store.saveActiveBoard()" title="Save Board">💾</button>
         <button @click="store.toggleCodeGenerator(true)" title="Generate Code">💻</button>
     </div>

@@ -6,7 +6,13 @@ const props = defineProps({
   connection: { type: Object as PropType<Connection>, required: true },
   fromItem: { type: Object as PropType<CanvasItem>, required: true },
   toItem: { type: Object as PropType<CanvasItem>, required: true },
+  isSelected: { type: Boolean, default: false },
 });
+
+defineEmits(['connection-click']);
+
+const strokeColor = computed(() => props.isSelected ? '#007bff' : 'black');
+const strokeWidth = computed(() => props.isSelected ? 3 : 2);
 
 const getEdgePoint = (source: CanvasItem, target: CanvasItem) => {
     const sx = source.x;

@@ -34,6 +34,7 @@ export interface CanvasItem {
   linkedDiagram?: string | null;
   stereotype?: string;
   enumValues?: string[];
+  producesEventId?: number | null;
 
   x: number;
   y: number;

@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted } from 'vue';
 import { store } from '../store';
+import { useRouter } from 'vue-router';
 
 const newBoardName = ref('');
 const newBoardType = ref('Eventstorming');
-const isDropdownOpen = ref(false);
+const router = useRouter();
 
 onMounted(() => {
   store.fetchBoards();
@@ -14,169 +15,207 @@ const createBoard = () => {
   if (newBoardName.value.trim()) {
     store.createNewBoard(newBoardName.value, newBoardType.value as any);
     newBoardName.value = '';
-    isDropdownOpen.value = false;
   }
 };
 
-const activeBoardDisplayName = computed(() => {
-  if (store.activeBoard) {
-    const board = store.boards.find(b => b.name === store.activeBoard);
-    return board ? `${board.name} (${board.type})` : 'Select a board';
-  }
-  return 'Select a board';
-});
+const selectBoard = (boardName: string) => {
+  router.push(`/board/${boardName}`);
+};
 
-const switchBoard = (name: string) => {
-  store.loadBoard(name);
-  isDropdownOpen.value = false;
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleString('ko-KR', { 
+    year: 'numeric', month: 'long', day: 'numeric', 
+    hour: '2-digit', minute: '2-digit' 
+  });
 };
 
 </script>
 
 <template>
-  <div class="switcher-container">
-    <div class="dropdown">
-      <button @click="isDropdownOpen = !isDropdownOpen" class="dropdown-toggle">
-        {{ activeBoardDisplayName }}
-      </button>
-      <div v-if="isDropdownOpen" class="dropdown-menu">
-        <div
-          v-for="board in store.boards"
-          :key="board.name"
-          class="dropdown-item"
-          :class="{ active: board.name === store.activeBoard }"
-          @click="switchBoard(board.name)"
-        >
-          <span>{{ board.name }} ({{ board.type }})</span>
-          <button @click.stop="store.deleteBoard(board.name)" class="delete-btn">x</button>
-        </div>
-        <hr v-if="store.boards.length > 0"/>
-        <div class="new-board-actions">
-          <p>Create new board:</p>
-          <input v-model="newBoardName" @keyup.enter="createBoard" placeholder="New board name..." />
-          <select v-model="newBoardType">
-            <option value="Eventstorming">Eventstorming</option>
-            <option value="UML">UML</option>
-          </select>
-          <button @click="createBoard">+ Create</button>
+  <div class="board-selector-container">
+    <header class="selector-header">
+      <h1>My Boards</h1>
+      <div class="new-board-actions">
+        <input v-model="newBoardName" @keyup.enter="createBoard" placeholder="New board name..." />
+        <select v-model="newBoardType">
+          <option value="Eventstorming">Eventstorming</option>
+          <option value="UML">UML</option>
+        </select>
+        <button @click="createBoard">+ Create New Board</button>
+      </div>
+    </header>
+
+    <main class="board-grid">
+      <div v-if="store.boards.length === 0" class="no-boards-message">
+        <p>No boards found. Create your first board to get started!</p>
+      </div>
+      <div v-for="board in store.boards" :key="board.name" class="board-card">
+        <div class="card-delete-button" @click.stop="store.deleteBoard(board.name)" title="Delete board">×</div>
+        <div class="card-content" @click="selectBoard(board.name)">
+          <img v-if="board.snapshotUrl" :src="board.snapshotUrl" alt="Board Snapshot" class="card-snapshot"/>
+          <div v-else class="card-snapshot-placeholder">No Snapshot</div>
+          <div class="card-info">
+            <h3 class="card-title">{{ board.name }}</h3>
+            <p class="card-date">Last saved: {{ formatDate(board.savedAt) }}</p>
+            <p class="card-type">({{ board.type }})</p>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   </div>
 </template>
 
 <style scoped>
-.switcher-container {
-  padding: 8px;
-  background-color: #f8f9fa;
+.board-selector-container {
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: #f0f2f5;
+}
+
+.selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background-color: #ffffff;
   border-bottom: 1px solid #dee2e6;
-  display: flex;
-  align-items: center;
-  height: 50px;
+  flex-shrink: 0;
 }
 
-.dropdown {
-  position: relative;
-  display: inline-block;
-}
-
-.dropdown-toggle {
-  background-color: #fff;
-  border: 1px solid #ced4da;
-  border-radius: .25rem;
-  padding: .375rem .75rem;
-  font-size: 1rem;
-  line-height: 1.5;
-  cursor: pointer;
-  min-width: 220px;
-  text-align: left;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.dropdown-toggle::after {
-  content: '▼';
-  font-size: 12px;
-  margin-left: 10px;
-}
-
-.dropdown-menu {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 1000;
-  display: block;
-  min-width: 100%;
-  background-color: #fff;
-  border: 1px solid rgba(0,0,0,.15);
-  border-radius: .25rem;
-  box-shadow: 0 .5rem 1rem rgba(0,0,0,.175);
-  padding: .5rem 0;
-  margin-top: .125rem;
-}
-
-.dropdown-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: .5rem 1rem;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.dropdown-item:hover {
-  background-color: #f1f1f1;
-}
-
-.dropdown-item.active {
-  background-color: #007bff;
-  color: white;
-}
-
-.delete-btn {
-  background: #dc3545;
-  color: white;
-  border: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  cursor: pointer;
-  line-height: 18px;
-  text-align: center;
-  font-size: 11px;
-  margin-left: 10px;
-}
-
-hr {
-  margin: .5rem 0;
-  border-color: #e9ecef;
+.selector-header h1 {
+  margin: 0;
+  font-size: 1.75rem;
+  color: #343a40;
 }
 
 .new-board-actions {
-  padding: .5rem 1rem;
-}
-
-.new-board-actions p {
-    margin: 0 0 5px 0;
-    font-size: 0.9rem;
-    color: #6c757d;
+  display: flex;
+  gap: 0.5rem;
 }
 
 .new-board-actions input,
 .new-board-actions select,
 .new-board-actions button {
-  width: 100%;
-  box-sizing: border-box;
-  padding: .375rem .75rem;
-  margin-bottom: 5px;
+  padding: 0.5rem 0.75rem;
   border: 1px solid #ced4da;
   border-radius: .25rem;
+  font-size: 1rem;
 }
 
 .new-board-actions button {
-  background-color: #28a745;
+  background-color: #007bff;
   color: white;
   cursor: pointer;
+  border-color: #007bff;
+}
+.new-board-actions button:hover {
+  background-color: #0056b3;
+}
+
+.board-grid {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.no-boards-message {
+  width: 100%;
+  grid-column: 1 / -1;
+  text-align: center;
+  margin-top: 5rem;
+  color: #6c757d;
+  font-size: 1.2rem;
+}
+
+.board-card {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  position: relative;
+}
+
+.board-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+}
+
+.card-content {
+  cursor: pointer;
+}
+
+.card-snapshot {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.card-snapshot-placeholder {
+  width: 100%;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f8f9fa;
+  color: #adb5bd;
+  font-weight: bold;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.card-info {
+  padding: 1rem;
+}
+
+.card-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.25rem;
+  color: #212529;
+}
+
+.card-date {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.card-type {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.8rem;
+  color: #adb5bd;
+}
+
+.card-delete-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background-color: rgba(0,0,0,0.5);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 24px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.board-card:hover .card-delete-button {
+  opacity: 1;
+}
+
+.card-delete-button:hover {
+  background-color: #dc3545;
 }
 </style>
