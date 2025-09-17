@@ -15,6 +15,7 @@ const OpenAI = require('openai');
 const archiver = require('archiver');
 const multer = require('multer');
 const unzipper = require('unzipper');
+const AdmZip = require('adm-zip');
 const upload = multer({ dest: 'uploads/' });
 
 const app = express();
@@ -466,29 +467,24 @@ ${JSON.stringify(boardData, null, 2)}`;
     }
 });
 
-app.post('/api/reverse-engineer', upload.single('zipFile'), async (req, res) => {
-  const zipPath = req.file.path;
+app.post('/api/reverse-engineer', async (req, res) => {
+  // const zipPath = req.file.path;
+  const zipPath = path.join(__dirname, 'ShopProject-code.zip'); // Hard-coded for local testing
   try {
+    const zip = new AdmZip(zipPath);
+    const zipEntries = zip.getEntries();
     const codeFiles = {};
-    const unzipStream = fs.createReadStream(zipPath).pipe(unzipper.Parse({ force: true }));
 
-    for await (const entry of unzipStream) {
-      const fileName = entry.path;
-      if (fileName.endsWith('.java')) {
-        const chunks = [];
-        for await (const chunk of entry) {
-          chunks.push(chunk);
-        }
-        codeFiles[fileName] = Buffer.concat(chunks).toString('utf8');
-      } else {
-        entry.autodrain();
+    zipEntries.forEach(entry => {
+      if (!entry.isDirectory && entry.entryName.endsWith('.java')) {
+        codeFiles[entry.entryName] = zip.readAsText(entry);
       }
-    }
+    });
 
     console.log('Extracted files:', Object.keys(codeFiles)); // Log extracted file names
 
     if (Object.keys(codeFiles).length === 0) {
-      throw new Error('No Java files found in the uploaded ZIP');
+      throw new Error('No Java files found in the ZIP');
     }
 
     const analysisPrompt = `You are an AI expert in reverse engineering Java code to DDD models. Analyze the following Java source code files and reconstruct a detailed Eventstorming model.
@@ -514,7 +510,7 @@ ${Object.entries(codeFiles).map(([name, content]) => `\nFile: ${name}\nContent:\
     console.error('Error in /api/reverse-engineer:', err);
     res.status(500).send('Error analyzing code: ' + err.message);
   } finally {
-    fs.unlinkSync(zipPath); // Clean up uploaded file
+    // fs.unlinkSync(zipPath); // No cleanup needed for hard-coded file
   }
 });
 
