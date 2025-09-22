@@ -1,0 +1,62 @@
+{
+  "items": [
+    {
+      "id": 100,
+      "type": "Aggregate",
+      "instanceName": "Order"
+    },
+    {
+      "id": 101,
+      "type": "Command",
+      "instanceName": "PlaceOrderCommand"
+    },
+    {
+      "id": 102,
+      "type": "Event",
+      "instanceName": "OrderPlaced"
+    },
+    {
+      "id": 200,
+      "type": "Aggregate",
+      "instanceName": "Inventory"
+    },
+    {
+      "id": 201,
+      "type": "Command",
+      "instanceName": "ReserveInventoryCommand"
+    },
+    {
+      "id": 202,
+      "type": "Event",
+      "instanceName": "InventoryReserved"
+    },
+    {
+      "id": 203,
+      "type": "Event",
+      "instanceName": "InventoryReservationFailed"
+    }
+  ],
+  "connections": [
+    {
+      "from": 101,
+      "to": 100
+    },
+    {
+      "from": 101,
+      "to": 102
+    },
+    {
+      "from": 201,
+      "to": 200
+    },
+    {
+      "from": 201,
+      "to": 202
+    },
+    {
+      "from": 201,
+      "to": 203
+    }
+  ],
+  "boardType": "Eventstorming"
+}

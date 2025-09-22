@@ -1,0 +1,115 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "type": "ContextBox",
+      "instanceName": "Order Context",
+      "x": 50,
+      "y": 50,
+      "width": 400,
+      "height": 300
+    },
+    {
+      "id": 2,
+      "type": "Aggregate",
+      "instanceName": "Order",
+      "parent": 1,
+      "x": 100,
+      "y": 100,
+      "width": 150,
+      "height": 100
+    },
+    {
+      "id": 3,
+      "type": "Command",
+      "instanceName": "PlaceOrderCommand",
+      "parent": 1,
+      "x": 260,
+      "y": 100,
+      "width": 150,
+      "height": 60
+    },
+    {
+      "id": 4,
+      "type": "Event",
+      "instanceName": "OrderPlaced",
+      "parent": 1,
+      "x": 420,
+      "y": 100,
+      "width": 150,
+      "height": 60
+    },
+    {
+      "id": 5,
+      "type": "ContextBox",
+      "instanceName": "Inventory Context",
+      "x": 50,
+      "y": 400,
+      "width": 400,
+      "height": 300
+    },
+    {
+      "id": 6,
+      "type": "Aggregate",
+      "instanceName": "Inventory",
+      "parent": 5,
+      "x": 100,
+      "y": 450,
+      "width": 150,
+      "height": 100
+    },
+    {
+      "id": 7,
+      "type": "Command",
+      "instanceName": "ReserveInventoryCommand",
+      "parent": 5,
+      "x": 260,
+      "y": 450,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": 8,
+      "type": "Event",
+      "instanceName": "InventoryReserved",
+      "parent": 5,
+      "x": 460,
+      "y": 450,
+      "width": 180,
+      "height": 60
+    },
+    {
+      "id": 9,
+      "type": "Event",
+      "instanceName": "InventoryReservationFailed",
+      "parent": 5,
+      "x": 460,
+      "y": 520,
+      "width": 220,
+      "height": 60
+    }
+  ],
+  "connections": [
+    {
+      "from": 3,
+      "to": 2
+    },
+    {
+      "from": 2,
+      "to": 4
+    },
+    {
+      "from": 7,
+      "to": 6
+    },
+    {
+      "from": 6,
+      "to": 8
+    },
+    {
+      "from": 6,
+      "to": 9
+    }
+  ],
+  "boardType": "Eventstorming"
+}

@@ -108,7 +108,84 @@ app.get('/api/boards', async (req, res) => {
   }
 });
 
-// Save a board's content
+// Endpoint to get only UML boards
+app.get('/api/boards/uml', async (req, res) => {
+  try {
+    const files = await fsp.readdir(umlDir);
+    const jsonFiles = files.filter(file => file.endsWith('.json'));
+
+    const boardPromises = jsonFiles.map(async (file) => {
+      const filePath = path.join(umlDir, file);
+      try {
+        const fileContent = await fsp.readFile(filePath, 'utf8');
+        if (fileContent.trim() === '') return null;
+        const boardData = JSON.parse(fileContent);
+        if (boardData.boardType === 'UML') {
+          const stats = await fsp.stat(filePath);
+          return {
+            name: file.replace('.json', ''),
+            type: 'UML',
+            savedAt: stats.mtime,
+            snapshot: boardData.snapshot || null,
+          };
+        }
+        return null;
+      } catch (e) {
+        console.error(`Error processing board file ${file}:`, e);
+        return null;
+      }
+    });
+
+    const results = await Promise.all(boardPromises);
+    const umlBoards = results.filter(b => b !== null).sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
+    res.status(200).json(umlBoards);
+  } catch (err) {
+    console.error('Error in /api/boards/uml:', err);
+    res.status(500).send('Error reading boards directory');
+  }
+});
+
+// Get the content of a specific board (dynamic route, should be last)
+app.get('/api/boards/:name', async (req, res) => {
+  const boardName = req.params.name;
+  const { path: filePath, type } = await getBoardPath(boardName);
+
+  try {
+    const data = await fsp.readFile(filePath, 'utf8');
+    const boardData = JSON.parse(data);
+
+    // If it's an Eventstorming board, enrich aggregates with UML attributes
+    if (boardData.boardType === 'Eventstorming' && boardData.items) {
+      for (const item of boardData.items) {
+        if (item.type === 'Aggregate' && item.linkedDiagram) {
+          const umlFilePath = path.join(umlDir, `${item.linkedDiagram}.json`);
+          try {
+            const umlData = await fsp.readFile(umlFilePath, 'utf8');
+            const umlBoard = JSON.parse(umlData);
+            // Find the class with AggregateRoot stereotype or the first class
+            const aggregateClass = umlBoard.items.find(i => i.stereotype === 'AggregateRoot') || umlBoard.items.find(i => i.type === 'Class');
+            if (aggregateClass && aggregateClass.attributes) {
+              item.attributes = aggregateClass.attributes;
+            }
+          } catch (umlErr) {
+            console.error(`Could not read or parse linked diagram ${item.linkedDiagram}:`, umlErr);
+            // Continue without enrichment if a linked diagram is not found
+          }
+        }
+      }
+    }
+
+    res.status(200).json(boardData);
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      return res.status(200).json({ items: [], connections: [], boardType: 'Eventstorming' });
+    }
+    console.error(`Error loading board ${boardName}:`, err);
+    return res.status(500).send('Error loading board');
+  }
+});
+
+// Save a board's content with snapshot (dynamic route, should be after specific routes)
 app.post('/api/boards/:name', async (req, res) => {
   const boardName = req.params.name;
   const { snapshot, ...boardData } = req.body;
@@ -136,6 +213,31 @@ app.post('/api/boards/:name', async (req, res) => {
   }
 });
 
+app.post('/api/headless-save', async (req, res) => {
+  const { boardName, boardData, boardType } = req.body;
+  
+  if (!boardName || !boardData || !boardType) {
+    return res.status(400).send('Missing required fields for headless save.');
+  }
+  console.log('boardName in headless-save: ', boardName);
+  const targetDir = boardType === 'UML' ? umlDir : eventstormingDir;
+  const filePath = path.join(targetDir, `${boardName}.json`);
+
+  const dataToSave = {
+    ...boardData,
+    boardType: boardType,
+  };
+
+  try {
+    await fsp.writeFile(filePath, JSON.stringify(dataToSave, null, 2));
+    res.status(200).send('Board saved successfully (headless)');
+  } catch (err) {
+    console.error(`Error saving board headless ${boardName}:`, err);
+    return res.status(500).send('Error saving board');
+  }
+});
+
+// Delete a board (dynamic route, should be last)
 app.delete('/api/boards/:name', async (req, res) => {
   const boardName = req.params.name;
   const { path: filePath } = await getBoardPath(boardName);
@@ -174,83 +276,6 @@ app.get('/api/snapshots/:name', (req, res) => {
       res.status(404).send('Snapshot not found');
     }
   });
-});
-
-// Endpoint to get only UML boards
-app.get('/api/boards/uml', async (req, res) => {
-  try {
-    const files = await fsp.readdir(umlDir);
-    const jsonFiles = files.filter(file => file.endsWith('.json'));
-
-    const boardPromises = jsonFiles.map(async (file) => {
-      const filePath = path.join(umlDir, file);
-      try {
-        const fileContent = await fsp.readFile(filePath, 'utf8');
-        if (fileContent.trim() === '') return null;
-        const boardData = JSON.parse(fileContent);
-        if (boardData.boardType === 'UML') {
-          const stats = await fsp.stat(filePath);
-          return {
-            name: file.replace('.json', ''),
-            type: 'UML',
-            savedAt: stats.mtime,
-            snapshot: boardData.snapshot || null,
-          };
-        }
-        return null;
-      } catch (e) {
-        console.error(`Error processing board file ${file}:`, e);
-        return null;
-      }
-    });
-
-    const results = await Promise.all(boardPromises);
-    const umlBoards = results.filter(b => b !== null).sort((a, b) => new Date(b.savedAt) - new Date(a.savedAt));
-    res.status(200).json(umlBoards);
-  } catch (err) {
-    console.error('Error in /api/boards/uml:', err);
-    res.status(500).send('Error reading boards directory');
-  }
-});
-
-// Get the content of a specific board
-app.get('/api/boards/:name', async (req, res) => {
-  const boardName = req.params.name;
-  const { path: filePath, type } = await getBoardPath(boardName);
-
-  try {
-    const data = await fsp.readFile(filePath, 'utf8');
-    const boardData = JSON.parse(data);
-
-    // If it's an Eventstorming board, enrich aggregates with UML attributes
-    if (boardData.boardType === 'Eventstorming' && boardData.items) {
-      for (const item of boardData.items) {
-        if (item.type === 'Aggregate' && item.linkedDiagram) {
-          const umlFilePath = path.join(umlDir, `${item.linkedDiagram}.json`);
-          try {
-            const umlData = await fsp.readFile(umlFilePath, 'utf8');
-            const umlBoard = JSON.parse(umlData);
-            // Find the class with AggregateRoot stereotype or the first class
-            const aggregateClass = umlBoard.items.find(i => i.stereotype === 'AggregateRoot') || umlBoard.items.find(i => i.type === 'Class');
-            if (aggregateClass && aggregateClass.attributes) {
-              item.attributes = aggregateClass.attributes;
-            }
-          } catch (umlErr) {
-            console.error(`Could not read or parse linked diagram ${item.linkedDiagram}:`, umlErr);
-            // Continue without enrichment if a linked diagram is not found
-          }
-        }
-      }
-    }
-
-    res.status(200).json(boardData);
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      return res.status(200).json({ items: [], connections: [], boardType: 'Eventstorming' });
-    }
-    console.error(`Error loading board ${boardName}:`, err);
-    return res.status(500).send('Error loading board');
-  }
 });
 
 // --- New Code Generation Endpoint (Refactored with Tool Calling) ---
@@ -468,7 +493,6 @@ ${JSON.stringify(boardData, null, 2)}`;
 });
 
 app.post('/api/reverse-engineer', async (req, res) => {
-  // const zipPath = req.file.path;
   const zipPath = path.join(__dirname, 'ShopProject-code.zip'); // Hard-coded for local testing
   try {
     const zip = new AdmZip(zipPath);
@@ -481,20 +505,74 @@ app.post('/api/reverse-engineer', async (req, res) => {
       }
     });
 
-    console.log('Extracted files:', Object.keys(codeFiles)); // Log extracted file names
+    console.log('Extracted files:', Object.keys(codeFiles));
 
-    if (Object.keys(codeFiles).length === 0) {
-      throw new Error('No Java files found in the ZIP');
+    // --- Pre-filter source code to send only relevant files to LLM ---
+    const coreKeywords = ['@Aggregate', '@AggregateRoot', '@Entity', 'interface '];
+    const coreFiles = {};
+    const referencedFiles = new Set();
+
+    // 1. First pass: Find core domain files
+    for (const [name, content] of Object.entries(codeFiles)) {
+      if (coreKeywords.some(keyword => content.includes(keyword))) {
+        coreFiles[name] = content;
+        // Simple regex to find referenced types (e.g., new OrderLine(), List<OrderLine>)
+        const references = (content.match(/[A-Z][a-zA-Z0-9_]+/g) || []);
+        references.forEach(ref => referencedFiles.add(`${ref}.java`));
+      }
     }
 
-    const analysisPrompt = `You are an AI expert in reverse engineering Java code to DDD models. Analyze the following Java source code files and reconstruct a detailed Eventstorming model.
+    // 2. Second pass: Add referenced value objects, enums, etc.
+    for (const [name, content] of Object.entries(codeFiles)) {
+      const fileName = path.basename(name);
+      if (referencedFiles.has(fileName) && !coreFiles[name]) {
+        coreFiles[name] = content;
+      }
+    }
+    
+    console.log('Filtered core files for analysis:', Object.keys(coreFiles));
 
-IMPORTANT: If no relevant DDD elements are found, return an empty model. But aim to identify as many as possible: Look for classes with @Entity or @AggregateRoot for Aggregates, methods that look like commands or events, etc. Return a JSON object with "items" (array of objects with type like "Aggregate", "Command", "Event", instanceName, attributes, etc.) and "connections" (array of relationships like from Aggregate to Event).
 
-Your response MUST be ONLY a valid JSON object. Do NOT include any introductory text.
+    if (Object.keys(coreFiles).length === 0) {
+      throw new Error('No core domain Java files found in the ZIP');
+    }
+
+    const analysisPrompt = `You are an AI expert in reverse engineering Java code. Analyze the following CORE DOMAIN source code files and reconstruct two separate models:
+1.  An Eventstorming model (focusing on DDD elements like Aggregates, Commands, Events).
+2.  A UML class diagram model (focusing on Classes, Interfaces, Enums, ValueObjects).
+
+IMPORTANT: Your response MUST be ONLY a valid JSON object with two top-level keys: "eventstormingModel" and "umlModel". Each must contain an "items" array and a "connections" array. Do NOT include any introductory text.
+
+**Data Schema Requirements (Crucial):**
+- Each object in the "items" array MUST have a unique integer "id".
+- Each object in the "items" array MUST use the "instanceName" property for its name.
+- Each object in the "items" array MUST include integer values for "x", "y", "width", and "height".
+- The layout (x, y coordinates) should be logical and visually organized. For Eventstorming, arrange items chronologically from left to right (Command -> Aggregate -> Event). For UML, group related classes and respect inheritance hierarchies.
+- Each object in the "connections" array MUST use "from" and "to" properties, referencing the integer "id" of an item.
+- For UML models, the "attributes" property MUST be an array of objects, each with "visibility", "name", and "type" fields.
+- For Eventstorming models, items should have a "parent" property referencing the "id" of their ContextBox if applicable.
+
+**Example of a valid, minimal output:**
+\`\`\`json
+{
+  "eventstormingModel": {
+    "items": [
+      { "id": 100, "type": "ContextBox", "instanceName": "Order Context", "x": 50, "y": 50, "width": 400, "height": 300 },
+      { "id": 101, "type": "Aggregate", "instanceName": "Order", "parent": 100, "x": 100, "y": 100, "width": 150, "height": 100 }
+    ],
+    "connections": []
+  },
+  "umlModel": {
+    "items": [
+      { "id": 200, "type": "Class", "instanceName": "Order", "x": 100, "y": 100, "width": 180, "height": 120, "attributes": [{ "visibility": "private", "name": "orderId", "type": "Long" }] }
+    ],
+    "connections": []
+  }
+}
+\`\`\`
 
 Code Files:
-${Object.entries(codeFiles).map(([name, content]) => `\nFile: ${name}\nContent:\n${content}`).join('\n')}`;
+${Object.entries(coreFiles).map(([name, content]) => `\nFile: ${name}\nContent:\n${content}`).join('\n')}`;
 
     const response = await openai.chat.completions.create({
       model: 'openai/gpt-oss-120b',
@@ -502,16 +580,48 @@ ${Object.entries(codeFiles).map(([name, content]) => `\nFile: ${name}\nContent:\
     });
 
     const rawContent = response.choices[0].message.content;
-    console.log('Raw LLM response:', rawContent); // Log for debugging
+    console.log('Raw LLM response (initial extraction):', rawContent);
 
-    const modelData = JSON.parse(rawContent);
-    res.json(modelData);
+    const initialModelData = JSON.parse(rawContent);
+
+    // --- Second LLM call for layout and connection refinement ---
+    const refinementPrompt = `You are a diagram layout and relationship refinement expert. Given the following raw Eventstorming and UML models, refine them according to these strict rules:
+
+1.  **Eventstorming Model Refinement**:
+    -   **Layout**: For each ContextBox, place its main Aggregate in the center. Place Commands/Policies to the left and Events to the right of the Aggregate. Arrange items chronologically and avoid overlaps.
+    -   **Dynamic ContextBox Sizing**: After positioning all child elements, you MUST recalculate the 'width' and 'height' of each ContextBox so it perfectly encloses all its children with a reasonable padding.
+    -   **Connection Transformation**: Transform connections through an Aggregate (e.g., Command -> Aggregate -> Event) into direct connections (e.g., Command -> Event).
+
+2.  **UML Model Refinement**:
+    -   **Splitting by Aggregate**: Analyze the UML classes and group them by the Aggregate they belong to. Each Aggregate and its related classes (Value Objects, Enums, etc.) should form a separate UML model.
+    -   **Layout**: For each separated UML model, create a logical layout. Place parent classes above children and group related classes.
+    -   **Output Format**: The "umlModels" key in the final JSON MUST contain an array of these separated UML model objects.
+
+3.  **Final JSON Output Structure**:
+    -   Return a single JSON object with two top-level keys: "eventstormingModel" (containing a single object) and "umlModels" (containing an array of objects).
+    -   The schema for every item (integer id, instanceName, x, y, width, height) and connection (from, to) MUST be strictly followed.
+
+**Raw Models to Refine:**
+${JSON.stringify(initialModelData, null, 2)}`;
+
+    console.log('Sending refinement prompt to LLM...');
+    const refinementResponse = await openai.chat.completions.create({
+      model: 'openai/gpt-oss-120b',
+      messages: [{ role: 'user', content: refinementPrompt }],
+    });
+
+    const refinedContent = refinementResponse.choices[0].message.content;
+    console.log('Raw LLM response (refined):', refinedContent);
+
+    // Clean up potential markdown wrappers from the LLM response
+    const cleanedContent = refinedContent.replace(/^```json\n?|\n?```$/g, '');
+
+    const finalModelData = JSON.parse(cleanedContent);
+    res.json(finalModelData);
   } catch (err) {
     console.error('Error in /api/reverse-engineer:', err);
     res.status(500).send('Error analyzing code: ' + err.message);
-  } finally {
-    // fs.unlinkSync(zipPath); // No cleanup needed for hard-coded file
-  }
+    }
 });
 
 

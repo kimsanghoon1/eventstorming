@@ -1,0 +1,65 @@
+{
+  "boardName": "ReversedEventstorming-1758503294491",
+  "boardData": {
+    "items": [
+      {
+        "id": 1,
+        "type": "Aggregate",
+        "instanceName": "Order"
+      },
+      {
+        "id": 2,
+        "type": "Aggregate",
+        "instanceName": "Inventory"
+      },
+      {
+        "id": 3,
+        "type": "Command",
+        "instanceName": "PlaceOrderCommand"
+      },
+      {
+        "id": 4,
+        "type": "Command",
+        "instanceName": "ReserveInventoryCommand"
+      },
+      {
+        "id": 5,
+        "type": "Event",
+        "instanceName": "OrderPlacedEvent"
+      },
+      {
+        "id": 6,
+        "type": "Event",
+        "instanceName": "InventoryReservedEvent"
+      },
+      {
+        "id": 7,
+        "type": "Event",
+        "instanceName": "InventoryReservationFailedEvent"
+      }
+    ],
+    "connections": [
+      {
+        "from": 3,
+        "to": 1
+      },
+      {
+        "from": 3,
+        "to": 5
+      },
+      {
+        "from": 4,
+        "to": 2
+      },
+      {
+        "from": 4,
+        "to": 6
+      },
+      {
+        "from": 4,
+        "to": 7
+      }
+    ]
+  },
+  "boardType": "Eventstorming"
+}

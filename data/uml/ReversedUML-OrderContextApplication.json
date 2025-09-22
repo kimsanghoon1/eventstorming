@@ -1,0 +1,208 @@
+{
+  "items": [
+    {
+      "id": 100,
+      "type": "Class",
+      "instanceName": "OrderContextApplication",
+      "x": 50,
+      "y": 50,
+      "width": 180,
+      "height": 120,
+      "attributes": []
+    },
+    {
+      "id": 101,
+      "type": "Class",
+      "instanceName": "OrderHealthController",
+      "x": 250,
+      "y": 50,
+      "width": 180,
+      "height": 120,
+      "attributes": []
+    },
+    {
+      "id": 102,
+      "type": "Class",
+      "instanceName": "OrderController",
+      "x": 450,
+      "y": 50,
+      "width": 180,
+      "height": 150,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "placeOrderService",
+          "type": "PlaceOrderService"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "type": "Class",
+      "instanceName": "PlaceOrderCommand",
+      "x": 650,
+      "y": 50,
+      "width": 200,
+      "height": 200,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "orderId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "customerId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "orderLines",
+          "type": "List<OrderLine>"
+        },
+        {
+          "visibility": "private",
+          "name": "status",
+          "type": "OrderStatus"
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "type": "Class",
+      "instanceName": "PlaceOrderService",
+      "x": 850,
+      "y": 50,
+      "width": 200,
+      "height": 180,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "orderRepository",
+          "type": "OrderRepository"
+        },
+        {
+          "visibility": "private",
+          "name": "eventProducer",
+          "type": "OrderEventProducer"
+        }
+      ]
+    },
+    {
+      "id": 105,
+      "type": "Interface",
+      "instanceName": "OrderRepository",
+      "x": 1050,
+      "y": 50,
+      "width": 180,
+      "height": 120,
+      "attributes": []
+    },
+    {
+      "id": 106,
+      "type": "Class",
+      "instanceName": "OrderEventProducer",
+      "x": 1250,
+      "y": 50,
+      "width": 200,
+      "height": 140,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "kafkaTemplate",
+          "type": "KafkaTemplate<String, Order>"
+        }
+      ]
+    },
+    {
+      "id": 107,
+      "type": "Class",
+      "instanceName": "Order",
+      "x": 650,
+      "y": 300,
+      "width": 200,
+      "height": 180,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "orderId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "customerId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "orderLines",
+          "type": "List<OrderLine>"
+        },
+        {
+          "visibility": "private",
+          "name": "status",
+          "type": "OrderStatus"
+        }
+      ]
+    },
+    {
+      "id": 108,
+      "type": "Class",
+      "instanceName": "OrderLine",
+      "x": 850,
+      "y": 300,
+      "width": 200,
+      "height": 160,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "productId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "quantity",
+          "type": "int"
+        },
+        {
+          "visibility": "private",
+          "name": "price",
+          "type": "BigDecimal"
+        }
+      ]
+    },
+    {
+      "id": 109,
+      "type": "Enum",
+      "instanceName": "OrderStatus",
+      "x": 1050,
+      "y": 300,
+      "width": 150,
+      "height": 120,
+      "attributes": []
+    }
+  ],
+  "connections": [
+    {
+      "from": 102,
+      "to": 104
+    },
+    {
+      "from": 104,
+      "to": 105
+    },
+    {
+      "from": 104,
+      "to": 106
+    },
+    {
+      "from": 106,
+      "to": 107
+    },
+    {
+      "from": 107,
+      "to": 108
+    }
+  ],
+  "boardType": "UML"
+}

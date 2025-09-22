@@ -78,7 +78,8 @@ interface Store {
   undo: () => void;
   redo: () => void;
   saveActiveBoard: () => Promise<void>;
-  reverseEngineerCode: (zipFile: File) => Promise<void>;
+  saveBoardHeadless: (boardName: string, boardData: any, boardType: 'Eventstorming' | 'UML') => Promise<void>;
+  reverseEngineerCode: (zipFile: File | null) => Promise<{ eventstormingBoardName: string, umlBoardName: string }>;
 }
 
 export const store = reactive<Store>({
@@ -444,28 +445,94 @@ export const store = reactive<Store>({
     }
   },
 
-  async reverseEngineerCode(zipFile) {
-    // const formData = new FormData();
-    // formData.append('zipFile', zipFile);
-
+  async saveBoardHeadless(boardName: string, boardData: any, boardType: 'Eventstorming' | 'UML') {
     try {
-      const response = await fetch('/api/reverse-engineer', {
+      const response = await fetch('/api/headless-save', {
         method: 'POST',
-        // body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          boardName,
+          boardData,
+          boardType,
+        }),
       });
-      if (!response.ok) throw new Error('Failed to reverse engineer code');
-      const modelData = await response.json();
-
-      // Load the model into the current board
-      if (this.doc) {
-        this.doc.transact(() => {
-          this.canvasItems.delete(0, this.canvasItems.length);
-          this.connections.delete(0, this.connections.length);
-          modelData.items.forEach(item => this.canvasItems.push([toYMap(item)]));
-          modelData.connections.forEach(conn => this.connections.push([toYMap(conn)]));
-        });
+      if (!response.ok) {
+        throw new Error(`Headless save failed for ${boardName}`);
       }
     } catch (error) {
+      console.error('Failed to save board headless:', error);
+      throw error;
+    }
+  },
+
+  async reverseEngineerCode(zipFile: File | null) {
+    // Helper function to create, save, and destroy a board doc
+    const createAndSaveBoard = async (name: string, type: 'Eventstorming' | 'UML', model: any) => {
+      const doc = new Y.Doc();
+      const canvasItems = doc.getArray<Y.Map<any>>('canvasItems');
+      const connections = doc.getArray<Y.Map<any>>('connections');
+      const boardTypeText = doc.getText('boardType');
+
+      doc.transact(() => {
+        boardTypeText.insert(0, type);
+        (model.items || []).forEach(item => canvasItems.push([toYMap(item)]));
+        (model.connections || []).forEach(conn => connections.push([toYMap(conn)]));
+      });
+
+      // Use the headless save which doesn't rely on `this.activeStage`
+      await this.saveBoardHeadless(name, {
+        items: canvasItems.toJSON(),
+        connections: connections.toJSON(),
+      }, type);
+      
+      doc.destroy();
+    };
+
+    let requestBody;
+    const headers = {};
+
+    if (zipFile) {
+      const formData = new FormData();
+      formData.append('zipFile', zipFile);
+      requestBody = formData;
+    } else {
+      // For local testing with a hard-coded file on the server, send an empty body
+      requestBody = JSON.stringify({});
+      headers['Content-Type'] = 'application/json';
+    }
+
+
+    try {
+      // 2. Call the API
+      const response = await fetch('/api/reverse-engineer', {
+        method: 'POST',
+        headers,
+        body: requestBody,
+      });
+      if (!response.ok) throw new Error('Failed to reverse engineer code');
+      const { eventstormingModel, umlModels } = await response.json();
+
+      const timestamp = Date.now();
+
+      // Save Eventstorming model to a new board
+      const eventstormingBoardName = `ReversedEventstorming-${timestamp}`;
+      await createAndSaveBoard(eventstormingBoardName, 'Eventstorming', eventstormingModel);
+
+      // Save each UML model to its own new board
+      const umlBoardNames = [];
+      for (const umlModel of umlModels) {
+        // Use a more robust name, fallback to timestamp if no items
+        const namePart = umlModel.items?.[0]?.instanceName?.replace(/\s+/g, '') || timestamp;
+        const umlBoardName = `ReversedUML-${namePart}`;
+        await createAndSaveBoard(umlBoardName, 'UML', umlModel);
+        umlBoardNames.push(umlBoardName);
+      }
+      
+      // Load the eventstorming board to view it
+      await this.loadBoard(eventstormingBoardName);
+      
+      return { eventstormingBoardName, umlBoardNames };
+    } catch (error: any) {
       console.error('Failed to reverse engineer code:', error);
       throw error;
     }

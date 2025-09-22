@@ -1,0 +1,189 @@
+{
+  "items": [
+    {
+      "id": 100,
+      "type": "ContextBox",
+      "instanceName": "Order Context",
+      "x": 50,
+      "y": 80,
+      "width": 530,
+      "height": 340
+    },
+    {
+      "id": 200,
+      "type": "Command",
+      "instanceName": "CreateOrderCommand",
+      "parent": 100,
+      "x": 70,
+      "y": 100,
+      "width": 140,
+      "height": 60
+    },
+    {
+      "id": 201,
+      "type": "Command",
+      "instanceName": "ConfirmOrderCommand",
+      "parent": 100,
+      "x": 70,
+      "y": 180,
+      "width": 140,
+      "height": 60
+    },
+    {
+      "id": 202,
+      "type": "Command",
+      "instanceName": "ShipOrderCommand",
+      "parent": 100,
+      "x": 70,
+      "y": 260,
+      "width": 140,
+      "height": 60
+    },
+    {
+      "id": 203,
+      "type": "Command",
+      "instanceName": "CancelOrderCommand",
+      "parent": 100,
+      "x": 70,
+      "y": 340,
+      "width": 140,
+      "height": 60
+    },
+    {
+      "id": 300,
+      "type": "Aggregate",
+      "instanceName": "Order",
+      "parent": 100,
+      "x": 250,
+      "y": 210,
+      "width": 140,
+      "height": 80
+    },
+    {
+      "id": 400,
+      "type": "Event",
+      "instanceName": "OrderCreated",
+      "parent": 100,
+      "x": 430,
+      "y": 100,
+      "width": 130,
+      "height": 60
+    },
+    {
+      "id": 401,
+      "type": "Event",
+      "instanceName": "OrderConfirmed",
+      "parent": 100,
+      "x": 430,
+      "y": 180,
+      "width": 130,
+      "height": 60
+    },
+    {
+      "id": 402,
+      "type": "Event",
+      "instanceName": "OrderShipped",
+      "parent": 100,
+      "x": 430,
+      "y": 260,
+      "width": 130,
+      "height": 60
+    },
+    {
+      "id": 403,
+      "type": "Event",
+      "instanceName": "OrderCancelled",
+      "parent": 100,
+      "x": 430,
+      "y": 340,
+      "width": 130,
+      "height": 60
+    },
+    {
+      "id": 101,
+      "type": "ContextBox",
+      "instanceName": "Inventory Context",
+      "x": 655,
+      "y": 89,
+      "width": 520,
+      "height": 180
+    },
+    {
+      "id": 204,
+      "type": "Command",
+      "instanceName": "ReserveInventoryCommand",
+      "parent": 101,
+      "x": 675,
+      "y": 109,
+      "width": 160,
+      "height": 60
+    },
+    {
+      "id": 205,
+      "type": "Command",
+      "instanceName": "ReleaseInventoryCommand",
+      "parent": 101,
+      "x": 675,
+      "y": 189,
+      "width": 160,
+      "height": 60
+    },
+    {
+      "id": 301,
+      "type": "Aggregate",
+      "instanceName": "Inventory",
+      "parent": 101,
+      "x": 850,
+      "y": 139,
+      "width": 140,
+      "height": 80
+    },
+    {
+      "id": 404,
+      "type": "Event",
+      "instanceName": "InventoryReserved",
+      "parent": 101,
+      "x": 1005,
+      "y": 109,
+      "width": 150,
+      "height": 60
+    },
+    {
+      "id": 405,
+      "type": "Event",
+      "instanceName": "InventoryReleased",
+      "parent": 101,
+      "x": 1005,
+      "y": 189,
+      "width": 150,
+      "height": 60
+    }
+  ],
+  "connections": [
+    {
+      "from": 200,
+      "to": 400
+    },
+    {
+      "from": 201,
+      "to": 401
+    },
+    {
+      "from": 202,
+      "to": 402
+    },
+    {
+      "from": 203,
+      "to": 403
+    },
+    {
+      "from": 204,
+      "to": 404
+    },
+    {
+      "from": 205,
+      "to": 405
+    }
+  ],
+  "boardType": "Eventstorming"
+}

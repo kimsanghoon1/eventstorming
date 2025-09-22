@@ -1,0 +1,348 @@
+{
+  "items": [
+    {
+      "id": 100,
+      "type": "Class",
+      "instanceName": "Order",
+      "x": 100,
+      "y": 100,
+      "width": 200,
+      "height": 200,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "orderId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "customerId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "orderLines",
+          "type": "List<OrderLine>"
+        },
+        {
+          "visibility": "private",
+          "name": "status",
+          "type": "OrderStatus"
+        }
+      ]
+    },
+    {
+      "id": 101,
+      "type": "ValueObject",
+      "instanceName": "OrderLine",
+      "x": 320,
+      "y": 100,
+      "width": 180,
+      "height": 120,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "productId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "quantity",
+          "type": "int"
+        },
+        {
+          "visibility": "private",
+          "name": "price",
+          "type": "BigDecimal"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "type": "Enum",
+      "instanceName": "OrderStatus",
+      "x": 520,
+      "y": 100,
+      "width": 150,
+      "height": 80,
+      "attributes": []
+    },
+    {
+      "id": 103,
+      "type": "Class",
+      "instanceName": "PlaceOrderCommand",
+      "x": 100,
+      "y": 320,
+      "width": 200,
+      "height": 120,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "orderId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "customerId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "orderLines",
+          "type": "List<OrderLine>"
+        },
+        {
+          "visibility": "private",
+          "name": "status",
+          "type": "OrderStatus"
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "type": "Class",
+      "instanceName": "PlaceOrderService",
+      "x": 100,
+      "y": 460,
+      "width": 200,
+      "height": 140,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "orderRepository",
+          "type": "OrderRepository"
+        },
+        {
+          "visibility": "private",
+          "name": "eventProducer",
+          "type": "OrderEventProducer"
+        }
+      ]
+    },
+    {
+      "id": 105,
+      "type": "Interface",
+      "instanceName": "OrderRepository",
+      "x": 100,
+      "y": 620,
+      "width": 200,
+      "height": 80,
+      "attributes": []
+    },
+    {
+      "id": 106,
+      "type": "Class",
+      "instanceName": "OrderEventProducer",
+      "x": 320,
+      "y": 460,
+      "width": 200,
+      "height": 120,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "kafkaTemplate",
+          "type": "KafkaTemplate<String, Order>"
+        },
+        {
+          "visibility": "private",
+          "name": "TOPIC",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "id": 107,
+      "type": "Class",
+      "instanceName": "OrderController",
+      "x": 100,
+      "y": 780,
+      "width": 200,
+      "height": 100,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "placeOrderService",
+          "type": "PlaceOrderService"
+        }
+      ]
+    },
+    {
+      "id": 108,
+      "type": "Class",
+      "instanceName": "HealthController (Order)",
+      "x": 320,
+      "y": 780,
+      "width": 200,
+      "height": 80,
+      "attributes": []
+    },
+    {
+      "id": 200,
+      "type": "Class",
+      "instanceName": "Inventory",
+      "x": 600,
+      "y": 100,
+      "width": 200,
+      "height": 120,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "productId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "quantity",
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "id": 201,
+      "type": "Class",
+      "instanceName": "ReserveInventoryCommand",
+      "x": 600,
+      "y": 260,
+      "width": 200,
+      "height": 100,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "productId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "quantity",
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "id": 202,
+      "type": "Class",
+      "instanceName": "ReserveInventoryService",
+      "x": 600,
+      "y": 380,
+      "width": 200,
+      "height": 140,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "inventoryRepository",
+          "type": "InventoryRepository"
+        },
+        {
+          "visibility": "private",
+          "name": "eventProducer",
+          "type": "InventoryEventProducer"
+        }
+      ]
+    },
+    {
+      "id": 203,
+      "type": "Interface",
+      "instanceName": "InventoryRepository",
+      "x": 600,
+      "y": 540,
+      "width": 200,
+      "height": 80,
+      "attributes": []
+    },
+    {
+      "id": 204,
+      "type": "Class",
+      "instanceName": "InventoryEventProducer",
+      "x": 820,
+      "y": 380,
+      "width": 200,
+      "height": 120,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "kafkaTemplate",
+          "type": "KafkaTemplate<String, String>"
+        },
+        {
+          "visibility": "private",
+          "name": "RESERVED_TOPIC",
+          "type": "String"
+        },
+        {
+          "visibility": "private",
+          "name": "FAILED_TOPIC",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "id": 205,
+      "type": "Class",
+      "instanceName": "InventoryController",
+      "x": 600,
+      "y": 660,
+      "width": 200,
+      "height": 100,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "reserveInventoryService",
+          "type": "ReserveInventoryService"
+        }
+      ]
+    },
+    {
+      "id": 206,
+      "type": "Class",
+      "instanceName": "HealthController (Inventory)",
+      "x": 820,
+      "y": 660,
+      "width": 200,
+      "height": 80,
+      "attributes": []
+    }
+  ],
+  "connections": [
+    {
+      "from": 104,
+      "to": 105
+    },
+    {
+      "from": 104,
+      "to": 106
+    },
+    {
+      "from": 107,
+      "to": 104
+    },
+    {
+      "from": 100,
+      "to": 101
+    },
+    {
+      "from": 100,
+      "to": 102
+    },
+    {
+      "from": 104,
+      "to": 103
+    },
+    {
+      "from": 202,
+      "to": 203
+    },
+    {
+      "from": 202,
+      "to": 204
+    },
+    {
+      "from": 205,
+      "to": 202
+    },
+    {
+      "from": 202,
+      "to": 201
+    }
+  ],
+  "boardType": "UML"
+}

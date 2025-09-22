@@ -1,0 +1,292 @@
+{
+  "boardName": "ReversedUML-1758503294491",
+  "boardData": {
+    "items": [
+      {
+        "id": 100,
+        "type": "Class",
+        "instanceName": "OrderContextApplication",
+        "attributes": []
+      },
+      {
+        "id": 101,
+        "type": "Class",
+        "instanceName": "HealthController",
+        "attributes": []
+      },
+      {
+        "id": 102,
+        "type": "Class",
+        "instanceName": "Order",
+        "attributes": [
+          {
+            "visibility": "private",
+            "name": "orderId",
+            "type": "Long"
+          },
+          {
+            "visibility": "private",
+            "name": "customerId",
+            "type": "Long"
+          },
+          {
+            "visibility": "private",
+            "name": "orderLines",
+            "type": "List<OrderLine>"
+          },
+          {
+            "visibility": "private",
+            "name": "status",
+            "type": "OrderStatus"
+          }
+        ]
+      },
+      {
+        "id": 103,
+        "type": "Class",
+        "instanceName": "OrderLine",
+        "attributes": [
+          {
+            "visibility": "private",
+            "name": "productId",
+            "type": "Long"
+          },
+          {
+            "visibility": "private",
+            "name": "quantity",
+            "type": "int"
+          },
+          {
+            "visibility": "private",
+            "name": "price",
+            "type": "BigDecimal"
+          }
+        ]
+      },
+      {
+        "id": 104,
+        "type": "Enum",
+        "instanceName": "OrderStatus",
+        "attributes": []
+      },
+      {
+        "id": 105,
+        "type": "Class",
+        "instanceName": "PlaceOrderCommand",
+        "attributes": [
+          {
+            "visibility": "private",
+            "name": "orderId",
+            "type": "Long"
+          },
+          {
+            "visibility": "private",
+            "name": "customerId",
+            "type": "Long"
+          },
+          {
+            "visibility": "private",
+            "name": "orderLines",
+            "type": "List<OrderLine>"
+          },
+          {
+            "visibility": "private",
+            "name": "status",
+            "type": "OrderStatus"
+          }
+        ]
+      },
+      {
+        "id": 106,
+        "type": "Class",
+        "instanceName": "PlaceOrderService",
+        "attributes": [
+          {
+            "visibility": "private",
+            "name": "orderRepository",
+            "type": "OrderRepository"
+          },
+          {
+            "visibility": "private",
+            "name": "eventProducer",
+            "type": "OrderEventProducer"
+          }
+        ]
+      },
+      {
+        "id": 107,
+        "type": "Interface",
+        "instanceName": "OrderRepository",
+        "attributes": []
+      },
+      {
+        "id": 108,
+        "type": "Class",
+        "instanceName": "OrderEventProducer",
+        "attributes": [
+          {
+            "visibility": "private",
+            "name": "kafkaTemplate",
+            "type": "KafkaTemplate<String, Order>"
+          }
+        ]
+      },
+      {
+        "id": 109,
+        "type": "Class",
+        "instanceName": "OrderController",
+        "attributes": [
+          {
+            "visibility": "private",
+            "name": "placeOrderService",
+            "type": "PlaceOrderService"
+          }
+        ]
+      },
+      {
+        "id": 110,
+        "type": "Class",
+        "instanceName": "InventoryContextApplication",
+        "attributes": []
+      },
+      {
+        "id": 111,
+        "type": "Class",
+        "instanceName": "InventoryHealthController",
+        "attributes": []
+      },
+      {
+        "id": 112,
+        "type": "Class",
+        "instanceName": "Inventory",
+        "attributes": [
+          {
+            "visibility": "private",
+            "name": "productId",
+            "type": "Long"
+          },
+          {
+            "visibility": "private",
+            "name": "quantity",
+            "type": "int"
+          }
+        ]
+      },
+      {
+        "id": 113,
+        "type": "Class",
+        "instanceName": "ReserveInventoryCommand",
+        "attributes": [
+          {
+            "visibility": "private",
+            "name": "productId",
+            "type": "Long"
+          },
+          {
+            "visibility": "private",
+            "name": "quantity",
+            "type": "int"
+          }
+        ]
+      },
+      {
+        "id": 114,
+        "type": "Class",
+        "instanceName": "ReserveInventoryService",
+        "attributes": [
+          {
+            "visibility": "private",
+            "name": "inventoryRepository",
+            "type": "InventoryRepository"
+          },
+          {
+            "visibility": "private",
+            "name": "eventProducer",
+            "type": "InventoryEventProducer"
+          }
+        ]
+      },
+      {
+        "id": 115,
+        "type": "Interface",
+        "instanceName": "InventoryRepository",
+        "attributes": []
+      },
+      {
+        "id": 116,
+        "type": "Class",
+        "instanceName": "InventoryEventProducer",
+        "attributes": [
+          {
+            "visibility": "private",
+            "name": "kafkaTemplate",
+            "type": "KafkaTemplate<String, String>"
+          }
+        ]
+      },
+      {
+        "id": 117,
+        "type": "Class",
+        "instanceName": "InventoryController",
+        "attributes": [
+          {
+            "visibility": "private",
+            "name": "reserveInventoryService",
+            "type": "ReserveInventoryService"
+          }
+        ]
+      }
+    ],
+    "connections": [
+      {
+        "from": 109,
+        "to": 106
+      },
+      {
+        "from": 106,
+        "to": 107
+      },
+      {
+        "from": 106,
+        "to": 108
+      },
+      {
+        "from": 109,
+        "to": 105
+      },
+      {
+        "from": 102,
+        "to": 103
+      },
+      {
+        "from": 102,
+        "to": 104
+      },
+      {
+        "from": 105,
+        "to": 103
+      },
+      {
+        "from": 105,
+        "to": 104
+      },
+      {
+        "from": 114,
+        "to": 115
+      },
+      {
+        "from": 114,
+        "to": 116
+      },
+      {
+        "from": 117,
+        "to": 114
+      },
+      {
+        "from": 117,
+        "to": 113
+      }
+    ]
+  },
+  "boardType": "UML"
+}

@@ -1,0 +1,42 @@
+{
+  "items": [
+    {
+      "id": 503,
+      "type": "Class",
+      "instanceName": "Inventory",
+      "x": 200,
+      "y": 100,
+      "width": 180,
+      "height": 100,
+      "attributes": [
+        {
+          "visibility": "private",
+          "name": "productId",
+          "type": "Long"
+        },
+        {
+          "visibility": "private",
+          "name": "quantity",
+          "type": "int"
+        }
+      ]
+    },
+    {
+      "id": 505,
+      "type": "Interface",
+      "instanceName": "InventoryRepository",
+      "x": 200,
+      "y": 250,
+      "width": 200,
+      "height": 80,
+      "attributes": []
+    }
+  ],
+  "connections": [
+    {
+      "from": 505,
+      "to": 503
+    }
+  ],
+  "boardType": "UML"
+}
