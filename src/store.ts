@@ -36,8 +36,8 @@ const toYArray = (arr: any[]): Y.Array<any> => {
 
 
 interface Store {
-  boards: Array<{ name: string, type: string, savedAt: string, snapshotUrl: string | null }>;
-  umlBoards: Array<{ name: string, type: string, savedAt: string, snapshotUrl: string | null }>;
+  boards: Array<{ instanceName: string, type: string, savedAt: string, snapshotUrl: string | null }>;
+  umlBoards: Array<{ instanceName: string, type: string, savedAt: string, snapshotUrl: string | null }>;
   activeBoard: string | null;
   activeStage: any | null; // To hold the Konva stage reference
   
@@ -60,10 +60,10 @@ interface Store {
   // Methods
   fetchBoards: () => Promise<void>;
   fetchUmlBoards: () => Promise<void>;
-  loadBoard: (name: string) => Promise<void>;
+  loadBoard: (instanceName: string) => Promise<void>;
   unloadBoard: () => void;
-  createNewBoard: (name: string, boardType: 'Eventstorming' | 'UML') => Promise<void>;
-  deleteBoard: (name: string) => Promise<void>;
+  createNewBoard: (instanceName: string, boardType: 'Eventstorming' | 'UML') => Promise<void>;
+  deleteBoard: (instanceName: string) => Promise<void>;
   setActiveStage: (stage: any) => void;
   
   addItem: (item: Omit<CanvasItem, 'id'>) => void;
@@ -154,8 +154,8 @@ export const store = reactive<Store>({
     }
   },
 
-  async loadBoard(name: string) {
-    if (this.activeBoard === name && this.doc) { // also check for doc to prevent no-op
+  async loadBoard(instanceName: string) {
+    if (this.activeBoard === instanceName && this.doc) { // also check for doc to prevent no-op
         return;
     }
 
@@ -163,7 +163,7 @@ export const store = reactive<Store>({
     if (this.provider) this.provider.destroy();
     if (this.doc) this.doc.destroy();
 
-    this.activeBoard = name;
+    this.activeBoard = instanceName;
     this.currentView = 'loading';
 
     try {
@@ -173,14 +173,14 @@ export const store = reactive<Store>({
         this.connections = doc.getArray<Y.Map<any>>('connections');
         this.boardType = doc.getText('boardType');
 
-        this.provider = new WebsocketProvider('ws://localhost:3000', name, doc);
+        this.provider = new WebsocketProvider('ws://localhost:3000', instanceName, doc);
 
         this.provider.on('synced', async (isSynced: boolean) => {
             if (isSynced && this.canvasItems?.length === 0) {
                 // 1. Fetch initial data from REST API only if the doc is empty after sync
                 console.log('Document is empty after sync, fetching initial state from REST API...');
                 try {
-                    const response = await fetch(`/api/boards/${name}`);
+                    const response = await fetch(`/api/boards/${instanceName}`);
                     if (!response.ok) {
                         throw new Error(`Failed to fetch board: ${response.statusText}`);
                     }
@@ -224,19 +224,19 @@ export const store = reactive<Store>({
     }
   },
 
-  async createNewBoard(name: string, boardType: 'Eventstorming' | 'UML') {
-    if (this.boards.some(b => b.name === name) || !name.trim()) {
+  async createNewBoard(instanceName: string, boardType: 'Eventstorming' | 'UML') {
+    if (this.boards.some(b => b.instanceName === instanceName) || !instanceName.trim()) {
       alert('Invalid or duplicate board name.');
       return;
     }
     
     const boardData = {
+      instanceName: instanceName,
       items: [],
       connections: [],
       boardType: boardType,
-      snapshot: null,
     };
-    await fetch(`/api/boards/${name}`, {
+    await fetch(`/api/boards/${instanceName}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(boardData),
@@ -246,10 +246,10 @@ export const store = reactive<Store>({
     // Navigation is now handled by the component
   },
 
-  async deleteBoard(name: string) {
-    if (!confirm(`Are you sure you want to delete ${name}?`)) return;
-    await fetch(`/api/boards/${name}`, { method: 'DELETE' });
-    if (this.activeBoard === name) {
+  async deleteBoard(instanceName: string) {
+    if (!confirm(`Are you sure you want to delete ${instanceName}?`)) return;
+    await fetch(`/api/boards/${instanceName}`, { method: 'DELETE' });
+    if (this.activeBoard === instanceName) {
       this.unloadBoard();
     } else {
       await this.fetchBoards();
@@ -444,6 +444,11 @@ export const store = reactive<Store>({
       alert('Error saving board.');
     }
   },
+
+  // migrateBoard() {
+    
+    
+  // },
 
   async saveBoardHeadless(boardName: string, boardData: any, boardType: 'Eventstorming' | 'UML') {
     try {

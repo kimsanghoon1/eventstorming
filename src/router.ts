@@ -1,7 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import BoardSwitcher from './components/BoardSwitcher.vue';
 import MainCanvas from './components/MainCanvas.vue';
-import CodeUploader from './components/CodeUploader.vue';
 
 const routes = [
   {
@@ -14,11 +13,6 @@ const routes = [
     name: 'BoardView',
     component: MainCanvas,
     props: true, // Pass route.params to component props
-  },
-  {
-    path: '/reverse-engineer',
-    name: 'ReverseEngineer',
-    component: CodeUploader,
   },
 ];
 

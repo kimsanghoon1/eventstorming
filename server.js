@@ -45,9 +45,9 @@ wss.on('connection', setupWSConnection);
 // --- API Endpoints for Persistence ---
 
 // Helper to find board path
-const getBoardPath = async (boardName) => {
-    const eventstormingPath = path.join(eventstormingDir, `${boardName}.json`);
-    const umlPath = path.join(umlDir, `${boardName}.json`);
+const getBoardPath = async (instanceName) => {
+    const eventstormingPath = path.join(eventstormingDir, `${instanceName}.json`);
+    const umlPath = path.join(umlDir, `${instanceName}.json`);
     try {
         await fsp.access(eventstormingPath);
         return { path: eventstormingPath, type: 'Eventstorming' };
@@ -82,16 +82,16 @@ app.get('/api/boards', async (req, res) => {
                     snapshotUrl = `/api/snapshots/${boardName}`;
                 } catch (e) { /* No snapshot exists */ }
 
-            return {
-                    name: boardName,
+                return {
+                    instanceName: boardData.instanceName || boardName,
                     type: boardData.boardType || type,
-                savedAt: stats.mtime,
+                    savedAt: stats.mtime,
                     snapshotUrl: snapshotUrl,
-            };
-        } catch (e) {
-            console.error(`Error processing board file ${file}:`, e);
-            return null;
-        }
+                };
+            } catch (e) {
+                console.error(`Error processing board file ${file}:`, e);
+                return null;
+            }
     });
         return Promise.all(boardPromises);
     };
@@ -146,9 +146,9 @@ app.get('/api/boards/uml', async (req, res) => {
 });
 
 // Get the content of a specific board (dynamic route, should be last)
-app.get('/api/boards/:name', async (req, res) => {
-  const boardName = req.params.name;
-  const { path: filePath, type } = await getBoardPath(boardName);
+app.get('/api/boards/:instanceName', async (req, res) => {
+  const instanceName = req.params.instanceName;
+  const { path: filePath, type } = await getBoardPath(instanceName);
 
   try {
     const data = await fsp.readFile(filePath, 'utf8');
@@ -180,18 +180,18 @@ app.get('/api/boards/:name', async (req, res) => {
     if (err.code === 'ENOENT') {
       return res.status(200).json({ items: [], connections: [], boardType: 'Eventstorming' });
     }
-    console.error(`Error loading board ${boardName}:`, err);
+    console.error(`Error loading board ${instanceName}:`, err);
     return res.status(500).send('Error loading board');
   }
 });
 
 // Save a board's content with snapshot (dynamic route, should be after specific routes)
-app.post('/api/boards/:name', async (req, res) => {
-  const boardName = req.params.name;
+app.post('/api/boards/:instanceName', async (req, res) => {
+  const instanceName = req.params.instanceName;
   const { snapshot, ...boardData } = req.body;
   const boardType = boardData.boardType || 'Eventstorming';
   const targetDir = boardType === 'UML' ? umlDir : eventstormingDir;
-  const filePath = path.join(targetDir, `${boardName}.json`);
+  const filePath = path.join(targetDir, `${instanceName}.json`);
 
   try {
     // Save the snapshot as a separate file
@@ -199,7 +199,7 @@ app.post('/api/boards/:name', async (req, res) => {
         const matches = snapshot.match(/^data:image\/(png|jpeg);base64,(.+)$/);
         if (matches) {
             const imageBuffer = Buffer.from(matches[2], 'base64');
-            const snapshotPath = path.join(snapshotsDir, `${boardName}.png`);
+            const snapshotPath = path.join(snapshotsDir, `${instanceName}.png`);
             await fsp.writeFile(snapshotPath, imageBuffer);
         }
     }
@@ -208,7 +208,7 @@ app.post('/api/boards/:name', async (req, res) => {
     await fsp.writeFile(filePath, JSON.stringify(boardData, null, 2));
     res.status(200).send('Board saved successfully');
   } catch (err) {
-    console.error(`Error saving board ${boardName}:`, err);
+    console.error(`Error saving board ${instanceName}:`, err);
     return res.status(500).send('Error saving board');
   }
 });
@@ -238,40 +238,40 @@ app.post('/api/headless-save', async (req, res) => {
 });
 
 // Delete a board (dynamic route, should be last)
-app.delete('/api/boards/:name', async (req, res) => {
-  const boardName = req.params.name;
-  const { path: filePath } = await getBoardPath(boardName);
+app.delete('/api/boards/:instanceName', async (req, res) => {
+  const instanceName = req.params.instanceName;
+  const { path: filePath } = await getBoardPath(instanceName);
 
   try {
     // Delete the board json file
     await fsp.unlink(filePath);
 
     // Delete the associated snapshot
-    const snapshotPath = path.join(snapshotsDir, `${boardName}.png`);
+    const snapshotPath = path.join(snapshotsDir, `${instanceName}.png`);
     try {
         await fsp.unlink(snapshotPath);
     } catch (snapshotErr) {
         if (snapshotErr.code !== 'ENOENT') { // Ignore error if snapshot doesn't exist
-            console.error(`Could not delete snapshot for ${boardName}:`, snapshotErr);
+            console.error(`Could not delete snapshot for ${instanceName}:`, snapshotErr);
         }
     }
 
     res.status(200).send('Board deleted successfully');
   } catch (err) {
-    console.error(`Error deleting board ${boardName}:`, err);
+    console.error(`Error deleting board ${instanceName}:`, err);
     return res.status(500).send('Error deleting board');
   }
 });
 
 // New endpoint to serve snapshots
-app.get('/api/snapshots/:name', (req, res) => {
-  const boardName = req.params.name;
-  const filePath = path.join(snapshotsDir, `${boardName}.png`);
+app.get('/api/snapshots/:instanceName', (req, res) => {
+  const instanceName = req.params.instanceName;
+  const filePath = path.join(snapshotsDir, `${instanceName}.png`);
   res.sendFile(filePath, (err) => {
     if (err) {
       // Don't log ENOENT errors as they are common (boards without snapshots)
       if (err.code !== 'ENOENT') {
-          console.error(`Error serving snapshot ${boardName}:`, err);
+          console.error(`Error serving snapshot ${instanceName}:`, err);
       }
       res.status(404).send('Snapshot not found');
     }
@@ -588,7 +588,8 @@ ${Object.entries(coreFiles).map(([name, content]) => `\nFile: ${name}\nContent:\
     const refinementPrompt = `You are a diagram layout and relationship refinement expert. Given the following raw Eventstorming and UML models, refine them according to these strict rules:
 
 1.  **Eventstorming Model Refinement**:
-    -   **Layout**: For each ContextBox, place its main Aggregate in the center. Place Commands/Policies to the left and Events to the right of the Aggregate. Arrange items chronologically and avoid overlaps.
+    -   **Layout**: For each ContextBox, place its main Aggregate in the center. Place Commands/Policies to the left and Events to the right of the Aggregate, positioning them closely to form a tight visual group.
+    -   **Dynamic Aggregate Sizing**: The 'width' of each Aggregate MUST be dynamically calculated to be proportional to the total width of the Event items flowing from it.
     -   **Dynamic ContextBox Sizing**: After positioning all child elements, you MUST recalculate the 'width' and 'height' of each ContextBox so it perfectly encloses all its children with a reasonable padding.
     -   **Connection Transformation**: Transform connections through an Aggregate (e.g., Command -> Aggregate -> Event) into direct connections (e.g., Command -> Event).
 

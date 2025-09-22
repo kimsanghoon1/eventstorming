@@ -6,6 +6,8 @@ import { useRouter } from 'vue-router';
 const newBoardName = ref('');
 const newBoardType = ref('Eventstorming');
 const router = useRouter();
+const isMigrateDialogOpen = ref(false);
+const selectedFile = ref<File | null>(null);
 
 onMounted(() => {
   store.fetchBoards();
@@ -15,6 +17,31 @@ const createBoard = () => {
   if (newBoardName.value.trim()) {
     store.createNewBoard(newBoardName.value, newBoardType.value as any);
     newBoardName.value = '';
+  }
+};
+
+const openMigrateDialog = () => {
+  isMigrateDialogOpen.value = true;
+};
+
+const handleFileUpload = (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  if (target.files) {
+    selectedFile.value = target.files[0];
+  }
+};
+
+const uploadAndReverseEngineer = async () => {
+  if (selectedFile.value) {
+    try {
+      const { eventstormingBoardName, umlBoardNames } = await store.reverseEngineerCode(selectedFile.value);
+      alert(`Code successfully analyzed!\n\nCreated Eventstorming board:\n- ${eventstormingBoardName}\n\nCreated UML boards:\n- ${umlBoardNames.join('\n- ')}`);
+      isMigrateDialogOpen.value = false;
+      selectedFile.value = null;
+      store.fetchBoards(); // Refresh the board list
+    } catch (error: any) {
+      alert('Error analyzing code: ' + error.message);
+    }
   }
 };
 
@@ -43,6 +70,7 @@ const formatDate = (dateString: string) => {
           <option value="UML">UML</option>
         </select>
         <button @click="createBoard">+ Create New Board</button>
+        <button @click="openMigrateDialog" style="background-color: #28a745;">+ Migrate from Code</button>
       </div>
     </header>
 
@@ -50,19 +78,36 @@ const formatDate = (dateString: string) => {
       <div v-if="store.boards.length === 0" class="no-boards-message">
         <p>No boards found. Create your first board to get started!</p>
       </div>
-      <div v-for="board in store.boards" :key="board.name" class="board-card">
-        <div class="card-delete-button" @click.stop="store.deleteBoard(board.name)" title="Delete board">×</div>
-        <div class="card-content" @click="selectBoard(board.name)">
+      <div v-for="board in store.boards" :key="board.instanceName" class="board-card">
+        <div class="card-delete-button" @click.stop="store.deleteBoard(board.instanceName)" title="Delete board">×</div>
+        <div class="card-content" @click="selectBoard(board.instanceName)">
           <img v-if="board.snapshotUrl" :src="board.snapshotUrl" alt="Board Snapshot" class="card-snapshot"/>
           <div v-else class="card-snapshot-placeholder">No Snapshot</div>
           <div class="card-info">
-            <h3 class="card-title">{{ board.name }}</h3>
+            <h3 class="card-title">{{ board.instanceName }}</h3>
             <p class="card-date">Last saved: {{ formatDate(board.savedAt) }}</p>
             <p class="card-type">({{ board.type }})</p>
           </div>
         </div>
       </div>
     </main>
+
+    <!-- Migration Dialog -->
+    <div v-if="isMigrateDialogOpen" class="dialog-overlay" @click.self="isMigrateDialogOpen = false">
+      <div class="dialog-content">
+        <button class="close-button" @click="isMigrateDialogOpen = false">×</button>
+        <h2>Migrate from Code</h2>
+        <p>Upload a ZIP file of your Java source code to reverse-engineer it into Eventstorming and UML models.</p>
+        <div class="file-input-wrapper">
+          <input type="file" @change="handleFileUpload" accept=".zip" id="file-upload" class="file-input"/>
+          <label for="file-upload" class="file-label">
+            <span v-if="selectedFile">{{ selectedFile.name }}</span>
+            <span v-else>Choose a ZIP file...</span>
+          </label>
+        </div>
+        <button @click="uploadAndReverseEngineer" :disabled="!selectedFile" class="upload-button">Upload and Reverse Engineer</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -217,5 +262,72 @@ const formatDate = (dateString: string) => {
 
 .card-delete-button:hover {
   background-color: #dc3545;
+}
+
+/* Dialog Styles */
+.dialog-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.dialog-content {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+}
+
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+}
+
+.file-input-wrapper {
+  margin: 1.5rem 0;
+}
+
+.file-input {
+  display: none;
+}
+
+.file-label {
+  display: block;
+  padding: 1rem;
+  border: 2px dashed #ced4da;
+  border-radius: 4px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.file-label:hover {
+  border-color: #007bff;
+}
+
+.upload-button {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+}
+
+.upload-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
 }
 </style>
