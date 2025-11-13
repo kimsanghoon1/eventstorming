@@ -27,6 +27,7 @@ export interface CanvasItem {
   id: number;
   type: string;
   instanceName: string;
+  description?: string;
   properties: Property[];
   
   attributes?: UmlAttribute[];

@@ -1,24 +1,21 @@
-import { createRouter, createWebHashHistory } from 'vue-router';
-import BoardSwitcher from './components/BoardSwitcher.vue';
-import MainCanvas from './components/MainCanvas.vue';
-
-const routes = [
-  {
-    path: '/',
-    name: 'BoardList',
-    component: BoardSwitcher,
-  },
-  {
-    path: '/board/:boardName',
-    name: 'BoardView',
-    component: MainCanvas,
-    props: true, // Pass route.params to component props
-  },
-];
+import { createRouter, createWebHistory } from 'vue-router';
+import BoardListView from './views/BoardListView.vue';
+import BoardView from './views/BoardView.vue';
 
 const router = createRouter({
-  history: createWebHashHistory(),
-  routes,
+  history: createWebHistory(import.meta.env.BASE_URL),
+  routes: [
+    {
+      path: '/',
+      name: 'board-list',
+      component: BoardListView
+    },
+    {
+      path: '/board/:boardId(.*)', // Allow slashes in the boardId parameter
+      name: 'board-view',
+      component: BoardView
+    }
+  ]
 });
 
 export default router;

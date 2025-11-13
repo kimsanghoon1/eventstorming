@@ -11,8 +11,19 @@ const props = defineProps({
 
 defineEmits(['connection-click']);
 
-const strokeColor = computed(() => props.isSelected ? '#007bff' : 'black');
-const strokeWidth = computed(() => props.isSelected ? 3 : 2);
+const highlightColor = '#FF4500'; // OrangeRed for high visibility
+const selectionColor = '#007bff'; // Blue for selection
+
+const strokeColor = computed(() => {
+  if (props.isSelected) return selectionColor;
+  if (props.connection.isHighlighted) return highlightColor;
+  return 'black';
+});
+const strokeWidth = computed(() => {
+  if (props.isSelected) return 4;
+  if (props.connection.isHighlighted) return 3;
+  return 2;
+});
 
 const getEdgePoint = (source: CanvasItem, target: CanvasItem) => {
     const sx = source.x;
@@ -60,12 +71,13 @@ const diamondPos = computed(() => ({
 </script>
 
 <template>
-    <v-group>
+    <v-group @click="() => emit('connection-click', connection)" @tap="() => emit('connection-click', connection)">
         <!-- Generalization (Inheritance) -->
         <v-arrow v-if="connection.type === 'Generalization'" :config="{
             points: [fromPos.x, fromPos.y, toPos.x, toPos.y],
-            stroke: 'black',
-            strokeWidth: 2,
+            stroke: strokeColor,
+            strokeWidth: strokeWidth,
+            hitStrokeWidth: 15,
             fill: 'white',
             pointerLength: arrowSize * 1.5,
             pointerWidth: arrowSize * 1.5,
@@ -73,7 +85,7 @@ const diamondPos = computed(() => ({
 
         <!-- Aggregation -->
         <v-group v-else-if="connection.type === 'Aggregation'">
-            <v-line :config="{ points: [diamondPos.x, diamondPos.y, toPos.x, toPos.y], stroke: 'black', strokeWidth: 2 }" />
+            <v-line :config="{ points: [diamondPos.x, diamondPos.y, toPos.x, toPos.y], stroke: strokeColor, strokeWidth: strokeWidth, hitStrokeWidth: 15 }" />
             <v-regular-polygon :config="{
                 x: fromPos.x,
                 y: fromPos.y,
@@ -88,7 +100,7 @@ const diamondPos = computed(() => ({
 
         <!-- Composition -->
         <v-group v-else-if="connection.type === 'Composition'">
-            <v-line :config="{ points: [diamondPos.x, diamondPos.y, toPos.x, toPos.y], stroke: 'black', strokeWidth: 2 }" />
+            <v-line :config="{ points: [diamondPos.x, diamondPos.y, toPos.x, toPos.y], stroke: strokeColor, strokeWidth: strokeWidth, hitStrokeWidth: 15 }" />
             <v-regular-polygon :config="{
                 x: fromPos.x,
                 y: fromPos.y,
@@ -104,8 +116,9 @@ const diamondPos = computed(() => ({
         <!-- Dependency -->
         <v-arrow v-else-if="connection.type === 'Dependency'" :config="{
             points: [fromPos.x, fromPos.y, toPos.x, toPos.y],
-            stroke: 'black',
-            strokeWidth: 2,
+            stroke: strokeColor,
+            strokeWidth: strokeWidth,
+            hitStrokeWidth: 15,
             pointerLength: arrowSize,
             pointerWidth: arrowSize,
             dash: [10, 5],
@@ -114,8 +127,9 @@ const diamondPos = computed(() => ({
         <!-- Association (Default) -->
         <v-arrow v-else :config="{
             points: [fromPos.x, fromPos.y, toPos.x, toPos.y],
-            stroke: 'black',
-            strokeWidth: 2,
+            stroke: strokeColor,
+            strokeWidth: strokeWidth,
+            hitStrokeWidth: 15,
             pointerLength: arrowSize,
             pointerWidth: arrowSize,
         }" />

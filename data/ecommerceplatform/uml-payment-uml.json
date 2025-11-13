@@ -1,0 +1,123 @@
+{
+  "boardType": "UML",
+  "instanceName": "payment-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "Payment",
+      "stereotype": "AggregateRoot",
+      "description": "Class for Payment aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "paymentId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "amount",
+          "type": "Money",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "PaymentStatus",
+          "visibility": "private"
+        },
+        {
+          "name": "transactionId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "customerId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "orderId",
+          "type": "UUID",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "processPayment",
+          "parameters": [
+            {
+              "name": "amount",
+              "type": "Money"
+            },
+            {
+              "name": "customerId",
+              "type": "UUID"
+            },
+            {
+              "name": "orderId",
+              "type": "UUID"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "refundPayment",
+          "parameters": [
+            {
+              "name": "refundAmount",
+              "type": "Money"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "applyPaymentProcessed",
+          "parameters": [
+            {
+              "name": "paymentId",
+              "type": "UUID"
+            },
+            {
+              "name": "transactionId",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "private"
+        },
+        {
+          "name": "applyPaymentRefunded",
+          "parameters": [
+            {
+              "name": "refundAmount",
+              "type": "Money"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "private"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "DefaultAggregate",
+      "description": "Fallback: Could not generate specific classes.",
+      "x": 100,
+      "y": 100
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

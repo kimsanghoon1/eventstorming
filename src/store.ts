@@ -39,6 +39,7 @@ interface Store {
   boards: Array<{ instanceName: string, type: string, savedAt: string, snapshotUrl: string | null }>;
   umlBoards: Array<{ instanceName: string, type: string, savedAt: string, snapshotUrl: string | null }>;
   activeBoard: string | null;
+  board: { items: CanvasItem[], connections: Connection[] } | null; // Add board state
   activeStage: any | null; // To hold the Konva stage reference
   
   // Y.js related state
@@ -54,13 +55,15 @@ interface Store {
 
   isCodeGeneratorOpen: boolean;
   toggleCodeGenerator: (isOpen: boolean) => void;
+  selectedItem: CanvasItem | null;
 
   currentView: 'event-canvas' | 'uml-canvas' | 'loading';
 
   // Methods
+  setSelectedItem: (item: CanvasItem | null) => void;
   fetchBoards: () => Promise<void>;
   fetchUmlBoards: () => Promise<void>;
-  loadBoard: (instanceName: string) => Promise<void>;
+  loadBoard: (boardId: string) => Promise<void>;
   unloadBoard: () => void;
   createNewBoard: (instanceName: string, boardType: 'Eventstorming' | 'UML') => Promise<void>;
   deleteBoard: (instanceName: string) => Promise<void>;
@@ -69,6 +72,7 @@ interface Store {
   addItem: (item: Omit<CanvasItem, 'id'>) => void;
   updateItem: (item: CanvasItem) => void;
   deleteItems: (ids: number[]) => void;
+  deleteItemsAndAttachedConnections: (ids: number[]) => void;
   addConnection: (connection: Omit<Connection, 'id' | 'type'> & { type?: string }) => void;
   deleteConnections: (ids: string[]) => void;
   updateConnection: (connection: Connection) => void;
@@ -79,13 +83,15 @@ interface Store {
   redo: () => void;
   saveActiveBoard: () => Promise<void>;
   saveBoardHeadless: (boardName: string, boardData: any, boardType: 'Eventstorming' | 'UML') => Promise<void>;
-  reverseEngineerCode: (zipFile: File | null) => Promise<{ eventstormingBoardName: string, umlBoardName: string }>;
+  reverseEngineerCode: (zipFile: File | null) => Promise<{ eventstormingBoardName: string, umlBoardNames: string[] }>;
+  generateProjectFromRequirements: (requirements: string) => Promise<{ eventstormingBoardName: string, umlBoardNames: string[] }>;
 }
 
 export const store = reactive<Store>({
   boards: [],
   umlBoards: [],
   activeBoard: null,
+  board: null, // Initialize board state
   activeStage: null,
   
   doc: null,
@@ -99,8 +105,13 @@ export const store = reactive<Store>({
   reactiveConnections: [],
 
   isCodeGeneratorOpen: false,
+  selectedItem: null,
 
   currentView: 'loading',
+
+  setSelectedItem(item: CanvasItem | null) {
+    this.selectedItem = item;
+  },
 
   toggleCodeGenerator(isOpen: boolean) {
     this.isCodeGeneratorOpen = isOpen;
@@ -147,15 +158,19 @@ export const store = reactive<Store>({
 
   async fetchUmlBoards() {
     try {
-      const response = await fetch('/api/boards/uml');
+      const response = await fetch('/api/uml-boards');
+      if (!response.ok) {
+        throw new Error('Failed to fetch UML boards');
+      }
       this.umlBoards = await response.json();
     } catch (error) {
-      console.error("Failed to fetch UML boards:", error);
+      console.error('Error fetching UML boards:', error);
+      this.umlBoards = [];
     }
   },
 
-  async loadBoard(instanceName: string) {
-    if (this.activeBoard === instanceName && this.doc) { // also check for doc to prevent no-op
+  async loadBoard(boardId: string) {
+    if (this.activeBoard === boardId && this.doc) { // also check for doc to prevent no-op
         return;
     }
 
@@ -163,7 +178,7 @@ export const store = reactive<Store>({
     if (this.provider) this.provider.destroy();
     if (this.doc) this.doc.destroy();
 
-    this.activeBoard = instanceName;
+    this.activeBoard = boardId;
     this.currentView = 'loading';
 
     try {
@@ -173,18 +188,21 @@ export const store = reactive<Store>({
         this.connections = doc.getArray<Y.Map<any>>('connections');
         this.boardType = doc.getText('boardType');
 
-        this.provider = new WebsocketProvider('ws://localhost:3000', instanceName, doc);
+        this.provider = new WebsocketProvider('ws://localhost:3000', boardId, doc);
 
         this.provider.on('synced', async (isSynced: boolean) => {
             if (isSynced && this.canvasItems?.length === 0) {
                 // 1. Fetch initial data from REST API only if the doc is empty after sync
                 console.log('Document is empty after sync, fetching initial state from REST API...');
                 try {
-                    const response = await fetch(`/api/boards/${instanceName}`);
+                    const response = await fetch(`/api/boards/${boardId}`);
                     if (!response.ok) {
                         throw new Error(`Failed to fetch board: ${response.statusText}`);
                     }
                     const boardData = await response.json();
+
+                    // Set the entire board data for components that need it
+                    this.board = boardData;
 
                     // 2. Populate the doc
                     doc.transact(() => {
@@ -201,6 +219,11 @@ export const store = reactive<Store>({
             // This will now be populated, triggering the initial render
             this.reactiveItems = this.canvasItems!.toJSON();
             this.reactiveConnections = this.connections!.toJSON();
+            // Also update the board state with the latest reactive data
+            this.board = {
+                items: this.reactiveItems,
+                connections: this.reactiveConnections
+            };
             const type = this.boardType!.toString();
             if (type) {
                 this.currentView = type === 'UML' ? 'uml-canvas' : 'event-canvas';
@@ -212,6 +235,11 @@ export const store = reactive<Store>({
             if (this.canvasItems && this.connections) {
               this.reactiveItems = this.canvasItems.toJSON();
               this.reactiveConnections = this.connections.toJSON();
+              // Also update the board state with the latest reactive data
+              this.board = {
+                  items: this.reactiveItems,
+                  connections: this.reactiveConnections
+              };
             }
         });
         
@@ -293,6 +321,43 @@ export const store = reactive<Store>({
     }
   },
 
+  deleteItemsAndAttachedConnections(ids: number[]) {
+    if (!this.doc || !this.canvasItems || !this.connections) return;
+
+    this.doc.transact(() => {
+      // Expand selection to include children of any context boxes
+      const idsToDelete = new Set(ids);
+      ids.forEach(id => {
+        const item = this.reactiveItems.find(i => i.id === id);
+        if (item && item.type === 'ContextBox') {
+          this.reactiveItems.forEach(child => {
+            if (child.parent === id) {
+              idsToDelete.add(child.id);
+            }
+          });
+        }
+      });
+
+      // 1. Delete items
+      let i = this.canvasItems!.length;
+      while (i--) {
+        const item = this.canvasItems!.get(i);
+        if (idsToDelete.has(item.get('id'))) {
+          this.canvasItems!.delete(i, 1);
+        }
+      }
+
+      // 2. Delete attached connections
+      let j = this.connections!.length;
+      while (j--) {
+        const conn = this.connections!.get(j);
+        if (idsToDelete.has(conn.get('from')) || idsToDelete.has(conn.get('to'))) {
+          this.connections!.delete(j, 1);
+        }
+      }
+    });
+  },
+
   addConnection(connection: Omit<Connection, 'id'>) {
     if (!this.connections) return;
     const newConnMap = toYMap({ 
@@ -314,32 +379,6 @@ export const store = reactive<Store>({
             }
         }
       });
-  },
-
-  deleteItemsAndAttachedConnections(ids: number[]) {
-    if (!this.doc || !this.canvasItems || !this.connections) return;
-
-    this.doc.transact(() => {
-      const idsSet = new Set(ids);
-
-      // 1. Delete items
-      let i = this.canvasItems!.length;
-      while (i--) {
-        const item = this.canvasItems!.get(i);
-        if (idsSet.has(item.get('id'))) {
-          this.canvasItems!.delete(i, 1);
-        }
-      }
-
-      // 2. Delete attached connections
-      let j = this.connections!.length;
-      while (j--) {
-        const conn = this.connections!.get(j);
-        if (idsSet.has(conn.get('from')) || idsSet.has(conn.get('to'))) {
-          this.connections!.delete(j, 1);
-        }
-      }
-    });
   },
 
   updateConnection(connection: Connection) {
@@ -527,8 +566,8 @@ export const store = reactive<Store>({
       const umlBoardNames = [];
       for (const umlModel of umlModels) {
         // Use a more robust name, fallback to timestamp if no items
-        const namePart = umlModel.items?.[0]?.instanceName?.replace(/\s+/g, '') || timestamp;
-        const umlBoardName = `ReversedUML-${namePart}`;
+        const namePart = umlModel.items?.[0]?.instanceName?.replace(/\s+/g, '');
+        const umlBoardName = namePart ? `ReversedUML-${namePart}-${timestamp}` : `ReversedUML-${timestamp}`;
         await createAndSaveBoard(umlBoardName, 'UML', umlModel);
         umlBoardNames.push(umlBoardName);
       }
@@ -542,4 +581,27 @@ export const store = reactive<Store>({
       throw error;
     }
   },
+
+  async generateProjectFromRequirements(requirements: string) {
+    try {
+      const response = await fetch('/api/generate-from-requirements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requirements }),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to generate project: ${errorText}`);
+      }
+      const { eventstormingBoardName, umlBoardNames } = await response.json();
+      return { eventstormingBoardName, umlBoardNames };
+    } catch (error: any) {
+      console.error('Failed to generate project from requirements:', error);
+      throw error;
+    }
+  },
 });
+
+export function useStore() {
+  return store;
+}

@@ -1,0 +1,81 @@
+{
+  "boardType": "UML",
+  "instanceName": "complaintlinking-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "ComplaintLinking",
+      "stereotype": "AggregateRoot",
+      "description": "Class for ComplaintLinking aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "complaintId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "departmentId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "systemId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "linkStatus",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "linkedAt",
+          "type": "Instant",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "linkComplaintToDepartment",
+          "parameters": [
+            {
+              "name": "complaintId",
+              "type": "UUID"
+            },
+            {
+              "name": "departmentId",
+              "type": "String"
+            },
+            {
+              "name": "systemId",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "DefaultAggregate",
+      "description": "Fallback: Could not generate specific classes.",
+      "x": 100,
+      "y": 100
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

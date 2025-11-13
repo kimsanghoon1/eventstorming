@@ -1,0 +1,93 @@
+{
+  "boardType": "UML",
+  "instanceName": "complaintapplication-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "ComplaintApplication",
+      "stereotype": "AggregateRoot",
+      "description": "Class for ComplaintApplication aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "applicationId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "citizenId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "complaintDescription",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "submissionDate",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "linkedComplaintId",
+          "type": "UUID",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "submitComplaintApplication",
+          "parameters": [
+            {
+              "name": "citizenId",
+              "type": "UUID"
+            },
+            {
+              "name": "complaintDescription",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "updateComplaintApplicationStatus",
+          "parameters": [
+            {
+              "name": "status",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "DefaultAggregate",
+      "description": "Fallback: Could not generate specific classes.",
+      "x": 100,
+      "y": 100
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

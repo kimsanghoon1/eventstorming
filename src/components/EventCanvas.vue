@@ -6,6 +6,21 @@ import PropertiesPanel from "./PropertiesPanel.vue";
 import { useCanvasLogic } from '../composables/useCanvasLogic';
 import EventItem from './canvas-items/EventItem.vue';
 
+const props = defineProps({
+  highlightedItemIds: {
+    type: Set as () => Set<number>,
+    default: () => new Set<number>()
+  },
+  clickedItemId: {
+    type: Number as () => number | null,
+    default: null
+  }
+});
+
+const emit = defineEmits(['item-click', 'item-dblclick', 'canvas-click']);
+
+const scale = ref(0.7);
+
 const {
   selectedItems,
   selectedConnections,
@@ -18,13 +33,71 @@ const {
   handleMouseDown,
   handleMouseMove,
   handleMouseUp,
-  handleItemClick,
   handleConnectionClick,
   handleTransformEnd,
   handleItemDragStart,
   handleItemDragMove,
   handleItemDragEnd,
+  handleItemClick,
+  handleItemDblClick,
 } = useCanvasLogic();
+
+const connectionButtonPosition = computed(() => {
+  console.log('[Debug] Recalculating button position. Selected items:', selectedItems.value.length);
+  if (selectedItems.value.length !== 1 || !stageRef.value) {
+    return null;
+  }
+
+  const item = selectedItems.value[0];
+  const stage = stageRef.value.getStage();
+  const itemNode = stage.findOne(`.item-${item.id}`);
+
+  if (!itemNode) {
+    console.log('[Debug] Node not found for item:', item.id);
+    return null;
+  }
+  
+  const wrapper = stage.container().parentElement;
+  if (!wrapper) {
+    console.log('[Debug] Wrapper element not found.');
+    return null;
+  }
+  
+  const rect = itemNode.getClientRect({ relativeTo: wrapper });
+  console.log('[Debug] Item rect relative to wrapper:', rect);
+
+  const position = {
+    top: `${rect.y + rect.height / 2 - 15}px`, // 15 is half of button height
+    left: `${rect.x + rect.width + 10}px`, // 10 is for spacing
+  };
+
+  console.log('[Debug] Calculated button style:', position);
+  return position;
+});
+
+const onCanvasItemClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
+  handleItemClick(e, item); // For selection logic in composable
+  emit('item-click', item.id); // For highlighting logic in BoardView
+};
+
+const onCanvasItemDblClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
+  handleItemDblClick(e, item); // For properties panel logic in composable
+};
+
+const stageConfigScaled = computed(() => ({
+  ...stageConfig.value,
+  scaleX: scale.value,
+  scaleY: scale.value,
+}));
+
+const handleStageClick = (e: any) => {
+  // Check if the click was on the stage background
+  if (e.target === e.target.getStage()) {
+    emit('canvas-click');
+  }
+};
+
+// stageConfig.draggable = true; // This is now controlled by the hand tool logic
 
 const canvasItemsJSON = computed(() => {
   return store.reactiveItems.sort((a, b) => {
@@ -74,7 +147,15 @@ const handleDrop = (e: DragEvent) => {
 
   const stage = stageRef.value.getStage();
   stage.setPointersPositions(e);
-  const pos = stage.getPointerPosition();
+
+  // Get transformed pointer position
+  const pointerPosition = stage.getPointerPosition();
+  if (!pointerPosition) return;
+  
+  const transform = stage.getAbsoluteTransform().copy();
+  transform.invert();
+  const pos = transform.point(pointerPosition);
+  
   if (!pos) return;
 
   const newItem: Omit<CanvasItem, 'id'> = {
@@ -136,12 +217,22 @@ const connectionsWithDetails = computed(() => {
     const fromPoint = getEdgePoint(fromNode, toNode);
     const toPoint = getEdgePoint(toNode, fromNode);
 
+    // Determine if the connection should be highlighted
+    const activeIds = new Set(props.highlightedItemIds);
+    if (props.clickedItemId) {
+      activeIds.add(props.clickedItemId);
+    }
+    const isHighlighted = activeIds.has(conn.from) && activeIds.has(conn.to);
+    const isSelected = selectedConnections.value.some(sc => sc.id === conn.id);
+
     return {
       ...conn,
       id: conn.id,
       points: [fromPoint.x, fromPoint.y, toPoint.x, toPoint.y],
       fromNode,
       toNode,
+      isHighlighted,
+      isSelected,
     };
   }).filter((c): c is NonNullable<typeof c> => c !== null);
 });
@@ -161,21 +252,29 @@ const connectionsWithDetails = computed(() => {
       </button>
     </div>
 
-    <div class="canvas-wrapper" @drop="handleDrop" @dragover.prevent>
+    <div 
+      class="canvas-wrapper" 
+      @drop="handleDrop" 
+      @dragover.prevent
+    >
       <v-stage 
         ref="stageRef" 
-        :config="stageConfig" 
+        :config="stageConfigScaled" 
         @mousedown="handleMouseDown" 
         @mousemove="handleMouseMove" 
         @mouseup="handleMouseUp"
+        @click="handleStageClick"
       >
         <v-layer>
           <EventItem 
             v-for="item in canvasItemsJSON" 
             :key="item.id" 
             :item="item" 
-            :highlighted="selectedItems.some(s => s.id === item.id)"
-            @click="handleItemClick($event, item)" 
+            :scale="scale"
+            :is-selected="selectedItems.some(s => s.id === item.id)"
+            :is-downstream="highlightedItemIds.has(item.id)"
+            @click="(e) => onCanvasItemClick(e, item)"
+            @dblclick="(e) => onCanvasItemDblClick(e, item)"
             @dragstart="(e) => handleItemDragStart(e, item)"
             @dragmove="handleItemDragMove"
             @dragend="handleItemDragEnd"
@@ -183,9 +282,10 @@ const connectionsWithDetails = computed(() => {
           />
           <v-arrow v-for="conn in connectionsWithDetails" :key="conn.id" :config="{
               points: conn.points,
-              stroke: selectedConnections.some(c => c.id === conn.id) ? '#007bff' : 'black',
-              fill: selectedConnections.some(c => c.id === conn.id) ? '#007bff' : 'black',
-              strokeWidth: selectedConnections.some(c => c.id === conn.id) ? 3 : 2,
+              stroke: conn.isSelected ? '#007bff' : (conn.isHighlighted ? '#FF4500' : 'black'),
+              fill: conn.isSelected ? '#007bff' : (conn.isHighlighted ? '#FF4500' : 'black'),
+              strokeWidth: conn.isSelected ? 4 : (conn.isHighlighted ? 3 : 2),
+              hitStrokeWidth: 15, // Make line easier to click
               dash: (conn.fromNode.type === 'Event' && conn.toNode.type === 'Policy') ? [10, 5] : undefined,
               pointerLength: 10,
               pointerWidth: 10,
@@ -211,10 +311,17 @@ const connectionsWithDetails = computed(() => {
           />
         </v-layer>
       </v-stage>
+      <!-- Connection Button -->
+      <div 
+        v-if="connectionButtonPosition" 
+        class="connection-button"
+        :style="connectionButtonPosition"
+        title="Start connection"
+        @click="startConnection('Association')"
+      >
+        +
+      </div>
     </div>
-
-    <PropertiesPanel v-if="selectedItems.length > 0" :modelValue="selectedItems[selectedItems.length - 1]" @update:modelValue="handleUpdate" />
-    
   </div>
 </template>
 
@@ -222,7 +329,31 @@ const connectionsWithDetails = computed(() => {
 .container { display: flex; width: 100%; height: 100%; flex-direction: row; }
 .toolbox { width: 200px; padding: 15px; border-right: 1px solid #ccc; background-color: #f7f7f7; flex-shrink: 0; }
 .tool-item { padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; cursor: grab; text-align: center; font-weight: bold; }
-.canvas-wrapper { flex-grow: 1; overflow: auto; }
+.canvas-wrapper { 
+  flex-grow: 1; 
+  overflow: auto;
+  position: relative; /* Needed for the connection button */
+}
 .connect-btn { width: 100%; padding: 10px; background-color: #ffc107; border: none; cursor: pointer; }
 .connect-btn.active { background-color: #e0a800; font-weight: bold; }
+
+.connection-button {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  background-color: #007bff;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 24px;
+  line-height: 30px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  transition: transform 0.1s ease;
+}
+.connection-button:hover {
+  transform: scale(1.1);
+}
 </style>

@@ -3,6 +3,17 @@ import Konva from 'konva';
 import { store } from '../store';
 import type { CanvasItem, Connection } from '../types';
 
+// Helper to get pointer position respecting stage's scale and position
+const getTransformedPointerPosition = (stage: Konva.Stage | null) => {
+    if (!stage) return null;
+    const pointerPosition = stage.getPointerPosition();
+    if (!pointerPosition) return null;
+
+    const transform = stage.getAbsoluteTransform().copy();
+    transform.invert();
+    return transform.point(pointerPosition);
+};
+
 export function useCanvasLogic() {
   const selectedItems = ref<CanvasItem[]>([]);
   const selectedConnections = ref<Connection[]>([]);
@@ -18,6 +29,7 @@ export function useCanvasLogic() {
   });
 
   const connectionMode = ref<{ active: boolean; type: string | null; from: number | null }>({ active: false, type: null, from: null });
+  const isHandToolActive = ref(false); // To toggle between pan and select
 
   const stageConfig = ref({
     width: window.innerWidth,
@@ -62,9 +74,9 @@ export function useCanvasLogic() {
   watch(() => store.reactiveItems.length, updateStageSize);
 
   const startConnection = (type: string) => {
-    connectionMode.value = { active: true, type: type, from: null };
-    selectedItems.value = [];
-    selectedConnections.value = [];
+    const fromId = selectedItems.value.length === 1 ? selectedItems.value[0].id : null;
+    connectionMode.value = { active: true, type: type, from: fromId };
+    
     if (stageRef.value) {
         stageRef.value.getStage().container().style.cursor = 'crosshair';
     }
@@ -80,6 +92,15 @@ export function useCanvasLogic() {
   const handleKeyDown = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) {
       return;
+    }
+    
+    if (e.key === 'h') {
+      isHandToolActive.value = !isHandToolActive.value;
+      const stage = stageRef.value?.getStage();
+      if (stage) {
+        stage.draggable(isHandToolActive.value);
+        stage.container().style.cursor = isHandToolActive.value ? 'grab' : 'default';
+      }
     }
     if (e.key === 'Escape') {
       if (connectionMode.value.active) {
@@ -129,13 +150,20 @@ export function useCanvasLogic() {
   });
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (e.target !== e.target.getStage() || connectionMode.value.active) {
+    // Prevent selection logic when hand tool is active
+    if (isHandToolActive.value || e.target !== e.target.getStage() || connectionMode.value.active) {
+      if(isHandToolActive.value) {
+        const stage = stageRef.value?.getStage();
+        if (stage) {
+          stage.container().style.cursor = 'grabbing';
+        }
+      }
       return;
     }
     e.evt.preventDefault();
     const stage = e.target.getStage();
     if (!stage) return;
-    const pos = stage.getPointerPosition();
+    const pos = getTransformedPointerPosition(stage);
     if (!pos) return;
     selection.value = {
       visible: true,
@@ -148,23 +176,33 @@ export function useCanvasLogic() {
       selectedItems.value = [];
       selectedConnections.value = [];
     }
+    // Clear properties panel on stage click
+    if (e.target === e.target.getStage()) {
+      store.setSelectedItem(null);
+    }
   };
 
   const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (!selection.value.visible) {
+    if (isHandToolActive.value || !selection.value.visible) {
       return;
     }
     e.evt.preventDefault();
     const stage = e.target.getStage();
     if (!stage) return;
-    const pos = stage.getPointerPosition();
+    const pos = getTransformedPointerPosition(stage);
     if (!pos) return;
     selection.value.x2 = pos.x;
     selection.value.y2 = pos.y;
   };
 
   const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (!selection.value.visible) {
+    if(isHandToolActive.value) {
+      const stage = stageRef.value?.getStage();
+      if (stage) {
+        stage.container().style.cursor = 'grab';
+      }
+    }
+    if (isHandToolActive.value || !selection.value.visible) {
       return;
     }
     e.evt.preventDefault();
@@ -200,6 +238,7 @@ export function useCanvasLogic() {
   const handleItemClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
     if (connectionMode.value.active && connectionMode.value.type) {
       if (connectionMode.value.from === null) {
+        // This case is for starting a connection from the toolbox button
         if (item.type === 'Aggregate') {
           alert("Connections cannot originate from an Aggregate.");
           cancelConnectionMode();
@@ -207,6 +246,7 @@ export function useCanvasLogic() {
         }
         connectionMode.value.from = item.id;
       } else {
+        // This case is for completing a connection
         if (item.type === 'Aggregate') {
           alert("Connections cannot target an Aggregate.");
           cancelConnectionMode();
@@ -243,6 +283,11 @@ export function useCanvasLogic() {
     }
   };
 
+  const handleItemDblClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
+    console.log('handleItemDblClick triggered in useCanvasLogic for item:', item);
+    store.setSelectedItem(item);
+  };
+  
   const handleConnectionClick = (e: Konva.KonvaEventObject<MouseEvent>, conn: Connection) => {
     e.evt.preventDefault();
     const isCtrlPressed = e.evt.ctrlKey || e.evt.metaKey;
@@ -261,6 +306,9 @@ export function useCanvasLogic() {
         selectedConnections.value.push(conn);
       }
     }
+    
+    // Update the store for the properties panel
+    store.setSelectedItem(null); // Or you can have properties for connections too
   };
 
   const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
@@ -415,6 +463,7 @@ export function useCanvasLogic() {
   watch(() => store.activeBoard, () => {
     selectedItems.value = [];
     selectedConnections.value = [];
+    store.setSelectedItem(null);
   });
   watch(() => store.reactiveItems, () => {
       updateTransformer();
@@ -433,6 +482,7 @@ export function useCanvasLogic() {
     handleMouseMove,
     handleMouseUp,
     handleItemClick,
+    handleItemDblClick,
     handleConnectionClick,
     handleTransformEnd,
     handleItemDragStart,

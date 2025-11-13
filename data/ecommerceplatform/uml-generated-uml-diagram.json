@@ -1,0 +1,119 @@
+{
+  "boardType": "UML",
+  "instanceName": "generated-uml-diagram",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "DailySalesReport",
+      "stereotype": "AggregateRoot",
+      "description": "Class for DailySalesReport aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "reportId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "date",
+          "type": "LocalDate",
+          "visibility": "private"
+        },
+        {
+          "name": "totalSales",
+          "type": "Money",
+          "visibility": "private"
+        },
+        {
+          "name": "salesCount",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "itemsSold",
+          "type": "List<SalesItem>",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "generateDailySalesReport",
+          "parameters": [
+            {
+              "name": "date",
+              "type": "LocalDate"
+            }
+          ],
+          "returnType": "DailySalesReport",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "InventoryReport",
+      "stereotype": "AggregateRoot",
+      "description": "Class for InventoryReport aggregate.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "reportId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "date",
+          "type": "LocalDate",
+          "visibility": "private"
+        },
+        {
+          "name": "inventoryStatus",
+          "type": "Map<String, Integer>",
+          "visibility": "private"
+        },
+        {
+          "name": "lowStockItems",
+          "type": "List<InventoryItem>",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "generateInventoryReport",
+          "parameters": [
+            {
+              "name": "date",
+              "type": "LocalDate"
+            }
+          ],
+          "returnType": "InventoryReport",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "DefaultAggregate",
+      "description": "Fallback: Could not generate specific classes.",
+      "x": 100,
+      "y": 100
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

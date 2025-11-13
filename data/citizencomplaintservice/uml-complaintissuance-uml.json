@@ -1,0 +1,90 @@
+{
+  "boardType": "UML",
+  "instanceName": "complaintissuance-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "ComplaintIssuance",
+      "stereotype": "AggregateRoot",
+      "description": "Class for ComplaintIssuance aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "complaintId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "complaintType",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "issuedBy",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "issueDate",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "documentUrl",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "issueComplaintDocument",
+          "parameters": [
+            {
+              "name": "complaintId",
+              "type": "UUID"
+            },
+            {
+              "name": "complaintType",
+              "type": "String"
+            },
+            {
+              "name": "issuedBy",
+              "type": "String"
+            },
+            {
+              "name": "documentUrl",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "DefaultAggregate",
+      "description": "Fallback: Could not generate specific classes.",
+      "x": 100,
+      "y": 100
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

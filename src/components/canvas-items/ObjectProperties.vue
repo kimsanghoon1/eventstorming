@@ -5,11 +5,12 @@
       :key="index"
       :config="{
         text: `${prop.key}: ${prop.value}`,
-        fontSize: 12,
+        fontSize: 12 / scale,
         fontFamily: fontFamily,
         y: index * 15,
+        x: 10,
         width: itemWidth - 20,
-        padding: 10,
+        padding: 2,
         align: 'left'
       }"
     />
@@ -18,11 +19,12 @@
       :key="index"
       :config="{
         text: formatAttribute(attr),
-        fontSize: 14,
+        fontSize: 14 / scale,
         fontFamily: fontFamily,
         y: (properties?.length || 0) * 15 + index * 15,
+        x: 10,
         width: itemWidth - 20,
-        padding: 10,
+        padding: 2,
         align: 'left'
       }"
     />
@@ -31,11 +33,12 @@
       :key="index"
       :config="{
         text: formatOperation(method),
-        fontSize: 14,
+        fontSize: 14 / scale,
         fontFamily: fontFamily,
         y: (properties?.length || 0) * 15 + (attributes?.length || 0) * 15 + 25 + index * 15,
+        x: 10,
         width: itemWidth - 20,
-        padding: 10,
+        padding: 2,
         align: 'left'
       }"
     />
@@ -46,14 +49,17 @@
 import { defineProps, PropType } from 'vue';
 import type { Property, UmlAttribute, UmlOperation } from '../../types';
 
-defineProps({
+const props = defineProps({
   properties: Array as PropType<Property[]|undefined>,
   attributes: Array as PropType<UmlAttribute[]|undefined>,
   methods: Array as PropType<UmlOperation[]|undefined>,
   itemWidth: { type: Number, default: 200 },
   yOffset: { type: Number, default: 50 },
   fontFamily: { type: String, default: 'sans-serif' },
+  scale: { type: Number, default: 1 },
 });
+
+const { scale } = props;
 
 const getVisibilitySymbol = (visibility: 'public' | 'private' | 'protected' | 'package'): string => {
   switch (visibility) {

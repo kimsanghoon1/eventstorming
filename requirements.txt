@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+openai
+aiofiles
+websockets
+python-multipart
+requests
+zipstream-ng
+a2a-sdk
