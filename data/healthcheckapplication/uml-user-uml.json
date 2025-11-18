@@ -1,0 +1,144 @@
+{
+  "boardType": "UML",
+  "instanceName": "user-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "User",
+      "stereotype": "AggregateRoot",
+      "description": "Class for User aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "userId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "passwordHash",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "UserStatus",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "registerUser",
+          "parameters": [
+            {
+              "name": "email",
+              "type": "String"
+            },
+            {
+              "name": "password",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "UserProfile",
+      "stereotype": "AggregateRoot",
+      "description": "Class for UserProfile aggregate.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "userId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "firstName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "lastName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "preferredLanguage",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "contactEmail",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "phoneNumber",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "updateUserProfile",
+          "parameters": [
+            {
+              "name": "firstName",
+              "type": "String"
+            },
+            {
+              "name": "lastName",
+              "type": "String"
+            },
+            {
+              "name": "preferredLanguage",
+              "type": "String"
+            },
+            {
+              "name": "contactEmail",
+              "type": "String"
+            },
+            {
+              "name": "phoneNumber",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "DefaultAggregate",
+      "description": "Fallback: Could not generate specific classes.",
+      "x": 100,
+      "y": 100
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

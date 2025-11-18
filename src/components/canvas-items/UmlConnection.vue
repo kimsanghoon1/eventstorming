@@ -7,21 +7,23 @@ const props = defineProps({
   fromItem: { type: Object as PropType<CanvasItem>, required: true },
   toItem: { type: Object as PropType<CanvasItem>, required: true },
   isSelected: { type: Boolean, default: false },
+  isHighlighted: { type: Boolean, default: false },
+  name: { type: String, default: '' },
 });
 
-defineEmits(['connection-click']);
+const emit = defineEmits(['connection-click']);
 
 const highlightColor = '#FF4500'; // OrangeRed for high visibility
 const selectionColor = '#007bff'; // Blue for selection
 
 const strokeColor = computed(() => {
   if (props.isSelected) return selectionColor;
-  if (props.connection.isHighlighted) return highlightColor;
+  if (props.isHighlighted) return highlightColor;
   return 'black';
 });
 const strokeWidth = computed(() => {
   if (props.isSelected) return 4;
-  if (props.connection.isHighlighted) return 3;
+  if (props.isHighlighted) return 3;
   return 2;
 });
 
@@ -54,8 +56,21 @@ const getEdgePoint = (source: CanvasItem, target: CanvasItem) => {
     }
 };
 
-const fromPos = computed(() => getEdgePoint(props.fromItem, props.toItem));
-const toPos = computed(() => getEdgePoint(props.toItem, props.fromItem));
+const safeFromItem = computed(() => props.fromItem ?? null);
+const safeToItem = computed(() => props.toItem ?? null);
+
+const fromPos = computed(() => {
+  if (!safeFromItem.value || !safeToItem.value) {
+    return { x: 0, y: 0 };
+  }
+  return getEdgePoint(safeFromItem.value, safeToItem.value);
+});
+const toPos = computed(() => {
+  if (!safeFromItem.value || !safeToItem.value) {
+    return { x: 0, y: 0 };
+  }
+  return getEdgePoint(safeToItem.value, safeFromItem.value);
+});
 
 const angle = computed(() => Math.atan2(toPos.value.y - fromPos.value.y, toPos.value.x - fromPos.value.x));
 
@@ -71,7 +86,11 @@ const diamondPos = computed(() => ({
 </script>
 
 <template>
-    <v-group @click="() => emit('connection-click', connection)" @tap="() => emit('connection-click', connection)">
+    <v-group
+      :config="{ name: props.name }"
+      @click="(evt) => emit('connection-click', evt, connection)"
+      @tap="(evt) => emit('connection-click', evt, connection)"
+    >
         <!-- Generalization (Inheritance) -->
         <v-arrow v-if="connection.type === 'Generalization'" :config="{
             points: [fromPos.x, fromPos.y, toPos.x, toPos.y],

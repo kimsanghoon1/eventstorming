@@ -1,0 +1,206 @@
+{
+  "boardType": "UML",
+  "instanceName": "민원안내-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "Project",
+      "stereotype": "AggregateRoot",
+      "description": "Class for Project aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "projectId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "projectName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "createdAt",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "updatedAt",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "createProject",
+          "parameters": [
+            {
+              "name": "projectName",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "updateProject",
+          "parameters": [
+            {
+              "name": "projectName",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "ProjectTask",
+      "stereotype": "AggregateRoot",
+      "description": "Class for ProjectTask aggregate.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "taskID",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "taskName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "assignedTo",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "dueDate",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "projectId",
+          "type": "UUID",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "assignTask",
+          "parameters": [
+            {
+              "name": "assignedTo",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "updateTaskStatus",
+          "parameters": [
+            {
+              "name": "status",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "setDueDate",
+          "parameters": [
+            {
+              "name": "dueDate",
+              "type": "LocalDateTime"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "Class",
+      "instanceName": "ProjectTaskAssignment",
+      "stereotype": "AggregateRoot",
+      "description": "Class for ProjectTaskAssignment aggregate.",
+      "x": 740,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "assignmentId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "taskId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "assignee",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "assignedAt",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "assignTask",
+          "parameters": [
+            {
+              "name": "assignee",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    },
+    {
+      "id": "conn-2-3",
+      "from": 2,
+      "to": 3,
+      "type": "Association"
+    }
+  ]
+}

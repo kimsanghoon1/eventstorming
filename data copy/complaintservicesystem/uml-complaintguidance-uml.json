@@ -1,0 +1,72 @@
+{
+  "boardType": "UML",
+  "instanceName": "complaintguidance-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "ComplaintGuidance",
+      "stereotype": "AggregateRoot",
+      "description": "Class for ComplaintGuidance aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "guidanceId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "processSteps",
+          "type": "List<String>",
+          "visibility": "private"
+        },
+        {
+          "name": "instructions",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "requestComplaintGuidance",
+          "parameters": [
+            {
+              "name": "userId",
+              "type": "UUID"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "applyComplaintGuidanceProvided",
+          "parameters": [
+            {
+              "name": "guidanceId",
+              "type": "UUID"
+            },
+            {
+              "name": "processSteps",
+              "type": "List<String>"
+            },
+            {
+              "name": "instructions",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "private"
+        }
+      ]
+    }
+  ],
+  "connections": []
+}

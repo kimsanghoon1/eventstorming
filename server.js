@@ -20,6 +20,7 @@ const port = 3000;
 
 const baseDataDir = path.join(__dirname, 'data');
 const snapshotsDir = path.join(baseDataDir, 'snapshots');
+const orchestratorUrl = process.env.ORCHESTRATOR_URL || 'http://localhost:10007/';
 
 // Ensure directories exist
 [baseDataDir, snapshotsDir].forEach(dir => {
@@ -34,6 +35,184 @@ app.use(express.json({ limit: '50mb' }));
 
 // --- In-memory cache for board data ---
 const boardDataCache = {};
+
+const normalizeRelativePath = (relativePath = '') => {
+    if (!relativePath) return '';
+    const normalized = path.normalize(relativePath).replace(/^(\.\/|\.\\)/, '').replace(/^[\\/]+/, '');
+    return normalized === '.' ? '' : normalized;
+};
+
+const ensureSnapshotsSafe = (relativePath = '') => {
+    if (!relativePath) return;
+    const segments = relativePath.split(/[\\/]/).filter(Boolean);
+    if (segments.includes('snapshots')) {
+        throw new Error('Operation not permitted inside snapshots directory');
+    }
+};
+
+const resolvePathSafely = (relativePath = '') => {
+    const normalized = normalizeRelativePath(relativePath);
+    const baseAbsolute = path.resolve(baseDataDir);
+    const absoluteTarget = path.resolve(baseDataDir, normalized);
+    if (!absoluteTarget.startsWith(baseAbsolute)) {
+        throw new Error('Invalid path');
+    }
+    ensureSnapshotsSafe(normalized);
+    return { absolute: absoluteTarget, relative: normalized };
+};
+
+const toRelativePath = (absolutePath) => {
+    const relative = path.relative(baseDataDir, absolutePath);
+    return normalizeRelativePath(relative).replace(/\\/g, '/');
+};
+
+const collectFolders = async (directory, relativePrefix, recursive, results) => {
+    const entries = await fsp.readdir(directory, { withFileTypes: true });
+    for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        if (entry.name === 'snapshots') continue;
+        const nextRelative = relativePrefix ? path.join(relativePrefix, entry.name) : entry.name;
+        results.push(nextRelative.replace(/\\/g, '/'));
+        if (recursive) {
+            await collectFolders(path.join(directory, entry.name), nextRelative, recursive, results);
+        }
+    }
+};
+
+const extractArtifactText = (responseData) => {
+    try {
+        const artifacts = responseData?.result?.artifacts;
+        if (Array.isArray(artifacts)) {
+            for (const artifact of artifacts) {
+                const parts = artifact?.parts;
+                if (Array.isArray(parts)) {
+                    for (const part of parts) {
+                        if (typeof part?.text === 'string') {
+                            return part.text;
+                        }
+                        if (part?.root?.text) {
+                            return part.root.text;
+                        }
+                    }
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Failed to extract artifact text from orchestrator response:', error);
+    }
+    return null;
+};
+
+const extractUpdatedBoardData = (payload, preferredType, fallbackName) => {
+    if (!payload || typeof payload !== 'object') {
+        return null;
+    }
+
+    if (preferredType === 'Eventstorming' && payload.eventstorming) {
+        const board = payload.eventstorming;
+        if (board && board.items && board.connections) {
+            return {
+                ...board,
+                boardType: 'Eventstorming',
+                instanceName: board.instanceName || fallbackName || 'updated-eventstorming-board',
+            };
+        }
+    }
+
+    if (preferredType === 'UML' && payload.uml_diagrams) {
+        const diagrams = payload.uml_diagrams;
+        const existing = fallbackName && diagrams[fallbackName];
+        const diagram = existing || Object.values(diagrams).find(d => d && d.items);
+        if (diagram) {
+            return {
+                ...diagram,
+                boardType: 'UML',
+                instanceName: diagram.instanceName || fallbackName || 'updated-uml-diagram',
+            };
+        }
+    }
+
+    if (payload.boardType && payload.items && payload.connections) {
+        return {
+            ...payload,
+            boardType: payload.boardType || preferredType || 'Eventstorming',
+            instanceName: payload.instanceName || fallbackName || 'updated-board',
+        };
+    }
+
+    return null;
+};
+
+const buildBoardUpdatePrompt = (boardData, userPrompt) => {
+    const serializedBoard = JSON.stringify(boardData, null, 2);
+    const boardLabel = boardData.boardType || 'Eventstorming';
+    const name = boardData.instanceName || 'Current Board';
+
+    return `
+You are an expert assistant that updates existing ${boardLabel} models.
+
+<existing_board name="${name}" type="${boardLabel}">
+${serializedBoard}
+</existing_board>
+
+Apply the following user request to the existing board while preserving its overall consistency:
+<user_request>
+${userPrompt}
+</user_request>
+
+When modifying this board:
+- Respect the current spatial layout. Reuse existing \`x\`/\`y\` coordinates whenever possible so the user’s mental map stays intact.
+- If you must add new items, position them near related contexts without overlapping existing elements. Ensure every item maintains unique screen space.
+- Never stack items on top of one another; adjust coordinates slightly (e.g., small offsets) to avoid collisions while keeping them close to their logical parents.
+- When the user references a specific context, bounded context name, or service (e.g., "결과조회 컨텍스트에 CQRS 조회 모델 추가"), locate the matching \`ContextBox.instanceName\` inside <existing_board> and add the requested items inside that context instead of creating a new context.
+- For any CQRS/query-related request, add explicit \`ReadModel\` objects inside the targeted context, describe what they return, and ensure cross-context queries connect as \`Event -> ReadModel\` with \`"type": "RequestResponse"\`. Do not model CQRS calls as Commands or Policies.
+- Do not reposition or resize existing items unless the user explicitly asks to rearrange the board. Copy their saved \`x\`/\`y\` coordinates from <existing_board> so manual adjustments remain intact. Only choose coordinates for truly new items, nudging them just enough to avoid overlaps.
+
+Respond ONLY with valid JSON. If you produce an Eventstorming board, include it under the "eventstorming" key. If you produce UML diagrams, include them under "uml_diagrams" keyed by context/diagram name. Ensure the JSON can be parsed without any additional commentary.
+`;
+};
+
+const preserveExistingGeometry = (previousBoard, nextBoard) => {
+    if (!previousBoard?.items || !nextBoard?.items) {
+        return nextBoard;
+    }
+
+    const prevById = new Map();
+    const prevByName = new Map();
+
+    previousBoard.items.forEach(item => {
+        if (item?.id !== undefined && item?.id !== null) {
+            prevById.set(item.id, item);
+        }
+        if (item?.instanceName) {
+            prevByName.set(item.instanceName, item);
+        }
+    });
+
+    const mergedItems = nextBoard.items.map(item => {
+        if (!item) return item;
+        const match =
+            (item.id !== undefined && item.id !== null && prevById.get(item.id)) ||
+            (item.instanceName ? prevByName.get(item.instanceName) : null);
+
+        if (match) {
+            const preserved = { ...item };
+            if (typeof match.x === 'number') {
+                preserved.x = match.x;
+            }
+            if (typeof match.y === 'number') {
+                preserved.y = match.y;
+            }
+            return preserved;
+        }
+        return item;
+    });
+
+    return {
+        ...nextBoard,
+        items: mergedItems,
+    };
+};
 
 // --- File watcher to keep cache in sync ---
 const updateCache = async (filePath) => {
@@ -96,8 +275,6 @@ app.post('/api/create-model', async (req, res) => {
     if (!prompt) {
         return res.status(400).json({ error: 'Prompt is required' });
     }
-
-    const orchestratorUrl = "http://localhost:10007/"; // Orchestrator agent URL
 
     const payload = {
         "jsonrpc": "2.0",
@@ -253,6 +430,244 @@ app.get('/api/boards', async (req, res) => {
   }
 });
 
+app.post('/api/boards/:boardId(*)/llm-update', async (req, res) => {
+    const boardId = req.params.boardId;
+    const { prompt, boardData } = req.body || {};
+
+    if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+        return res.status(400).json({ error: 'Prompt is required.' });
+    }
+    if (!boardData || typeof boardData !== 'object') {
+        return res.status(400).json({ error: 'Board data is required.' });
+    }
+    if (!Array.isArray(boardData.items) || !Array.isArray(boardData.connections)) {
+        return res.status(400).json({ error: 'Board data must include items and connections arrays.' });
+    }
+
+    try {
+        const { absolute } = resolvePathSafely(boardId);
+        const boardDir = path.dirname(absolute);
+        await fsp.mkdir(boardDir, { recursive: true });
+
+        const orchestratorPrompt = buildBoardUpdatePrompt(boardData, prompt.trim());
+
+        const payload = {
+            jsonrpc: '2.0',
+            id: uuidv4(),
+            method: 'message/send',
+            params: {
+                message: {
+                    role: 'user',
+                    parts: [{ kind: 'text', text: orchestratorPrompt, content_type: 'text/plain' }],
+                    messageId: uuidv4().replace(/-/g, ''),
+                },
+                skill: 'orchestrate_modeling_workflow',
+            },
+        };
+
+        console.log(`[LLM-Update] Sending modification request for ${boardId}`);
+        const response = await axios.post(orchestratorUrl, payload, { timeout: 600000 });
+
+        const artifactText = extractArtifactText(response.data);
+        let updatedBoard = null;
+        if (artifactText) {
+            try {
+                const parsed = JSON.parse(artifactText);
+                updatedBoard = extractUpdatedBoardData(
+                    parsed,
+                    boardData.boardType || 'Eventstorming',
+                    boardData.instanceName
+                );
+            } catch (parseError) {
+                console.warn('[LLM-Update] Failed to parse orchestrator artifact as JSON:', parseError);
+            }
+        }
+
+               if (updatedBoard && updatedBoard.items && updatedBoard.connections) {
+                   const mergedBoard = preserveExistingGeometry(boardData, updatedBoard);
+            const payloadToSave = {
+                       ...mergedBoard,
+                       boardType: mergedBoard.boardType || boardData.boardType || 'Eventstorming',
+            };
+
+            await fsp.writeFile(absolute, JSON.stringify(payloadToSave, null, 2));
+            const cacheKey = path.basename(absolute, '.json');
+            boardDataCache[cacheKey] = payloadToSave;
+
+            return res.status(200).json({
+                message: 'Board updated via LLM response.',
+                updatedBoard: payloadToSave,
+            });
+        }
+
+        console.warn('[LLM-Update] Orchestrator did not provide structured board data.');
+        return res.status(202).json({
+            message: 'LLM request completed, but no structured board data was returned. Check orchestrator logs for details.',
+            rawResponse: response.data,
+        });
+    } catch (error) {
+        console.error(`[LLM-Update] Failed to process update for ${boardId}:`, error);
+        if (error?.response) {
+            return res.status(502).json({ error: 'Failed to update board via LLM.', details: error.response.data });
+        }
+        return res.status(500).json({ error: error.message || 'Unexpected error while calling LLM.' });
+    }
+});
+
+app.get('/api/folders', async (req, res) => {
+    try {
+        const relativePath = typeof req.query.path === 'string' ? req.query.path : '';
+        const recursive = req.query.recursive === 'true';
+        const { absolute, relative } = resolvePathSafely(relativePath);
+        await fsp.access(absolute);
+        const folders = [];
+        await collectFolders(absolute, relative, recursive, folders);
+        res.status(200).json(folders);
+    } catch (error) {
+        if (error?.code === 'ENOENT') {
+            return res.status(404).json({ error: 'Folder not found' });
+        }
+        res.status(400).json({ error: error.message || 'Failed to list folders' });
+    }
+});
+
+app.post('/api/folders', async (req, res) => {
+    try {
+        const folderPath = typeof req.body?.path === 'string' ? req.body.path : '';
+        if (!folderPath.trim()) {
+            return res.status(400).json({ error: 'Folder path is required' });
+        }
+        const normalized = normalizeRelativePath(folderPath);
+        if (!normalized) {
+            return res.status(400).json({ error: 'Folder path is required' });
+        }
+        const { absolute } = resolvePathSafely(normalized);
+        await fsp.mkdir(absolute, { recursive: true });
+        res.status(201).json({ path: normalized.replace(/\\/g, '/') });
+    } catch (error) {
+        res.status(500).json({ error: error.message || 'Failed to create folder' });
+    }
+});
+
+app.delete('/api/folders/:folderPath(*)', async (req, res) => {
+    try {
+        const folderPath = req.params.folderPath || '';
+        const normalized = normalizeRelativePath(folderPath);
+        if (!normalized) {
+            return res.status(400).json({ error: 'Cannot delete root folder' });
+        }
+        const { absolute } = resolvePathSafely(normalized);
+        await fsp.rm(absolute, { recursive: true, force: true });
+        res.status(200).json({ message: 'Folder deleted' });
+    } catch (error) {
+        if (error?.code === 'ENOENT') {
+            return res.status(404).json({ error: 'Folder not found' });
+        }
+        res.status(500).json({ error: error.message || 'Failed to delete folder' });
+    }
+});
+
+app.post('/api/items/move', async (req, res) => {
+    try {
+        const { sourcePath, destinationPath = '' } = req.body || {};
+        if (typeof sourcePath !== 'string' || !sourcePath.trim()) {
+            return res.status(400).json({ error: 'Source path is required' });
+        }
+        if (typeof destinationPath !== 'string') {
+            return res.status(400).json({ error: 'Destination path is required' });
+        }
+
+        const sourceInfo = resolvePathSafely(sourcePath);
+        const destinationInfo = resolvePathSafely(destinationPath);
+
+        const sourceStat = await fsp.stat(sourceInfo.absolute);
+        const destinationStat = await fsp.stat(destinationInfo.absolute).catch(() => null);
+
+        if (!destinationStat || !destinationStat.isDirectory()) {
+            return res.status(400).json({ error: 'Destination folder must exist' });
+        }
+
+        const targetPath = path.join(destinationInfo.absolute, path.basename(sourceInfo.absolute));
+        if (targetPath === sourceInfo.absolute) {
+            return res.status(400).json({ error: 'Source and destination are the same' });
+        }
+        if (sourceStat.isDirectory() && destinationInfo.absolute.startsWith(sourceInfo.absolute)) {
+            return res.status(400).json({ error: 'Cannot move a folder into itself' });
+        }
+
+        try {
+            await fsp.access(targetPath);
+            return res.status(409).json({ error: 'Target already exists in destination' });
+        } catch (error) {
+            if (error.code !== 'ENOENT') {
+                throw error;
+            }
+        }
+
+        await fsp.rename(sourceInfo.absolute, targetPath);
+        res.status(200).json({ path: toRelativePath(targetPath) });
+    } catch (error) {
+        if (error?.code === 'ENOENT') {
+            return res.status(404).json({ error: 'Source not found' });
+        }
+        res.status(400).json({ error: error.message || 'Failed to move item' });
+    }
+});
+
+app.post('/api/boards/create-empty', async (req, res) => {
+    try {
+        const { name, path: targetPath = '', boardType = 'Eventstorming' } = req.body || {};
+        if (typeof name !== 'string' || !name.trim()) {
+            return res.status(400).json({ error: 'Board name is required' });
+        }
+        if (!['Eventstorming', 'UML'].includes(boardType)) {
+            return res.status(400).json({ error: 'Invalid board type' });
+        }
+
+        const trimmedName = name.trim();
+        const nameWithoutExt = trimmedName.replace(/\.json$/i, '').trim();
+        const safeFileName = nameWithoutExt
+            .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '')
+            .replace(/\s+/g, '-');
+
+        if (!safeFileName) {
+            return res.status(400).json({ error: 'Board name results in an empty filename' });
+        }
+
+        const dirInfo = resolvePathSafely(targetPath || '');
+        await fsp.mkdir(dirInfo.absolute, { recursive: true });
+
+        const fileName = `${safeFileName}.json`;
+        const targetFile = path.join(dirInfo.absolute, fileName);
+
+        try {
+            await fsp.access(targetFile);
+            return res.status(409).json({ error: 'A board with the same name already exists in this folder' });
+        } catch (error) {
+            if (error.code !== 'ENOENT') {
+                throw error;
+            }
+        }
+
+        const boardData = {
+            instanceName: trimmedName,
+            items: [],
+            connections: [],
+            boardType,
+        };
+
+        await fsp.writeFile(targetFile, JSON.stringify(boardData, null, 2));
+        res.status(201).json({
+            boardId: toRelativePath(targetFile),
+            instanceName: trimmedName,
+            boardType,
+        });
+    } catch (error) {
+        console.error('Failed to create empty board:', error);
+        res.status(400).json({ error: error.message || 'Failed to create board' });
+    }
+});
+
 // Endpoint to get only UML boards
 app.get('/api/boards/uml', async (req, res) => {
   try {
@@ -303,9 +718,14 @@ app.get('/api/uml-boards', async (req, res) => {
           const content = await fsp.readFile(filePath, 'utf-8');
           const boardData = JSON.parse(content);
           if (boardData.boardType === 'UML') {
+            const baseName = file.name.replace('.json', '');
+            const relativePath = path.relative(baseDataDir, filePath).replace(/\\/g, '/');
+            const folderPath = path.dirname(relativePath).replace(/\\/g, '/');
             umlBoards.push({
-              name: boardData.instanceName || file.name.replace('.json', ''),
-              instanceName: boardData.instanceName || file.name.replace('.json', ''),
+              name: boardData.instanceName || baseName,
+              instanceName: boardData.instanceName || baseName,
+              boardId: relativePath,
+              folderPath: folderPath === '.' ? '' : folderPath
             });
           }
         } catch (e) {

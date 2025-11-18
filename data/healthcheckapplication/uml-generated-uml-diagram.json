@@ -1,30 +1,35 @@
 {
   "boardType": "UML",
-  "instanceName": "complaintapplication-uml",
+  "instanceName": "generated-uml-diagram",
   "items": [
     {
       "id": 1,
       "type": "Class",
-      "instanceName": "ComplaintApplication",
+      "instanceName": "Notification",
       "stereotype": "AggregateRoot",
-      "description": "Class for ComplaintApplication aggregate.",
+      "description": "Class for Notification aggregate.",
       "x": 100,
       "y": 100,
       "width": 280,
       "height": 220,
       "attributes": [
         {
-          "name": "applicationId",
+          "name": "notificationId",
           "type": "UUID",
           "visibility": "private"
         },
         {
-          "name": "citizenId",
+          "name": "userId",
           "type": "UUID",
           "visibility": "private"
         },
         {
-          "name": "complaintDescription",
+          "name": "notificationType",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "message",
           "type": "String",
           "visibility": "private"
         },
@@ -34,37 +39,25 @@
           "visibility": "private"
         },
         {
-          "name": "submissionDate",
-          "type": "LocalDateTime",
-          "visibility": "private"
-        },
-        {
-          "name": "linkedComplaintId",
-          "type": "UUID",
+          "name": "sentAt",
+          "type": "Instant",
           "visibility": "private"
         }
       ],
       "methods": [
         {
-          "name": "submitComplaintApplication",
+          "name": "sendNotification",
           "parameters": [
             {
-              "name": "citizenId",
+              "name": "userId",
               "type": "UUID"
             },
             {
-              "name": "complaintDescription",
+              "name": "notificationType",
               "type": "String"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "updateComplaintApplicationStatus",
-          "parameters": [
+            },
             {
-              "name": "status",
+              "name": "message",
               "type": "String"
             }
           ],

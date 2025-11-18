@@ -1,0 +1,175 @@
+{
+  "boardType": "UML",
+  "instanceName": "healthrecord-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "HealthRecord",
+      "stereotype": "AggregateRoot",
+      "description": "Class for HealthRecord aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "healthRecordId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "userId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "vitalSigns",
+          "type": "Map<String, Object>",
+          "visibility": "private"
+        },
+        {
+          "name": "labResults",
+          "type": "List<LabResult>",
+          "visibility": "private"
+        },
+        {
+          "name": "lifestyleData",
+          "type": "Map<String, Object>",
+          "visibility": "private"
+        },
+        {
+          "name": "timestamp",
+          "type": "Instant",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "createHealthRecord",
+          "parameters": [
+            {
+              "name": "healthRecordId",
+              "type": "UUID"
+            },
+            {
+              "name": "userId",
+              "type": "UUID"
+            },
+            {
+              "name": "vitalSigns",
+              "type": "Map<String, Object>"
+            },
+            {
+              "name": "labResults",
+              "type": "List<LabResult>"
+            },
+            {
+              "name": "lifestyleData",
+              "type": "Map<String, Object>"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "updateHealthData",
+          "parameters": [
+            {
+              "name": "vitalSigns",
+              "type": "Map<String, Object>"
+            },
+            {
+              "name": "labResults",
+              "type": "List<LabResult>"
+            },
+            {
+              "name": "lifestyleData",
+              "type": "Map<String, Object>"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "UserHealthProfile",
+      "stereotype": "AggregateRoot",
+      "description": "Class for UserHealthProfile aggregate.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "userHealthProfileId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "userId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "aggregatedHealthData",
+          "type": "Map<String, Object>",
+          "visibility": "private"
+        },
+        {
+          "name": "analysisStatus",
+          "type": "AnalysisStatus",
+          "visibility": "private"
+        },
+        {
+          "name": "lastUpdated",
+          "type": "Instant",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "submitHealthSurvey",
+          "parameters": [
+            {
+              "name": "surveyData",
+              "type": "Map<String, Object>"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "updateAggregatedHealthData",
+          "parameters": [
+            {
+              "name": "data",
+              "type": "Map<String, Object>"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "DefaultAggregate",
+      "description": "Fallback: Could not generate specific classes.",
+      "x": 100,
+      "y": 100
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

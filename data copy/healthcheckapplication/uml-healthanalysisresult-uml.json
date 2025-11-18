@@ -1,50 +1,65 @@
 {
   "boardType": "UML",
-  "instanceName": "complaintguidance-uml",
+  "instanceName": "healthanalysisresult-uml",
   "items": [
     {
       "id": 1,
       "type": "Class",
-      "instanceName": "ComplaintGuidance",
+      "instanceName": "HealthAnalysisResult",
       "stereotype": "AggregateRoot",
-      "description": "Class for ComplaintGuidance aggregate.",
+      "description": "Class for HealthAnalysisResult aggregate.",
       "x": 100,
       "y": 100,
       "width": 280,
       "height": 220,
       "attributes": [
         {
-          "name": "guidanceId",
+          "name": "analysisId",
           "type": "UUID",
           "visibility": "private"
         },
         {
-          "name": "complaintType",
-          "type": "String",
+          "name": "userId",
+          "type": "UUID",
           "visibility": "private"
         },
         {
-          "name": "procedures",
+          "name": "riskScores",
+          "type": "Map<String, Double>",
+          "visibility": "private"
+        },
+        {
+          "name": "recommendations",
           "type": "List<String>",
           "visibility": "private"
         },
         {
-          "name": "contactInformation",
-          "type": "String",
-          "visibility": "private"
-        },
-        {
-          "name": "status",
-          "type": "String",
+          "name": "analysisTimestamp",
+          "type": "Instant",
           "visibility": "private"
         }
       ],
       "methods": [
         {
-          "name": "requestComplaintGuidance",
+          "name": "runHealthAnalysis",
           "parameters": [
             {
-              "name": "complaintType",
+              "name": "userId",
+              "type": "UUID"
+            },
+            {
+              "name": "healthData",
+              "type": "Map<String, Object>"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "generateRecommendation",
+          "parameters": [
+            {
+              "name": "recommendationType",
               "type": "String"
             }
           ],

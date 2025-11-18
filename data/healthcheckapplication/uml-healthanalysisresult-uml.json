@@ -1,0 +1,88 @@
+{
+  "boardType": "UML",
+  "instanceName": "healthanalysisresult-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "HealthAnalysisResult",
+      "stereotype": "AggregateRoot",
+      "description": "Class for HealthAnalysisResult aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "analysisId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "userId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "riskScores",
+          "type": "Map<String, Double>",
+          "visibility": "private"
+        },
+        {
+          "name": "recommendations",
+          "type": "List<String>",
+          "visibility": "private"
+        },
+        {
+          "name": "analysisTimestamp",
+          "type": "Instant",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "runHealthAnalysis",
+          "parameters": [
+            {
+              "name": "userId",
+              "type": "UUID"
+            },
+            {
+              "name": "healthData",
+              "type": "Map<String, Object>"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "generateRecommendation",
+          "parameters": [
+            {
+              "name": "recommendationType",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "DefaultAggregate",
+      "description": "Fallback: Could not generate specific classes.",
+      "x": 100,
+      "y": 100
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

@@ -2,6 +2,7 @@ import { reactive } from 'vue';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import type { CanvasItem, Connection, Property, UmlAttribute, UmlOperation } from './types';
+import { ensureUmlItemDimensions, isUmlCanvasItem } from './utils/uml';
 
 // Helper to convert deep JS objects to Y.Map
 const toYMap = (obj: Record<string, any>): Y.Map<any> => {
@@ -34,12 +35,64 @@ const toYArray = (arr: any[]): Y.Array<any> => {
   return yArr;
 };
 
+const stripGeometry = (item: CanvasItem) => {
+  const clone = JSON.parse(JSON.stringify(item));
+  delete clone.x;
+  delete clone.y;
+  delete clone.width;
+  delete clone.height;
+  delete clone.rotation;
+  return clone;
+};
+
+const deriveChangeMap = (previousItems: CanvasItem[], nextItems: CanvasItem[]): Record<number, 'added' | 'updated'> => {
+  const changeMap: Record<number, 'added' | 'updated'> = {};
+  const prevById = new Map<number, CanvasItem>();
+  const prevByName = new Map<string, CanvasItem>();
+
+  previousItems.forEach(item => {
+    if (item?.id !== undefined && item?.id !== null) {
+      prevById.set(item.id, item);
+    }
+    if (item?.instanceName) {
+      prevByName.set(item.instanceName, item);
+    }
+  });
+
+  nextItems.forEach(item => {
+    if (!item || item.id === undefined || item.id === null) {
+      return;
+    }
+    const prev =
+      prevById.get(item.id) ||
+      (item.instanceName ? prevByName.get(item.instanceName) : undefined);
+    if (!prev) {
+      changeMap[item.id] = 'added';
+    } else {
+      const prevComparable = stripGeometry(prev);
+      const nextComparable = stripGeometry(item);
+      if (JSON.stringify(prevComparable) !== JSON.stringify(nextComparable)) {
+        changeMap[item.id] = 'updated';
+      }
+    }
+  });
+
+  return changeMap;
+};
+
+
+type UmlBoardSummary = {
+  name: string;
+  instanceName: string;
+  boardId: string;
+  folderPath: string;
+};
 
 interface Store {
   boards: Array<{ instanceName: string, type: string, savedAt: string, snapshotUrl: string | null }>;
-  umlBoards: Array<{ instanceName: string, type: string, savedAt: string, snapshotUrl: string | null }>;
+  umlBoards: UmlBoardSummary[];
   activeBoard: string | null;
-  board: { items: CanvasItem[], connections: Connection[] } | null; // Add board state
+  board: { items: CanvasItem[], connections: Connection[], instanceName?: string } | null; // Add board state
   activeStage: any | null; // To hold the Konva stage reference
   
   // Y.js related state
@@ -58,6 +111,9 @@ interface Store {
   selectedItem: CanvasItem | null;
 
   currentView: 'event-canvas' | 'uml-canvas' | 'loading';
+  recentChangeMap: Record<number, 'added' | 'updated'>;
+  recentChangeSummary: { added: number; updated: number };
+  _recentChangeTimer: ReturnType<typeof setTimeout> | null;
 
   // Methods
   setSelectedItem: (item: CanvasItem | null) => void;
@@ -68,6 +124,8 @@ interface Store {
   createNewBoard: (instanceName: string, boardType: 'Eventstorming' | 'UML') => Promise<void>;
   deleteBoard: (instanceName: string) => Promise<void>;
   setActiveStage: (stage: any) => void;
+  createNewUmlDiagram: () => void;
+  openUmlDiagram: (instanceName?: string | null) => void;
   
   addItem: (item: Omit<CanvasItem, 'id'>) => void;
   updateItem: (item: CanvasItem) => void;
@@ -85,6 +143,11 @@ interface Store {
   saveBoardHeadless: (boardName: string, boardData: any, boardType: 'Eventstorming' | 'UML') => Promise<void>;
   reverseEngineerCode: (zipFile: File | null) => Promise<{ eventstormingBoardName: string, umlBoardNames: string[] }>;
   generateProjectFromRequirements: (requirements: string) => Promise<{ eventstormingBoardName: string, umlBoardNames: string[] }>;
+  getItemById: (id: number) => CanvasItem | undefined;
+  getSerializableBoardData: () => { instanceName: string; boardType: string; items: CanvasItem[]; connections: Connection[] } | null;
+  applyBoardData: (boardData: { instanceName?: string; boardType?: string; items?: CanvasItem[]; connections?: Connection[] }) => void;
+  setRecentChanges: (changes: Record<number, 'added' | 'updated'>) => void;
+  clearRecentChanges: () => void;
 }
 
 export const store = reactive<Store>({
@@ -108,6 +171,9 @@ export const store = reactive<Store>({
   selectedItem: null,
 
   currentView: 'loading',
+  recentChangeMap: {},
+  recentChangeSummary: { added: 0, updated: 0 },
+  _recentChangeTimer: null as ReturnType<typeof setTimeout> | null,
 
   setSelectedItem(item: CanvasItem | null) {
     this.selectedItem = item;
@@ -119,6 +185,31 @@ export const store = reactive<Store>({
 
   setActiveStage(stage: any) {
     this.activeStage = stage;
+  },
+
+  createNewUmlDiagram() {
+    this.createNewBoard('New UML Diagram', 'UML');
+  },
+
+  openUmlDiagram(linkedInstanceName?: string | null) {
+    let targetBoardId: string | null = null;
+
+    if (linkedInstanceName) {
+      const match = this.umlBoards.find(
+        board => board.instanceName === linkedInstanceName || board.boardId === linkedInstanceName
+      );
+      if (match?.boardId) {
+        targetBoardId = match.boardId;
+      } else if (linkedInstanceName.endsWith('.json')) {
+        targetBoardId = linkedInstanceName;
+      }
+    }
+
+    if (!targetBoardId) {
+      targetBoardId = this.umlBoards[0]?.boardId || 'New UML Diagram';
+    }
+
+    this.loadBoard(targetBoardId);
   },
 
   unloadBoard() {
@@ -286,19 +377,21 @@ export const store = reactive<Store>({
 
   addItem(item: Omit<CanvasItem, 'id'>) {
     if (!this.canvasItems) return;
-    const newItemMap = toYMap({ ...item, id: Date.now() });
+    const normalized = isUmlCanvasItem(item) ? ensureUmlItemDimensions(item) : item;
+    const newItemMap = toYMap({ ...normalized, id: Date.now() });
     this.canvasItems.push([newItemMap]);
   },
 
   updateItem(item: CanvasItem) {
     if (!this.canvasItems) return;
-    const index = this.canvasItems.toArray().findIndex(i => i.get('id') === item.id);
+    const nextItem = isUmlCanvasItem(item) ? ensureUmlItemDimensions(item) : item;
+    const index = this.canvasItems.toArray().findIndex(i => i.get('id') === nextItem.id);
     if (index > -1) {
       const yItem = this.canvasItems.get(index);
       this.doc?.transact(() => {
-        for (const key in item) {
+        for (const key in nextItem) {
             const a = key as keyof CanvasItem;
-            const value = item[a];
+            const value = nextItem[a];
             if (Array.isArray(value)) {
                 yItem.set(a, toYArray(value));
             } else {
@@ -358,7 +451,7 @@ export const store = reactive<Store>({
     });
   },
 
-  addConnection(connection: Omit<Connection, 'id'>) {
+  addConnection(connection: Omit<Connection, 'id' | 'type'> & { type?: string }) {
     if (!this.connections) return;
     const newConnMap = toYMap({ 
         ...connection, 
@@ -519,8 +612,10 @@ export const store = reactive<Store>({
 
       doc.transact(() => {
         boardTypeText.insert(0, type);
-        (model.items || []).forEach(item => canvasItems.push([toYMap(item)]));
-        (model.connections || []).forEach(conn => connections.push([toYMap(conn)]));
+        const itemsToPersist: CanvasItem[] = (model.items || []) as CanvasItem[];
+        const connectionsToPersist: Connection[] = (model.connections || []) as Connection[];
+        itemsToPersist.forEach((item: CanvasItem) => canvasItems.push([toYMap(item)]));
+        connectionsToPersist.forEach((conn: Connection) => connections.push([toYMap(conn)]));
       });
 
       // Use the headless save which doesn't rely on `this.activeStage`
@@ -533,7 +628,7 @@ export const store = reactive<Store>({
     };
 
     let requestBody;
-    const headers = {};
+    const headers: Record<string, string> = {};
 
     if (zipFile) {
       const formData = new FormData();
@@ -599,6 +694,97 @@ export const store = reactive<Store>({
       console.error('Failed to generate project from requirements:', error);
       throw error;
     }
+  },
+  getItemById(id: number) {
+    return this.reactiveItems.find(item => item.id === id);
+  },
+
+  getSerializableBoardData() {
+    if (!this.doc || !this.canvasItems || !this.connections || !this.boardType) {
+      console.warn('Board data is not ready for serialization.');
+      return null;
+    }
+    const items = this.canvasItems.toJSON();
+    const connections = this.connections.toJSON();
+    const boardTypeText = this.boardType.toString() || (this.currentView === 'uml-canvas' ? 'UML' : 'Eventstorming');
+    const inferredName =
+      this.board?.instanceName ||
+      (this.activeBoard ? this.activeBoard.split('/').pop()?.replace('.json', '') : null) ||
+      'Untitled Board';
+
+    return {
+      instanceName: inferredName,
+      boardType: boardTypeText || 'Eventstorming',
+      items,
+      connections,
+    };
+  },
+
+  applyBoardData(boardData: { instanceName?: string; boardType?: string; items?: CanvasItem[]; connections?: Connection[] }) {
+    if (!this.doc || !this.canvasItems || !this.connections) {
+      console.warn('Cannot apply board data because Y.Doc is not ready.');
+      return;
+    }
+
+    const previousItems: CanvasItem[] = this.reactiveItems ? JSON.parse(JSON.stringify(this.reactiveItems)) : [];
+
+        this.doc.transact(() => {
+          const nextItems: CanvasItem[] = boardData.items
+            ? boardData.items.map(item => (isUmlCanvasItem(item) ? ensureUmlItemDimensions(item) : item))
+            : [];
+      const nextConnections: Connection[] = boardData.connections ? [...boardData.connections] : [];
+
+      this.canvasItems!.delete(0, this.canvasItems!.length);
+      nextItems.forEach((item: CanvasItem) => this.canvasItems!.push([toYMap(item)]));
+
+      this.connections!.delete(0, this.connections!.length);
+      nextConnections.forEach((conn: Connection) => this.connections!.push([toYMap(conn)]));
+
+      if (boardData.boardType && this.boardType) {
+        this.boardType.delete(0, this.boardType.length);
+        this.boardType.insert(0, boardData.boardType);
+      }
+
+      this.reactiveItems = nextItems;
+      this.reactiveConnections = nextConnections;
+      this.board = {
+        items: (nextItems || []) as CanvasItem[],
+        connections: (nextConnections || []) as Connection[],
+        instanceName: boardData.instanceName || this.board?.instanceName,
+      };
+    });
+
+    const changeMap = deriveChangeMap(previousItems, this.reactiveItems || []);
+    this.setRecentChanges(changeMap);
+  },
+
+  setRecentChanges(changes: Record<number, 'added' | 'updated'>) {
+    if (this._recentChangeTimer) {
+      clearTimeout(this._recentChangeTimer);
+      this._recentChangeTimer = null;
+    }
+
+    this.recentChangeMap = { ...changes };
+    const summary = { added: 0, updated: 0 };
+    Object.values(changes).forEach(kind => {
+      summary[kind] += 1;
+    });
+    this.recentChangeSummary = summary;
+
+    if (Object.keys(changes).length) {
+      this._recentChangeTimer = setTimeout(() => {
+        this.clearRecentChanges();
+      }, 8000);
+    }
+  },
+
+  clearRecentChanges() {
+    if (this._recentChangeTimer) {
+      clearTimeout(this._recentChangeTimer);
+      this._recentChangeTimer = null;
+    }
+    this.recentChangeMap = {};
+    this.recentChangeSummary = { added: 0, updated: 0 };
   },
 });
 

@@ -1,44 +1,68 @@
 <script setup lang="ts">
 import { defineProps, computed, defineEmits, ref, onMounted, watch, onBeforeUnmount } from "vue";
 import type { CanvasItem } from "../../types";
-import ObjectProperties from "./ObjectProperties.vue";
 import type { KonvaEventObject } from "konva/lib/Node";
 import Konva from 'konva';
-
+import ObjectPropertiesDisplay from './ObjectProperties.vue';
 const props = defineProps<{
   item: CanvasItem;
+  scale: number;
   isSelected: boolean;
   isDownstream: boolean;
-  scale: number;
+  changeKind?: 'added' | 'updated';
 }>();
 
-const emit = defineEmits(['click', 'dblclick']);
+const emit = defineEmits(['click', 'dblclick', 'dragstart', 'dragmove', 'dragend', 'transform', 'transformend']);
 
-const rectRef = ref(null);
+const rectRef = ref<Konva.Rect | null>(null);
 let anim: Konva.Animation | null = null;
 const highlightColor = '#FF4500'; // OrangeRed for high visibility
+const changeHighlightMap: Record<'added' | 'updated', string> = {
+  added: '#16a34a',
+  updated: '#0ea5e9',
+};
+const changeShadowColor = computed(() => (props.changeKind ? changeHighlightMap[props.changeKind] : null));
 
-onMounted(() => {
-  const node = (rectRef.value as any)?.getNode();
-  if (node) {
-    anim = new Konva.Animation(frame => {
-      const dashOffset = (frame?.time || 0) / 100 % 100;
-      node.dashOffset(-dashOffset);
-    }, node.getLayer());
-  }
-  watch(() => props.isDownstream, (isDownstream) => {
-    if (isDownstream) {
-      anim?.start();
-    } else {
-      anim?.stop();
-      node?.dashOffset(0); // Reset dash offset
-    }
-  }, { immediate: true });
-});
+const groupConfig = computed(() => ({
+  x: props.item.x,
+  y: props.item.y,
+  draggable: true,
+  name: `item-${props.item.id}`,
+  rotation: props.item.rotation || 0,
+  dragDistance: 10,
+  onDragstart: (e: KonvaEventObject<DragEvent>) => emit('dragstart', e, props.item),
+  onDragmove: (e: KonvaEventObject<DragEvent>) => emit('dragmove', e, props.item),
+  onDragend: (e: KonvaEventObject<DragEvent>) => emit('dragend', e, props.item),
+  onClick: (e: KonvaEventObject<MouseEvent>) => { e.evt.preventDefault(); emit('click', e, props.item); },
+  onTap: (e: KonvaEventObject<Event>) => { e.evt.preventDefault(); emit('click', e, props.item); },
+  onDblclick: (e: KonvaEventObject<MouseEvent>) => { e.evt.preventDefault(); emit('dblclick', e, props.item); },
+  onDbltap: (e: KonvaEventObject<Event>) => { e.evt.preventDefault(); emit('dblclick', e, props.item); },
+  onTransform: (e: KonvaEventObject<Event>) => emit('transform', e, props.item),
+  onTransformend: (e: KonvaEventObject<Event>) => emit('transformend', e, props.item),
+}));
 
-onBeforeUnmount(() => {
-  anim?.stop();
-});
+
+// onMounted(() => {
+//   const node = (rectRef.value as any)?.getNode();
+//   if (node) {
+//     anim = new Konva.Animation(frame => {
+//       const dashOffset = (frame?.time || 0) / 100 % 100;
+//       node.dashOffset(-dashOffset);
+//     }, node.getLayer());
+//   }
+//   watch(() => props.isDownstream, (isDownstream) => {
+//     if (isDownstream) {
+//       anim?.start();
+//     } else {
+//       anim?.stop();
+//       node?.dashOffset(0); // Reset dash offset
+//     }
+//   }, { immediate: true });
+// });
+
+// onBeforeUnmount(() => {
+//   anim?.stop();
+// });
 
 const umlFont = "'Gowun Dodum', sans-serif";
 
@@ -57,17 +81,22 @@ const nameY = computed(() => {
     return y;
 });
 
-const propertiesY = computed(() => nameY.value + 25);
+const propertiesY = computed(() => nameY.value + 35);
+const hasDetailSection = computed(() => {
+  const { properties, attributes, methods, enumValues } = props.item;
+  return Boolean(
+    (properties && properties.length) ||
+    (attributes && attributes.length) ||
+    (methods && methods.length) ||
+    (enumValues && enumValues.length)
+  );
+});
 
 </script>
-
+  
 <template>
-  <v-group 
-    :config="{ x: item.x, y: item.y, draggable: true, name: 'item-' + item.id, rotation: item.rotation || 0, dragDistance: 10 }" 
-    @click="(e: KonvaEventObject) => { e.evt.preventDefault(); emit('click', e); }" 
-    @tap="(e: KonvaEventObject) => { e.evt.preventDefault(); emit('click', e); }"
-    @dblclick="(e: KonvaEventObject) => { e.evt.preventDefault(); emit('dblclick', e); }"
-    @dbltap="(e: KonvaEventObject) => { e.evt.preventDefault(); emit('dblclick', e); }"
+  <v-group
+    :config="groupConfig"
   >
     <v-rect ref="rectRef" :config="{
       width: item.width,
@@ -76,6 +105,9 @@ const propertiesY = computed(() => nameY.value + 25);
       stroke: isSelected || isDownstream ? highlightColor : 'black',
       strokeWidth: isSelected ? 4 / scale : isDownstream ? 3 / scale : 2 / scale,
       dash: isDownstream ? [20, 5] : [],
+      shadowColor: changeShadowColor || undefined,
+      shadowBlur: changeShadowColor ? 25 : 0,
+      shadowOpacity: changeShadowColor ? 0.8 : 0,
     }" />
     
     <!-- Stereotypes and Name -->
@@ -84,27 +116,18 @@ const propertiesY = computed(() => nameY.value + 25);
     <v-text :config="{ text: item.instanceName, fontSize: 16 / scale, fontStyle: 'bold', width: item.width, y: nameY, align: 'center', fontFamily: umlFont, padding: 2 }" />
     
     <!-- Separator Line -->
-    <v-line v-if="item.type !== 'Package'" :config="{ points: [0, nameY + 20, item.width, nameY + 20], stroke: 'black', strokeWidth: 1 }" />
+    <v-line v-if="item.type !== 'Package'" :config="{ points: [0, nameY + 30, item.width, nameY + 30], stroke: 'black', strokeWidth: 2 }"  />
 
-    <!-- Class/Interface Properties -->
-    <template v-if="item.type === 'Class' || item.type === 'Interface'">
-      <ObjectProperties :attributes="item.attributes" :methods="item.methods" :itemWidth="item.width" :yOffset="propertiesY" :fontFamily="umlFont" :scale="scale" />
-      <v-line :config="{ points: [0, propertiesY + (item.attributes?.length || 0) * 15 + 10, item.width, propertiesY + (item.attributes?.length || 0) * 15 + 10], stroke: 'black', strokeWidth: 1 }" />
-    </template>
-
-    <!-- Enum Properties -->
-    <template v-if="item.type === 'Enum'">
-        <v-text v-for="(val, index) in item.enumValues" :key="index" :config="{
-            text: val,
-            fontSize: 14 / scale,
-            y: propertiesY + index * 15,
-            x: 10,
-            width: item.width - 20,
-            align: 'left',
-            fontFamily: umlFont,
-            padding: 2
-        }" />
-    </template>
-
+    <ObjectPropertiesDisplay
+      v-if="hasDetailSection"
+      :properties="item.properties"
+      :attributes="item.attributes"
+      :methods="item.methods"
+      :enum-values="item.enumValues"
+      :item-width="item.width"
+      :y-offset="propertiesY"
+      :font-family="umlFont"
+      :scale="scale"
+    />
   </v-group>
 </template>

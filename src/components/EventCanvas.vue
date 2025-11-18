@@ -1,30 +1,37 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import { store } from "../store";
-import type { CanvasItem } from "../types";
-import PropertiesPanel from "./PropertiesPanel.vue";
-import { useCanvasLogic } from '../composables/useCanvasLogic';
+import { ref, computed, onMounted, onBeforeUnmount, watch, nextTick } from "vue";
+import type { PropType, Ref } from "vue";
+import type { KonvaEventObject } from 'konva/lib/Node';
+import { useStore } from '@/store';
 import EventItem from './canvas-items/EventItem.vue';
+import ConnectionArrow from './canvas-items/ConnectionArrow.vue';
+import type { CanvasItem } from '@/types';
+import { useCanvasLogic } from '../composables/useCanvasLogic';
+import MiniMap from './MiniMap.vue';
 
 const props = defineProps({
   highlightedItemIds: {
-    type: Set as () => Set<number>,
+    type: Object as PropType<Set<number>>,
     default: () => new Set<number>()
   },
   clickedItemId: {
-    type: Number as () => number | null,
+    type: Number as PropType<number | null>,
     default: null
   }
 });
 
 const emit = defineEmits(['item-click', 'item-dblclick', 'canvas-click']);
 
-const scale = ref(0.7);
-
+const store = useStore();
+const stageRef = ref<any>(null);
+const DEFAULT_SCALE = 0.7;
+const MIN_SCALE = 0.4;
+const MAX_SCALE = 1.8;
+const ZOOM_STEP = 0.1;
+const scale = ref(DEFAULT_SCALE);
 const {
   selectedItems,
   selectedConnections,
-  stageRef,
   transformerRef,
   selectionRectRef,
   selection,
@@ -39,49 +46,152 @@ const {
   handleItemDragMove,
   handleItemDragEnd,
   handleItemClick,
+  handleItemTransform,
   handleItemDblClick,
-} = useCanvasLogic();
+} = useCanvasLogic(stageRef);
+
+const setScale = (value: number) => {
+  scale.value = Math.min(MAX_SCALE, Math.max(MIN_SCALE, Number(value.toFixed(2))));
+  updateViewport();
+};
+const zoomIn = () => setScale(scale.value + ZOOM_STEP);
+const zoomOut = () => setScale(scale.value - ZOOM_STEP);
+const resetZoom = () => setScale(DEFAULT_SCALE);
+const scalePercent = computed(() => Math.round(scale.value * 100));
+
+type BoundBox = { width: number; height: number; x: number; y: number };
+const boundBoxFunc = (oldBox: BoundBox, newBox: BoundBox) =>
+  newBox.width < 5 || newBox.height < 5 ? oldBox : newBox;
+
+const stageConfigRef = stageConfig as unknown as Ref<{ width: number; height: number }>;
+const stageSize = computed(() => ({
+  width: stageConfigRef.value.width,
+  height: stageConfigRef.value.height,
+}));
+
+const canvasWrapperRef = ref<HTMLElement | null>(null);
+const viewport = ref({
+  width: 0,
+  height: 0,
+  scrollLeft: 0,
+  scrollTop: 0,
+  stageX: 0,
+  stageY: 0,
+  stageWidth: 0,
+  stageHeight: 0,
+  stageScale: 1,
+});
+
+const updateViewport = () => {
+  const el = canvasWrapperRef.value;
+  if (!el) return;
+  const stage = stageRef.value?.getStage();
+  const stagePos = stage?.position() ?? { x: 0, y: 0 };
+  const stageScale = stage?.scaleX() ?? scale.value ?? 1;
+  viewport.value = {
+    width: el.clientWidth,
+    height: el.clientHeight,
+    scrollLeft: el.scrollLeft,
+    scrollTop: el.scrollTop,
+    stageX: (el.scrollLeft - stagePos.x) / stageScale,
+    stageY: (el.scrollTop - stagePos.y) / stageScale,
+    stageWidth: el.clientWidth / stageScale,
+    stageHeight: el.clientHeight / stageScale,
+    stageScale,
+  };
+};
+
+const attachStageViewportListeners = () => {
+  const stage = stageRef.value?.getStage();
+  if (!stage) return;
+  stage.off('.minimap');
+  stage.on('dragmove.minimap', updateViewport);
+  stage.on('dragend.minimap', updateViewport);
+};
+
+onMounted(() => {
+  nextTick(() => {
+    attachStageViewportListeners();
+    updateViewport();
+  });
+  canvasWrapperRef.value?.addEventListener('scroll', updateViewport);
+  window.addEventListener('resize', updateViewport);
+});
+
+onBeforeUnmount(() => {
+  canvasWrapperRef.value?.removeEventListener('scroll', updateViewport);
+  window.removeEventListener('resize', updateViewport);
+  stageRef.value?.getStage()?.off('.minimap');
+});
+
+watch(stageRef, () => {
+  nextTick(() => {
+    attachStageViewportListeners();
+    updateViewport();
+  });
+});
+
+watch(
+  () => [stageConfigRef.value.width, stageConfigRef.value.height, scale.value],
+  () => updateViewport()
+);
+
+const selectedItemBounds = computed(() => {
+  if (selectedItems.value.length !== 1) return null;
+  const latest = store.getItemById(selectedItems.value[0].id);
+  if (!latest) return null;
+  return {
+    id: latest.id,
+    x: latest.x,
+    y: latest.y,
+    width: latest.width,
+    height: latest.height,
+  };
+});
 
 const connectionButtonPosition = computed(() => {
-  console.log('[Debug] Recalculating button position. Selected items:', selectedItems.value.length);
-  if (selectedItems.value.length !== 1 || !stageRef.value) {
+  if (!selectedItemBounds.value || !stageRef.value) {
     return null;
   }
 
-  const item = selectedItems.value[0];
   const stage = stageRef.value.getStage();
-  const itemNode = stage.findOne(`.item-${item.id}`);
+  const itemNode = stage.findOne(`.item-${selectedItemBounds.value.id}`);
 
   if (!itemNode) {
-    console.log('[Debug] Node not found for item:', item.id);
     return null;
   }
   
   const wrapper = stage.container().parentElement;
   if (!wrapper) {
-    console.log('[Debug] Wrapper element not found.');
     return null;
   }
   
   const rect = itemNode.getClientRect({ relativeTo: wrapper });
-  console.log('[Debug] Item rect relative to wrapper:', rect);
 
-  const position = {
-    top: `${rect.y + rect.height / 2 - 15}px`, // 15 is half of button height
-    left: `${rect.x + rect.width + 10}px`, // 10 is for spacing
+  return {
+    top: `${rect.y + rect.height / 2 - 15}px`,
+    left: `${rect.x + rect.width + 10}px`,
   };
-
-  console.log('[Debug] Calculated button style:', position);
-  return position;
 });
 
-const onCanvasItemClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
-  handleItemClick(e, item); // For selection logic in composable
-  emit('item-click', item.id); // For highlighting logic in BoardView
+const onDragStart = (e: KonvaEventObject<DragEvent>, item: CanvasItem) => {
+  handleItemDragStart(e, item);
+};
+const onDragMove = (e: KonvaEventObject<DragEvent>, item: CanvasItem) => {
+  handleItemDragMove(e, item);
+};
+const onDragEnd = (e: KonvaEventObject<DragEvent>, item: CanvasItem) => {
+  handleItemDragEnd(e, item);
 };
 
-const onCanvasItemDblClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
-  handleItemDblClick(e, item); // For properties panel logic in composable
+
+const onCanvasItemClick = (e: KonvaEventObject<MouseEvent>, item: CanvasItem) => {
+  handleItemClick(e, item);
+  emit('item-click', item.id);
+};
+
+const onCanvasItemDblClick = (e: KonvaEventObject<MouseEvent>, item: CanvasItem) => {
+  handleItemDblClick(e, item);
 };
 
 const stageConfigScaled = computed(() => ({
@@ -90,7 +200,7 @@ const stageConfigScaled = computed(() => ({
   scaleY: scale.value,
 }));
 
-const handleStageClick = (e: any) => {
+const handleStageClick = (e: KonvaEventObject<MouseEvent>) => {
   // Check if the click was on the stage background
   if (e.target === e.target.getStage()) {
     emit('canvas-click');
@@ -110,8 +220,6 @@ const canvasItemsJSON = computed(() => {
     return 0;
   });
 });
-const connectionsJSON = computed(() => store.reactiveConnections);
-
 const toolBox = ref([
   { id: 1, type: "Command" },
   { id: 2, type: "Event" },
@@ -127,7 +235,7 @@ const colorMap: Record<string, string> = {
   Event: '#ffb703',
   Aggregate: '#ffff99',
   Policy: '#ffc0cb',
-  ContextBox: '#e9ecef',
+  ContextBox: '#fafaf8',
   Actor: '#d0f4de',
   ReadModel: '#90ee90'
 };
@@ -179,62 +287,23 @@ const handleUpdate = (updatedItem: CanvasItem) => {
   store.updateItem(updatedItem);
 };
 
-const getEdgePoint = (source: CanvasItem, target: CanvasItem) => {
-    const sx = source.x;
-    const sy = source.y;
-    const sw = source.width;
-    const sh = source.height;
-    const tx = target.x;
-    const ty = target.y;
-    const tw = target.width;
-    const th = target.height;
-
-    const sourceCenter = { x: sx + sw / 2, y: sy + sh / 2 };
-    const targetCenter = { x: tx + tw / 2, y: ty + th / 2 };
-
-    const dx = targetCenter.x - sourceCenter.x;
-    const dy = targetCenter.y - sourceCenter.y;
-
-    const angle = Math.atan2(dy, dx);
-
-    if (angle > -Math.PI / 4 && angle <= Math.PI / 4) { // Right
-        return { x: sx + sw, y: sourceCenter.y };
-    } else if (angle > Math.PI / 4 && angle <= 3 * Math.PI / 4) { // Bottom
-        return { x: sourceCenter.x, y: sy + sh };
-    } else if (angle > 3 * Math.PI / 4 || angle <= -3 * Math.PI / 4) { // Left
-        return { x: sx, y: sourceCenter.y };
-    } else { // Top
-        return { x: sourceCenter.x, y: sy };
-    }
-};
-
 const connectionsWithDetails = computed(() => {
-  return connectionsJSON.value.map((conn) => {
-    const fromNode = canvasItemsJSON.value.find((item) => item.id === conn.from);
-    const toNode = canvasItemsJSON.value.find((item) => item.id === conn.to);
-    if (!fromNode || !toNode) return null;
-
-    const fromPoint = getEdgePoint(fromNode, toNode);
-    const toPoint = getEdgePoint(toNode, fromNode);
-
-    // Determine if the connection should be highlighted
-    const activeIds = new Set(props.highlightedItemIds);
+  if (!store.reactiveConnections) return [];
+  
+  return store.reactiveConnections.map(conn => {
+    const allHighlightedIds = new Set(props.highlightedItemIds);
     if (props.clickedItemId) {
-      activeIds.add(props.clickedItemId);
+      allHighlightedIds.add(props.clickedItemId);
     }
-    const isHighlighted = activeIds.has(conn.from) && activeIds.has(conn.to);
-    const isSelected = selectedConnections.value.some(sc => sc.id === conn.id);
+    const isHighlighted = allHighlightedIds.has(conn.from) && allHighlightedIds.has(conn.to);
+    const isSelected = selectedConnections.value.some(c => c.id === conn.id);
 
     return {
       ...conn,
-      id: conn.id,
-      points: [fromPoint.x, fromPoint.y, toPoint.x, toPoint.y],
-      fromNode,
-      toNode,
       isHighlighted,
       isSelected,
     };
-  }).filter((c): c is NonNullable<typeof c> => c !== null);
+  });
 });
 
 </script>
@@ -254,6 +323,7 @@ const connectionsWithDetails = computed(() => {
 
     <div 
       class="canvas-wrapper" 
+      ref="canvasWrapperRef"
       @drop="handleDrop" 
       @dragover.prevent
     >
@@ -273,28 +343,28 @@ const connectionsWithDetails = computed(() => {
             :scale="scale"
             :is-selected="selectedItems.some(s => s.id === item.id)"
             :is-downstream="highlightedItemIds.has(item.id)"
+            :change-kind="store.recentChangeMap[item.id]"
             @click="(e) => onCanvasItemClick(e, item)"
             @dblclick="(e) => onCanvasItemDblClick(e, item)"
-            @dragstart="(e) => handleItemDragStart(e, item)"
-            @dragmove="handleItemDragMove"
-            @dragend="handleItemDragEnd"
+            @dragstart="(e) => onDragStart(e, item)"
+            @dragmove="(e) => onDragMove(e, item)"
+            @dragend="(e) => onDragEnd(e, item)"
+            @transform="(e) => handleItemTransform(e, item)"
             @transformend="handleTransformEnd"
           />
-          <v-arrow v-for="conn in connectionsWithDetails" :key="conn.id" :config="{
-              points: conn.points,
-              stroke: conn.isSelected ? '#007bff' : (conn.isHighlighted ? '#FF4500' : 'black'),
-              fill: conn.isSelected ? '#007bff' : (conn.isHighlighted ? '#FF4500' : 'black'),
-              strokeWidth: conn.isSelected ? 4 : (conn.isHighlighted ? 3 : 2),
-              hitStrokeWidth: 15, // Make line easier to click
-              dash: (conn.fromNode.type === 'Event' && conn.toNode.type === 'Policy') ? [10, 5] : undefined,
-              pointerLength: 10,
-              pointerWidth: 10,
-          }" @click="handleConnectionClick($event, conn)" />
+          <ConnectionArrow
+            v-for="conn in connectionsWithDetails"
+            :key="conn.id"
+            :connection="conn"
+            :isHighlighted="conn.isHighlighted"
+            :isSelected="conn.isSelected"
+            @click="handleConnectionClick($event, conn)"
+          />
 
           <v-transformer 
             ref="transformerRef" 
             :config="{
-              boundBoxFunc: (oldBox, newBox) => newBox.width < 5 || newBox.height < 5 ? oldBox : newBox,
+              boundBoxFunc
             }" 
           />
 
@@ -320,6 +390,23 @@ const connectionsWithDetails = computed(() => {
         @click="startConnection('Association')"
       >
         +
+      </div>
+      <div class="map-and-zoom">
+        <div class="zoom-controls">
+          <button @click="zoomOut" :disabled="scale <= MIN_SCALE">-</button>
+          <span>{{ scalePercent }}%</span>
+          <button @click="zoomIn" :disabled="scale >= MAX_SCALE">+</button>
+          <button class="reset" @click="resetZoom">Reset</button>
+        </div>
+        <MiniMap 
+          v-if="canvasItemsJSON.length"
+          :items="canvasItemsJSON"
+          :connections="store.reactiveConnections || []"
+          :stage-width="stageSize.width"
+          :stage-height="stageSize.height"
+          :viewport="viewport"
+          :scale="scale"
+        />
       </div>
     </div>
   </div>
@@ -355,5 +442,47 @@ const connectionsWithDetails = computed(() => {
 }
 .connection-button:hover {
   transform: scale(1.1);
+}
+
+.map-and-zoom {
+  position: fixed;
+  right: 28px;
+  bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10;
+  pointer-events: none;
+}
+.map-and-zoom > * {
+  pointer-events: auto;
+}
+.zoom-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ddd;
+  border-radius: 999px;
+  padding: 6px 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.zoom-controls button {
+  border: none;
+  background: #f0f0f0;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-weight: bold;
+  cursor: pointer;
+}
+.zoom-controls button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.zoom-controls .reset {
+  width: auto;
+  border-radius: 12px;
+  padding: 0 10px;
 }
 </style>

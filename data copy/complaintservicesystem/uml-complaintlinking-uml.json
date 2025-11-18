@@ -1,0 +1,66 @@
+{
+  "boardType": "UML",
+  "instanceName": "complaintlinking-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "ComplaintLinking",
+      "stereotype": "AggregateRoot",
+      "description": "Class for ComplaintLinking aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "complaintId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "departmentId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "serviceId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "linkingStatus",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "linkedAt",
+          "type": "Instant",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "linkComplaintToDepartment",
+          "parameters": [
+            {
+              "name": "complaintId",
+              "type": "UUID"
+            },
+            {
+              "name": "departmentId",
+              "type": "UUID"
+            },
+            {
+              "name": "serviceId",
+              "type": "UUID"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    }
+  ],
+  "connections": []
+}

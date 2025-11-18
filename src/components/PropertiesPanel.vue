@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue';
+import { ref, watch, onMounted, computed } from 'vue';
 import { useStore } from '@/store';
-import { CanvasItem } from '@/types';
+import type { CanvasItem } from '@/types';
+import UmlPropertyEditor from './ObjectProperties.vue';
 
 const store = useStore();
 const props = defineProps<{
@@ -10,18 +11,50 @@ const props = defineProps<{
 
 const editableProperties = ref<Partial<CanvasItem>>({});
 
-watch(() => props.selectedItem, (newItem) => {
-  if (newItem) {
-    editableProperties.value = { ...newItem };
-  } else {
-    editableProperties.value = {};
-  }
-}, { immediate: true });
+const umlElementTypes = ['Class', 'Interface', 'Enum', 'Package', 'Component', 'Actor', 'Relationship'];
+const isUmlItem = computed(() => {
+  if (!props.selectedItem) return false;
+  if (store.currentView === 'uml-canvas') return true;
+  return umlElementTypes.includes(props.selectedItem.type);
+});
+const selectedLinkedDiagram = computed(() => editableProperties.value.linkedDiagram ?? null);
+const propertiesCount = computed(() => {
+  const propsLen = editableProperties.value.properties?.length || 0;
+  const attrsLen = editableProperties.value.attributes?.length || 0;
+  const methodsLen = editableProperties.value.methods?.length || 0;
+  const enumLen = editableProperties.value.enumValues?.length || 0;
+  return propsLen + attrsLen + methodsLen + enumLen;
+});
+
+watch(
+  () => props.selectedItem,
+  (newItem) => {
+    if (newItem) {
+      editableProperties.value = { ...newItem };
+    } else {
+      editableProperties.value = {};
+    }
+  },
+  { immediate: true }
+);
 
 const updateItem = () => {
   if (props.selectedItem) {
-    store.updateItem(props.selectedItem.id, editableProperties.value);
+    const mergedItem: CanvasItem = {
+      ...(props.selectedItem as CanvasItem),
+      ...(editableProperties.value as CanvasItem),
+    };
+    store.updateItem(mergedItem);
   }
+};
+
+const createNewUmlDiagram = () => {
+  store.createNewUmlDiagram();
+};
+
+const openUmlDiagram = () => {
+  const target = typeof selectedLinkedDiagram.value === 'string' ? selectedLinkedDiagram.value : null;
+  store.openUmlDiagram(target);
 };
 
 onMounted(() => {
@@ -32,28 +65,77 @@ onMounted(() => {
 <template>
   <div v-if="selectedItem" class="properties-panel">
     <div class="panel-header">
-      <h3>{{ selectedItem.instanceName }} Properties</h3>
+      <div class="panel-title">
+        <h3>{{ selectedItem.instanceName }}</h3>
+        <p class="panel-subtitle">
+          {{ selectedItem.type }}
+          <span v-if="propertiesCount">· {{ propertiesCount }} 필드</span>
+        </p>
+      </div>
     </div>
     <div class="panel-content">
-      <div class="form-group">
-        <label for="instanceName">Name</label>
-        <input id="instanceName" v-model="editableProperties.instanceName" @input="updateItem" />
-      </div>
-      <div class="form-group">
-        <label for="description">Description</label>
-        <textarea id="description" v-model="editableProperties.description" @input="updateItem" rows="4"></textarea>
-      </div>
+      <template v-if="isUmlItem && selectedItem">
+        <UmlPropertyEditor :item="selectedItem" />
+        <div class="form-group">
+          <label>Dimensions (px)</label>
+          <div class="dimension-grid">
+            <div>
+              <span>Width</span>
+              <input
+                type="number"
+                min="40"
+                step="10"
+                v-model.number="editableProperties.width"
+                @input="updateItem"
+              />
+            </div>
+            <div>
+              <span>Height</span>
+              <input
+                type="number"
+                min="40"
+                step="10"
+                v-model.number="editableProperties.height"
+                @input="updateItem"
+              />
+            </div>
+          </div>
+        </div>
+      </template>
 
-      <!-- UML Diagram Link for Aggregates -->
-      <div v-if="selectedItem.type === 'Aggregate'" class="form-group">
-        <label for="linkedDiagram">Linked UML Diagram</label>
-        <select id="linkedDiagram" v-model="editableProperties.linkedDiagram" @change="updateItem">
-          <option :value="undefined">None</option>
-          <option v-for="board in store.umlBoards" :key="board.instanceName" :value="board.instanceName">
-            {{ board.name }}
-          </option>
-        </select>
-      </div>
+      <template v-else>
+        <div class="form-group">
+          <label for="instanceName">Name</label>
+          <input id="instanceName" v-model="editableProperties.instanceName" @input="updateItem" />
+        </div>
+        <div class="form-group">
+          <label for="description">Description</label>
+          <textarea id="description" v-model="editableProperties.description" @input="updateItem" rows="4"></textarea>
+        </div>
+
+        <div v-if="selectedItem?.type === 'Aggregate'" class="form-group">
+          <label for="linkedDiagram">Linked UML Diagram</label>
+          <select id="linkedDiagram" v-model="editableProperties.linkedDiagram" @change="updateItem">
+            <option :value="undefined">None</option>
+            <option v-for="board in store.umlBoards" :key="board.boardId" :value="board.instanceName">
+              {{ board.folderPath ? `${board.folderPath}/${board.instanceName}` : board.instanceName }}
+            </option>
+          </select>
+          <div class="uml-actions">
+            <button type="button" class="btn btn-secondary" @click="createNewUmlDiagram">
+              + Create Diagram
+            </button>
+            <button
+              type="button"
+              class="btn btn-outline"
+              @click="openUmlDiagram"
+              :disabled="!selectedLinkedDiagram"
+            >
+              ↗ Open Selected
+            </button>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -124,4 +206,65 @@ onMounted(() => {
   outline: 0;
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
+
+.uml-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.btn {
+  flex: 1;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.btn-secondary {
+  background-color: #4f46e5;
+  color: white;
+  border-color: #4f46e5;
+}
+
+.btn-secondary:hover {
+  background-color: #4338ca;
+  border-color: #4338ca;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: #4f46e5;
+  border-color: #4f46e5;
+}
+
+.btn-outline:hover {
+  background-color: rgba(79, 70, 229, 0.08);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dimension-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+}
+
+.dimension-grid span {
+  display: block;
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.dimension-grid input {
+  width: 100%;
+}
+
 </style>

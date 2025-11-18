@@ -24,6 +24,22 @@ const selectedItem = computed(() => store.selectedItem);
 const highlightedItemIds = ref(new Set<number>());
 const clickedItemId = ref<number | null>(null);
 
+const showLlmModal = ref(false);
+const llmPrompt = ref('');
+const isSubmittingLlmPrompt = ref(false);
+const llmError = ref<string | null>(null);
+const llmInfoMessage = ref<string | null>(null);
+const llmResultBanner = ref<string | null>(null);
+const llmBannerTimer = ref<ReturnType<typeof setTimeout> | null>(null);
+const dismissLlmResultBanner = () => {
+  if (llmBannerTimer.value) {
+    clearTimeout(llmBannerTimer.value);
+    llmBannerTimer.value = null;
+  }
+  llmResultBanner.value = null;
+};
+const showSuccessToast = ref(false);
+
 const getDownstreamItemIds = (itemId: number, connections: readonly Connection[]): Set<number> => {
   const downstreamIds = new Set<number>();
   const queue: number[] = [itemId];
@@ -50,6 +66,16 @@ const handleItemClick = (itemId: number) => {
 
 const handleItemDblClick = (item: CanvasItem) => {
   store.setSelectedItem(item);
+  if (!llmResultBanner.value) {
+    llmResultBanner.value = `'${item.instanceName}' 선택됨`;
+    if (llmBannerTimer.value) {
+      clearTimeout(llmBannerTimer.value);
+    }
+    llmBannerTimer.value = setTimeout(() => {
+      llmBannerTimer.value = null;
+      llmResultBanner.value = null;
+    }, 3000);
+  }
 };
 
 const clearHighlight = () => {
@@ -71,6 +97,79 @@ onUnmounted(() => {
 const goBack = () => {
   router.push('/');
 };
+
+const openLlmModal = () => {
+  llmPrompt.value = '';
+  llmError.value = null;
+  llmInfoMessage.value = null;
+  showLlmModal.value = true;
+};
+
+const closeLlmModal = () => {
+  if (isSubmittingLlmPrompt.value) return;
+  showLlmModal.value = false;
+};
+
+const submitLlmPrompt = async () => {
+  if (!boardId) {
+    llmError.value = '보드 식별자를 찾을 수 없습니다.';
+    return;
+  }
+  if (!llmPrompt.value.trim()) {
+    llmError.value = '요청 내용을 입력해주세요.';
+    return;
+  }
+  const boardPayload = store.getSerializableBoardData();
+  if (!boardPayload) {
+    llmError.value = '보드 데이터를 읽어올 수 없습니다. 저장 후 다시 시도해주세요.';
+    return;
+  }
+
+  isSubmittingLlmPrompt.value = true;
+  llmError.value = null;
+  llmInfoMessage.value = null;
+
+  try {
+    const response = await fetch(`/api/boards/${boardId}/llm-update`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prompt: llmPrompt.value.trim(),
+        boardData: boardPayload,
+      }),
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(result.error || result.message || 'LLM 수정 요청에 실패했습니다.');
+    }
+
+    llmInfoMessage.value = result.message || 'LLM 요청이 완료되었습니다.';
+
+    if (result.updatedBoard) {
+      store.applyBoardData(result.updatedBoard);
+      const { added, updated } = store.recentChangeSummary;
+      const summaryParts: string[] = [];
+      if (added) summaryParts.push(`추가 ${added}개`);
+      if (updated) summaryParts.push(`수정 ${updated}개`);
+      llmResultBanner.value = summaryParts.length
+        ? `LLM 수정 완료 (${summaryParts.join(', ')})`
+        : 'LLM 수정 완료 (변경 사항 없음)';
+      if (llmBannerTimer.value) {
+        clearTimeout(llmBannerTimer.value);
+      }
+      llmBannerTimer.value = setTimeout(() => {
+        llmBannerTimer.value = null;
+        llmResultBanner.value = null;
+      }, 6000);
+      showLlmModal.value = false;
+    }
+  } catch (error: any) {
+    console.error('Failed to submit LLM prompt:', error);
+    llmError.value = error.message || '알 수 없는 오류가 발생했습니다.';
+  } finally {
+    isSubmittingLlmPrompt.value = false;
+  }
+};
 </script>
 
 <template>
@@ -91,7 +190,15 @@ const goBack = () => {
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M17,3H5C3.89,3 3,3.9 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19V7L17,3M19,19H5V5H16.17L19,7.83V19M12,12C10.34,12 9,13.34 9,15C9,16.66 10.34,18 12,18C13.66,18 15,16.66 15,15C15,13.34 13.66,12 12,12M6,6H15V10H6V6Z" /></svg>
           <span>Save</span>
         </button>
+        <button @click="openLlmModal" title="Request LLM Update" class="action-btn llm-btn">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M2 5a2 2 0 012-2h9a2 2 0 012 2v1h.5A2.5 2.5 0 0118 8.5V10h2a2 2 0 012 2v5a2 2 0 01-2 2h-6a2 2 0 01-2-2v-1H9.5A2.5 2.5 0 017 13.5V12H4a2 2 0 01-2-2V5zm11 8a1 1 0 011-1h6a1 1 0 011 1v4h-8v-4zm-9-6v3h6V7H4zm10-1H4V5h10v1z" /></svg>
+          <span>LLM Update</span>
+        </button>
       </div>
+    </div>
+    <div v-if="llmResultBanner" class="llm-result-banner">
+      <span>{{ llmResultBanner }}</span>
+      <button type="button" class="banner-close" @click="dismissLlmResultBanner" aria-label="변경 알림 닫기">×</button>
     </div>
     <div class="board-content">
       <MainCanvas 
@@ -102,6 +209,30 @@ const goBack = () => {
         @canvas-click="clearHighlight" 
       />
       <PropertiesPanel v-if="store.selectedItem" :selectedItem="store.selectedItem" />
+    </div>
+  </div>
+
+    <div v-if="showLlmModal" class="modal-overlay">
+      <div class="modal-content llm-modal">
+        <button class="close-modal" @click="closeLlmModal" :disabled="isSubmittingLlmPrompt">×</button>
+        <h2>LLM 수정 요청</h2>
+        <p>현재 보드 상태와 함께 원하는 변경 사항을 입력하면 LLM이 새 모델을 생성해 적용합니다.</p>
+        <textarea
+          v-model="llmPrompt"
+          placeholder="예: 고객 등록 이후 2단계 인증 단계를 추가해줘."
+          rows="6"
+        ></textarea>
+        <div v-if="llmError" class="error-message modal-error">{{ llmError }}</div>
+        <div v-if="llmInfoMessage" class="info-message modal-info">{{ llmInfoMessage }}</div>
+        <div class="modal-actions">
+          <button class="secondary-btn" @click="closeLlmModal" :disabled="isSubmittingLlmPrompt">
+            취소
+          </button>
+          <button class="primary-btn" @click="submitLlmPrompt" :disabled="isSubmittingLlmPrompt">
+            <span v-if="!isSubmittingLlmPrompt">LLM에 보내기</span>
+            <span v-else class="spinner"></span>
+          </button>
+        </div>
     </div>
   </div>
 </template>
@@ -121,6 +252,26 @@ const goBack = () => {
   background-color: #f8f9fa;
   border-bottom: 1px solid #dee2e6;
   flex-shrink: 0;
+}
+
+.llm-result-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  background-color: #eef2ff;
+  border-bottom: 1px solid #d4d4ff;
+  color: #3730a3;
+  font-weight: 500;
+}
+
+.banner-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0 0.25rem;
 }
 
 .back-button {
@@ -172,11 +323,141 @@ const goBack = () => {
   height: 20px;
 }
 
+.llm-btn {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.llm-btn span {
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
 .board-content {
   display: flex;
   flex-grow: 1;
   overflow: hidden; /* Prevent this container from creating scrollbars */
   position: relative; /* Make this a positioning context for the panel */
+}
+.llm-modal textarea {
+  width: 100%;
+.close-modal {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  font-size: 1rem;
+  resize: vertical;
+}
+
+.info-message {
+  background-color: #eef2ff;
+  color: #312e81;
+  border: 1px solid #c7d2fe;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.modal-content {
+  background-color: #fff;
+  padding: 2rem;
+  border-radius: 0.75rem;
+  width: 90%;
+  max-width: 640px;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.modal-content h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.modal-content p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.primary-btn,
+.secondary-btn {
+  border-radius: 0.5rem;
+  padding: 0.65rem 1.4rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.primary-btn {
+  background-color: #4f46e5;
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 130px;
+}
+
+.primary-btn:disabled {
+  background-color: #a5b4fc;
+  cursor: not-allowed;
+}
+
+.secondary-btn {
+  background-color: white;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.secondary-btn:hover:not(:disabled) {
+  background-color: #f1f5f9;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: white;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .main-content {

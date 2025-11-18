@@ -1,7 +1,9 @@
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, onMounted, onBeforeUnmount, watch, type Ref } from 'vue';
 import Konva from 'konva';
 import { store } from '../store';
 import type { CanvasItem, Connection } from '../types';
+import { getEdgePoint } from '../utils/canvas';
+import { ensureCanvasItemDimensions, ensureUmlItemDimensions } from '@/utils/uml';
 
 // Helper to get pointer position respecting stage's scale and position
 const getTransformedPointerPosition = (stage: Konva.Stage | null) => {
@@ -14,10 +16,13 @@ const getTransformedPointerPosition = (stage: Konva.Stage | null) => {
     return transform.point(pointerPosition);
 };
 
-export function useCanvasLogic() {
+export function useCanvasLogic(
+  externalStageRef?: Ref<{ getStage: () => Konva.Stage } | null>
+) {
   const selectedItems = ref<CanvasItem[]>([]);
   const selectedConnections = ref<Connection[]>([]);
-  const stageRef = ref<{ getStage: () => Konva.Stage } | null>(null);
+  const stageRef =
+    externalStageRef ?? ref<{ getStage: () => Konva.Stage } | null>(null);
   const transformerRef = ref<{ getNode: () => Konva.Transformer } | null>(null);
   const selectionRectRef = ref<{ getNode: () => Konva.Rect } | null>(null);
   const selection = ref({
@@ -283,6 +288,36 @@ export function useCanvasLogic() {
     }
   };
 
+  const handleItemTransform = (e: Konva.KonvaEventObject<Event>, item: CanvasItem) => {
+    const node = e.target;
+    if (!node) return;
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    if (scaleX === 1 && scaleY === 1) return;
+
+    const nextItem = ensureCanvasItemDimensions({
+      ...item,
+      x: node.x(),
+      y: node.y(),
+      rotation: node.rotation(),
+      width: Math.max(5, item.width * scaleX),
+      height: Math.max(5, item.height * scaleY),
+    });
+
+    node.scaleX(1);
+    node.scaleY(1);
+    store.updateItem(nextItem);
+
+    requestAnimationFrame(() => {
+      updateTransformer();
+      const transformerNode = transformerRef.value?.getNode();
+      const layer = transformerNode ? transformerNode.getLayer() : null;
+      if (layer && typeof (layer as any).batchDraw === 'function') {
+        (layer as any).batchDraw();
+      }
+    });
+  };
+
   const handleItemDblClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
     console.log('handleItemDblClick triggered in useCanvasLogic for item:', item);
     store.setSelectedItem(item);
@@ -315,28 +350,40 @@ export function useCanvasLogic() {
     if (!transformerRef.value) return;
     const transformer = transformerRef.value.getNode();
     const nodes = (e.target as any) === transformer ? transformer.nodes() : [e.target];
-    
-    store.doc?.transact(() => {
-      nodes.forEach((node: Konva.Node) => {
-          const id = Number(node.name().split('-')[1]);
-          const yItem = store.canvasItems?.toArray().find(i => i.get('id') === id);
-          if (yItem) {
-              const scaleX = node.scaleX();
-              const scaleY = node.scaleY();
 
-              node.scaleX(1);
-              node.scaleY(1);
+    nodes.forEach((node: Konva.Node) => {
+      const id = Number(node.name().split('-')[1]);
+      const baseItem = store.reactiveItems.find(item => item.id === id);
+      if (!baseItem) return;
 
-              yItem.set('x', node.x());
-              yItem.set('y', node.y());
-              yItem.set('rotation', node.rotation());
-              yItem.set('width', Math.max(5, yItem.get('width') * scaleX));
-              yItem.set('height', Math.max(5, yItem.get('height') * scaleY));
-          }
+      const scaleX = node.scaleX();
+      const scaleY = node.scaleY();
+
+      const nextItem = ensureUmlItemDimensions({
+        ...baseItem,
+        x: node.x(),
+        y: node.y(),
+        rotation: node.rotation(),
+        width: Math.max(5, baseItem.width * scaleX),
+        height: Math.max(5, baseItem.height * scaleY),
       });
+
+      node.scaleX(1);
+      node.scaleY(1);
+      node.size({ width: nextItem.width, height: nextItem.height });
+
+      store.updateItem(nextItem);
     });
 
-    updateTransformer();
+    requestAnimationFrame(() => {
+      updateTransformer();
+      const transformerNode = transformerRef.value?.getNode();
+      transformerNode?.forceUpdate?.();
+      const layer = transformerNode ? transformerNode.getLayer() : null;
+      if (layer && typeof (layer as any).batchDraw === 'function') {
+        (layer as any).batchDraw();
+      }
+    });
     updateStageSize();
   };
 
@@ -350,112 +397,163 @@ export function useCanvasLogic() {
     }).filter((n): n is Konva.Node => !!n);
 
     transformerNode.nodes(selectedNodes);
-    transformerNode.getLayer()?.batchDraw();
+    const layer = transformerNode.getLayer();
+    if (layer && typeof (layer as any).batchDraw === 'function') {
+      (layer as any).batchDraw();
+    }
   };
 
-  const dragStartPositions = ref<Map<number, {x: number, y: number}>>(new Map());
+  const dragState = {
+    positions: new Map<number, { x: number; y: number }>(),
+  };
 
-  const handleItemDragStart = (e: Konva.KonvaEventObject<DragEvent>, item: CanvasItem) => {
+  const updateConnectionsDuringDrag = (stage: Konva.Stage) => {
+    if (!dragState.positions.size) {
+      return;
+    }
+    const connectionsToUpdate = store.reactiveConnections.filter(
+      conn =>
+        dragState.positions.has(conn.from) || dragState.positions.has(conn.to)
+    );
+    let layer: Konva.Layer | null = null;
+    connectionsToUpdate.forEach(conn => {
+      const arrow = stage.findOne(`.conn-${conn.id}`) as Konva.Arrow | null;
+      if (!arrow) {
+        return;
+      }
+      if (!layer) {
+        layer = arrow.getLayer();
+      }
+      const fromNode = stage.findOne(`.item-${conn.from}`) as Konva.Node | null;
+      const toNode = stage.findOne(`.item-${conn.to}`) as Konva.Node | null;
+      const fromItem = store.getItemById(conn.from);
+      const toItem = store.getItemById(conn.to);
+      if (!fromNode || !toNode || !fromItem || !toItem) {
+        return;
+      }
+      const fromPoint = getEdgePoint(
+        { ...fromItem, x: fromNode.x(), y: fromNode.y() },
+        { ...toItem, x: toNode.x(), y: toNode.y() }
+      );
+      const toPoint = getEdgePoint(
+        { ...toItem, x: toNode.x(), y: toNode.y() },
+        { ...fromItem, x: fromNode.x(), y: fromNode.y() }
+      );
+      arrow.points([fromPoint.x, fromPoint.y, toPoint.x, toPoint.y]);
+    });
+    if (layer && typeof (layer as any).batchDraw === 'function') {
+      (layer as any).batchDraw();
+    }
+  };
+
+  const collectDragItemIds = (baseItems: CanvasItem[]) => {
+    const ids = new Set<number>();
+    baseItems.forEach(item => {
+      ids.add(item.id);
+      if (item.type === 'ContextBox') {
+        store.reactiveItems.forEach(child => {
+          if (child.parent === item.id) {
+            ids.add(child.id);
+          }
+        });
+      }
+    });
+    return ids;
+  };
+
+  const handleItemDragStart = (e: Konva.KonvaEventObject<DragEvent>, item?: CanvasItem) => {
     const stage = stageRef.value?.getStage();
-    if (!stage) return;
+    if (!stage || !item) return;
 
     if (!selectedItems.value.some(i => i.id === item.id)) {
       selectedItems.value = [item];
       selectedConnections.value = [];
     }
-    
-    dragStartPositions.value.clear();
-    const itemsToDrag = new Set<number>();
 
-    selectedItems.value.forEach(selectedItem => {
-      itemsToDrag.add(selectedItem.id);
-      if (selectedItem.type === 'ContextBox') {
-        store.reactiveItems.forEach(child => {
-          if (child.parent === selectedItem.id) {
-            itemsToDrag.add(child.id);
-          }
-        });
-      }
-    });
+    dragState.positions.clear();
 
-    itemsToDrag.forEach(itemId => {
-      const node = stage.findOne('.item-' + itemId);
+    const itemsToDrag = collectDragItemIds(selectedItems.value);
+    itemsToDrag.forEach(id => {
+      const node = stage.findOne(`.item-${id}`);
       if (node) {
-        dragStartPositions.value.set(itemId, { x: node.x(), y: node.y() });
+        dragState.positions.set(id, { x: node.x(), y: node.y() });
       }
     });
   };
 
-  const handleItemDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
-    const draggedNode = e.target;
-    const startPos = dragStartPositions.value.get(Number(draggedNode.name().split('-')[1]));
+  const handleItemDragMove = (e: Konva.KonvaEventObject<DragEvent>, _item?: CanvasItem) => {
+    if (!dragState.positions.size) return;
+    const stage = stageRef.value?.getStage();
+    if (!stage) return;
 
+    const draggedNode = e.target;
+    const draggedId = Number(draggedNode.name().split('-')[1]);
+    const startPos = dragState.positions.get(draggedId);
     if (!startPos) return;
 
     const dx = draggedNode.x() - startPos.x;
     const dy = draggedNode.y() - startPos.y;
 
-    dragStartPositions.value.forEach((initialPos, itemId) => {
-        const node = stageRef.value?.getStage().findOne('.item-' + itemId);
-        if (node && node !== draggedNode) {
-            node.x(initialPos.x + dx);
-            node.y(initialPos.y + dy);
+    dragState.positions.forEach((initialPos, itemId) => {
+      const node =
+        itemId === draggedId ? draggedNode : stage.findOne(`.item-${itemId}`);
+      if (node) {
+        const newX = initialPos.x + dx;
+        const newY = initialPos.y + dy;
+        node.x(newX);
+        node.y(newY);
+        const reactiveItem = store.reactiveItems.find(i => i.id === itemId);
+        if (reactiveItem) {
+          reactiveItem.x = newX;
+          reactiveItem.y = newY;
         }
+      }
     });
   };
 
-  const handleItemDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+  const determineNewParent = (node: Konva.Node, stage: Konva.Stage) => {
+    const itemRect = node.getClientRect();
+    for (const context of store.reactiveItems.filter(item => item.type === 'ContextBox')) {
+      const contextNode = stage.findOne(`.item-${context.id}`);
+      if (!contextNode) continue;
+      const contextRect = contextNode.getClientRect();
+      const inside =
+        itemRect.x >= contextRect.x &&
+        itemRect.y >= contextRect.y &&
+        itemRect.x + itemRect.width <= contextRect.x + contextRect.width &&
+        itemRect.y + itemRect.height <= contextRect.y + contextRect.height;
+      if (inside) {
+        return context.id;
+      }
+    }
+    return null;
+  };
+
+  const handleItemDragEnd = (e: Konva.KonvaEventObject<DragEvent>, _item?: CanvasItem) => {
     const stage = stageRef.value?.getStage();
-    if (!stage) {
-      dragStartPositions.value.clear();
+    if (!stage || !dragState.positions.size) {
+      dragState.positions.clear();
       return;
     }
 
-    store.doc?.transact(() => {
-        dragStartPositions.value.forEach((_, itemId) => {
-            const node = stage.findOne('.item-' + itemId);
-            if (node) {
-                const yItem = store.canvasItems?.toArray().find(i => i.get('id') === itemId);
-                if (yItem) {
-                    yItem.set('x', node.x());
-                    yItem.set('y', node.y());
-                }
-            }
-        });
-    });
-
-    const draggedNode = e.target;
-    const draggedItemId = Number(draggedNode.name().split('-')[1]);
-    const draggedItem = store.reactiveItems.find(i => i.id === draggedItemId);
-
-    if (draggedItem && draggedItem.type !== 'ContextBox') {
-      const contextBoxes = store.reactiveItems.filter(i => i.type === 'ContextBox');
-      let newParentId: number | null = null;
-
-      const itemRect = draggedNode.getClientRect();
-
-      for (const cb of contextBoxes) {
-        const cbNode = stage.findOne('.item-' + cb.id);
-        if (cbNode) {
-          const cbRect = cbNode.getClientRect();
-          if (
-            itemRect.x > cbRect.x &&
-            itemRect.y > cbRect.y &&
-            itemRect.x + itemRect.width < cbRect.x + cbRect.width &&
-            itemRect.y + itemRect.height < cbRect.y + cbRect.height
-          ) {
-            newParentId = cb.id;
-            break;
-          }
+    dragState.positions.forEach((_, itemId) => {
+      const node = stage.findOne(`.item-${itemId}`);
+      const canvasItem = store.getItemById(itemId);
+      if (!node || !canvasItem) {
+        return;
+      }
+      const baseUpdate = { ...canvasItem, x: node.x(), y: node.y() };
+      let updatedItem = baseUpdate;
+      if (canvasItem.type !== 'ContextBox') {
+        const newParentId = determineNewParent(node, stage);
+        if (canvasItem.parent !== newParentId) {
+          updatedItem = { ...baseUpdate, parent: newParentId };
         }
       }
+      store.updateItem(updatedItem);
+    });
 
-      if (draggedItem.parent !== newParentId) {
-        store.updateItem({ ...draggedItem, parent: newParentId });
-      }
-    }
-    
-    dragStartPositions.value.clear();
+    dragState.positions.clear();
     updateStageSize();
   };
 
@@ -482,6 +580,7 @@ export function useCanvasLogic() {
     handleMouseMove,
     handleMouseUp,
     handleItemClick,
+    handleItemTransform,
     handleItemDblClick,
     handleConnectionClick,
     handleTransformEnd,

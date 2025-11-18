@@ -1,0 +1,552 @@
+{
+  "boardType": "Eventstorming",
+  "instanceName": "ecommerceplatform",
+  "items": [
+    {
+      "id": 1,
+      "type": "ContextBox",
+      "instanceName": "UserManagementContext",
+      "description": "Manages user registration, authentication, and profile management.",
+      "x": 50,
+      "y": 50,
+      "width": 900,
+      "height": 590
+    },
+    {
+      "id": 2,
+      "parent": 1,
+      "type": "Command",
+      "instanceName": "RegisterUser",
+      "description": "Command to create a new user account.",
+      "x": 100,
+      "y": 100.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 3,
+      "parent": 1,
+      "type": "Command",
+      "instanceName": "UpdateUserProfile",
+      "description": "Command to update a user's profile information.",
+      "x": 100,
+      "y": 230.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 4,
+      "parent": 1,
+      "type": "Command",
+      "instanceName": "AuthenticateUser",
+      "description": "Command to authenticate a user using credentials.",
+      "x": 100,
+      "y": 360.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 5,
+      "parent": 1,
+      "type": "Policy",
+      "instanceName": "SendWelcomeEmailPolicy",
+      "description": "Policy to send a welcome email after a user registers.",
+      "x": 100,
+      "y": 490.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 6,
+      "parent": 1,
+      "type": "Aggregate",
+      "instanceName": "User",
+      "description": "Represents a registered user with personal and authentication details.",
+      "x": 370,
+      "y": 295.0,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "user-uml"
+    },
+    {
+      "id": 7,
+      "parent": 1,
+      "type": "Event",
+      "instanceName": "UserRegistered",
+      "description": "Occurs when a new user is successfully registered.",
+      "x": 680,
+      "y": 165.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 8,
+      "parent": 1,
+      "type": "Event",
+      "instanceName": "UserProfileUpdated",
+      "description": "Occurs when a user's profile information is updated.",
+      "x": 680,
+      "y": 295.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 9,
+      "parent": 1,
+      "type": "Event",
+      "instanceName": "UserAuthenticated",
+      "description": "Occurs when a user successfully logs in.",
+      "x": 680,
+      "y": 425.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 10,
+      "type": "ContextBox",
+      "instanceName": "OrderProcessingContext",
+      "description": "Handles order creation, status updates, and fulfillment.",
+      "x": 1000,
+      "y": 50,
+      "width": 900,
+      "height": 720
+    },
+    {
+      "id": 11,
+      "parent": 10,
+      "type": "Command",
+      "instanceName": "PlaceOrder",
+      "description": "Command to create a new order from a shopping cart.",
+      "x": 1050,
+      "y": 100.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 12,
+      "parent": 10,
+      "type": "Command",
+      "instanceName": "CancelOrder",
+      "description": "Command to cancel an existing order.",
+      "x": 1050,
+      "y": 230.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 13,
+      "parent": 10,
+      "type": "Command",
+      "instanceName": "UpdateOrderStatus",
+      "description": "Command to update the status of an order.",
+      "x": 1050,
+      "y": 360.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 14,
+      "parent": 10,
+      "type": "Policy",
+      "instanceName": "SendOrderConfirmationEmailPolicy",
+      "description": "Policy to send an order confirmation email after placement.",
+      "x": 1050,
+      "y": 490.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 15,
+      "parent": 10,
+      "type": "Policy",
+      "instanceName": "UpdateInventoryOnOrderPlacementPolicy",
+      "description": "Policy to update inventory levels when an order is placed.",
+      "x": 1050,
+      "y": 620.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 16,
+      "parent": 10,
+      "type": "Aggregate",
+      "instanceName": "Order",
+      "description": "Represents a customer's order with items and status.",
+      "x": 1320,
+      "y": 295.0,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "order-uml"
+    },
+    {
+      "id": 17,
+      "parent": 10,
+      "type": "Aggregate",
+      "instanceName": "OrderItem",
+      "description": "Represents a single item within an order.",
+      "x": 1320,
+      "y": 425.0,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "orderitem-uml"
+    },
+    {
+      "id": 18,
+      "parent": 10,
+      "type": "Event",
+      "instanceName": "OrderPlaced",
+      "description": "Occurs when a new order is successfully placed.",
+      "x": 1630,
+      "y": 230.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 19,
+      "parent": 10,
+      "type": "Event",
+      "instanceName": "OrderCancelled",
+      "description": "Occurs when an order is cancelled.",
+      "x": 1630,
+      "y": 360.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 20,
+      "parent": 10,
+      "type": "Event",
+      "instanceName": "OrderStatusUpdated",
+      "description": "Occurs when the status of an order changes.",
+      "x": 1630,
+      "y": 490.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 21,
+      "type": "ContextBox",
+      "instanceName": "InventoryManagementContext",
+      "description": "Manages product stock levels and inventory tracking.",
+      "x": 1950,
+      "y": 50,
+      "width": 900,
+      "height": 590
+    },
+    {
+      "id": 22,
+      "parent": 21,
+      "type": "Command",
+      "instanceName": "UpdateStockLevel",
+      "description": "Command to adjust the stock level of a product.",
+      "x": 2000,
+      "y": 100.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 23,
+      "parent": 21,
+      "type": "Command",
+      "instanceName": "ReserveStock",
+      "description": "Command to reserve stock for an order.",
+      "x": 2000,
+      "y": 230.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 24,
+      "parent": 21,
+      "type": "Command",
+      "instanceName": "ReleaseStock",
+      "description": "Command to release reserved stock.",
+      "x": 2000,
+      "y": 360.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 25,
+      "parent": 21,
+      "type": "Policy",
+      "instanceName": "CheckStockAvailabilityPolicy",
+      "description": "Policy to check if sufficient stock is available before order placement.",
+      "x": 2000,
+      "y": 490.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 26,
+      "parent": 21,
+      "type": "Aggregate",
+      "instanceName": "Product",
+      "description": "Represents a product with SKU, name, and stock quantity.",
+      "x": 2270,
+      "y": 295.0,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "product-uml"
+    },
+    {
+      "id": 27,
+      "parent": 21,
+      "type": "Event",
+      "instanceName": "StockUpdated",
+      "description": "Occurs when the stock level of a product is updated.",
+      "x": 2580,
+      "y": 165.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 28,
+      "parent": 21,
+      "type": "Event",
+      "instanceName": "StockReserved",
+      "description": "Occurs when stock is reserved for an order.",
+      "x": 2580,
+      "y": 295.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 29,
+      "parent": 21,
+      "type": "Event",
+      "instanceName": "StockReleased",
+      "description": "Occurs when reserved stock is released.",
+      "x": 2580,
+      "y": 425.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 30,
+      "type": "ContextBox",
+      "instanceName": "PaymentProcessingContext",
+      "description": "Handles payment transactions and financial settlements.",
+      "x": 2900,
+      "y": 50,
+      "width": 900,
+      "height": 460
+    },
+    {
+      "id": 31,
+      "parent": 30,
+      "type": "Command",
+      "instanceName": "ProcessPayment",
+      "description": "Command to initiate a payment transaction.",
+      "x": 2950,
+      "y": 100.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 32,
+      "parent": 30,
+      "type": "Command",
+      "instanceName": "RefundPayment",
+      "description": "Command to refund a payment.",
+      "x": 2950,
+      "y": 230.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 33,
+      "parent": 30,
+      "type": "Policy",
+      "instanceName": "SendPaymentConfirmationEmailPolicy",
+      "description": "Policy to send a payment confirmation email after processing.",
+      "x": 2950,
+      "y": 360.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 34,
+      "parent": 30,
+      "type": "Aggregate",
+      "instanceName": "Payment",
+      "description": "Represents a payment transaction with amount and status.",
+      "x": 3220,
+      "y": 230.0,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "payment-uml"
+    },
+    {
+      "id": 35,
+      "parent": 30,
+      "type": "Event",
+      "instanceName": "PaymentProcessed",
+      "description": "Occurs when a payment is successfully processed.",
+      "x": 3530,
+      "y": 165.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 36,
+      "parent": 30,
+      "type": "Event",
+      "instanceName": "PaymentRefunded",
+      "description": "Occurs when a payment is refunded.",
+      "x": 3530,
+      "y": 295.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 37,
+      "type": "ContextBox",
+      "instanceName": "NotificationContext",
+      "description": "Manages sending notifications (emails, SMS) to users.",
+      "x": 3850,
+      "y": 50,
+      "width": 320,
+      "height": 460
+    },
+    {
+      "id": 38,
+      "parent": 37,
+      "type": "Policy",
+      "instanceName": "SendOrderConfirmationEmailPolicy",
+      "description": "Policy to send an order confirmation email.",
+      "x": 3900,
+      "y": 100.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 39,
+      "parent": 37,
+      "type": "Policy",
+      "instanceName": "SendPaymentConfirmationEmailPolicy",
+      "description": "Policy to send a payment confirmation email.",
+      "x": 3900,
+      "y": 230.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 40,
+      "parent": 37,
+      "type": "Policy",
+      "instanceName": "SendWelcomeEmailPolicy",
+      "description": "Policy to send a welcome email after user registration.",
+      "x": 3900,
+      "y": 360.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 41,
+      "type": "ContextBox",
+      "instanceName": "ReportingContext",
+      "description": "Generates reports on sales, user activity, and inventory.",
+      "x": 4220,
+      "y": 50,
+      "width": 320,
+      "height": 330
+    },
+    {
+      "id": 42,
+      "parent": 41,
+      "type": "Policy",
+      "instanceName": "GenerateDailySalesReportPolicy",
+      "description": "Policy to generate a daily sales report.",
+      "x": 4270,
+      "y": 100.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 43,
+      "parent": 41,
+      "type": "Policy",
+      "instanceName": "GenerateInventoryReportPolicy",
+      "description": "Policy to generate an inventory status report.",
+      "x": 4270,
+      "y": 230.0,
+      "width": 220,
+      "height": 100
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-7-40",
+      "from": 7,
+      "to": 40,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-18-38",
+      "from": 18,
+      "to": 38,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-18-15",
+      "from": 18,
+      "to": 15,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-18-31",
+      "from": 18,
+      "to": 31,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-35-39",
+      "from": 35,
+      "to": 39,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-20-42",
+      "from": 20,
+      "to": 42,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-27-43",
+      "from": 27,
+      "to": 43,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-28-25",
+      "from": 28,
+      "to": 25,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-29-25",
+      "from": 29,
+      "to": 25,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-19-24",
+      "from": 19,
+      "to": 24,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-19-42",
+      "from": 19,
+      "to": 42,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-36-42",
+      "from": 36,
+      "to": 42,
+      "type": "Flow"
+    }
+  ]
+}

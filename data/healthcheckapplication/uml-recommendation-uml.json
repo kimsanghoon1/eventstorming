@@ -1,0 +1,97 @@
+{
+  "boardType": "UML",
+  "instanceName": "recommendation-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "Recommendation",
+      "stereotype": "AggregateRoot",
+      "description": "Class for Recommendation aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "recommendationId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "userId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "content",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "RecommendationStatus",
+          "visibility": "private"
+        },
+        {
+          "name": "createdAt",
+          "type": "Instant",
+          "visibility": "private"
+        },
+        {
+          "name": "sentAt",
+          "type": "Instant",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "createRecommendation",
+          "parameters": [
+            {
+              "name": "recommendationId",
+              "type": "UUID"
+            },
+            {
+              "name": "userId",
+              "type": "UUID"
+            },
+            {
+              "name": "content",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "sendRecommendation",
+          "parameters": [
+            {
+              "name": "sentAt",
+              "type": "Instant"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "DefaultAggregate",
+      "description": "Fallback: Could not generate specific classes.",
+      "x": 100,
+      "y": 100
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

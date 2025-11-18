@@ -1,0 +1,83 @@
+{
+  "boardType": "UML",
+  "instanceName": "민원연계-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "ProjectReservation",
+      "stereotype": "AggregateRoot",
+      "description": "Class for ProjectReservation aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "reservationId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "projectId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "reservationStatus",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "reservationDate",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "projectName",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "reserveProject",
+          "parameters": [
+            {
+              "name": "projectId",
+              "type": "UUID"
+            },
+            {
+              "name": "projectName",
+              "type": "String"
+            },
+            {
+              "name": "reservationDate",
+              "type": "LocalDateTime"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "cancelReservation",
+          "parameters": [],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "updateReservationStatus",
+          "parameters": [
+            {
+              "name": "status",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    }
+  ],
+  "connections": []
+}

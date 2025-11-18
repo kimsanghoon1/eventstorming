@@ -1,0 +1,93 @@
+{
+  "boardType": "UML",
+  "instanceName": "generated-uml-diagram",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "ComplaintResult",
+      "stereotype": "AggregateRoot",
+      "description": "Class for ComplaintResult aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "complaintId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "resultDetails",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "lastUpdated",
+          "type": "Instant",
+          "visibility": "private"
+        },
+        {
+          "name": "assignedAgentId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "resolutionDate",
+          "type": "Instant",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "findComplaintResult",
+          "parameters": [
+            {
+              "name": "complaintId",
+              "type": "UUID"
+            }
+          ],
+          "returnType": "ComplaintResult",
+          "visibility": "public"
+        },
+        {
+          "name": "getComplaintStatus",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        },
+        {
+          "name": "getResultDetails",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        },
+        {
+          "name": "getLastUpdated",
+          "parameters": [],
+          "returnType": "Instant",
+          "visibility": "public"
+        },
+        {
+          "name": "getAssignedAgentId",
+          "parameters": [],
+          "returnType": "UUID",
+          "visibility": "public"
+        },
+        {
+          "name": "getResolutionDate",
+          "parameters": [],
+          "returnType": "Instant",
+          "visibility": "public"
+        }
+      ]
+    }
+  ],
+  "connections": []
+}

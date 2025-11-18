@@ -1,0 +1,177 @@
+{
+  "boardType": "UML",
+  "instanceName": "알림-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "Lobby",
+      "stereotype": "AggregateRoot",
+      "description": "Class for Lobby aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "lobbyId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "LobbyStatus",
+          "visibility": "private"
+        },
+        {
+          "name": "maxPlayers",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "currentPlayers",
+          "type": "int",
+          "visibility": "private"
+        },
+        {
+          "name": "creatorId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "createdDate",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "updatedDate",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "createLobby",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "String"
+            },
+            {
+              "name": "maxPlayers",
+              "type": "int"
+            },
+            {
+              "name": "creatorId",
+              "type": "UUID"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "joinLobby",
+          "parameters": [
+            {
+              "name": "playerId",
+              "type": "UUID"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "startGame",
+          "parameters": [],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "leaveLobby",
+          "parameters": [
+            {
+              "name": "playerId",
+              "type": "UUID"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "updateStatus",
+          "parameters": [
+            {
+              "name": "status",
+              "type": "LobbyStatus"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "updateName",
+          "parameters": [
+            {
+              "name": "name",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "LobbyStatus",
+      "stereotype": "Enum",
+      "description": "Class for LobbyStatus aggregate.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "PENDING",
+          "type": "LobbyStatus",
+          "visibility": "public"
+        },
+        {
+          "name": "ACTIVE",
+          "type": "LobbyStatus",
+          "visibility": "public"
+        },
+        {
+          "name": "FULL",
+          "type": "LobbyStatus",
+          "visibility": "public"
+        },
+        {
+          "name": "STARTED",
+          "type": "LobbyStatus",
+          "visibility": "public"
+        },
+        {
+          "name": "CLOSED",
+          "type": "LobbyStatus",
+          "visibility": "public"
+        }
+      ],
+      "methods": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

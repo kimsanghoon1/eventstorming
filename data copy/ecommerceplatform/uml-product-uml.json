@@ -1,0 +1,196 @@
+{
+  "boardType": "UML",
+  "instanceName": "product-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "Product",
+      "stereotype": "AggregateRoot",
+      "description": "Class for Product aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "sku",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "stockQuantity",
+          "type": "int",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "updateStockLevel",
+          "parameters": [
+            {
+              "name": "quantity",
+              "type": "int"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "reserveStock",
+          "parameters": [
+            {
+              "name": "quantity",
+              "type": "int"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "releaseStock",
+          "parameters": [
+            {
+              "name": "quantity",
+              "type": "int"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "StockUpdated",
+      "stereotype": "Event",
+      "description": "Class for StockUpdated aggregate.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "productId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "newStockQuantity",
+          "type": "int",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getProductId",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        },
+        {
+          "name": "getNewStockQuantity",
+          "parameters": [],
+          "returnType": "int",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "Class",
+      "instanceName": "StockReserved",
+      "stereotype": "Event",
+      "description": "Class for StockReserved aggregate.",
+      "x": 740,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "productId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "reservedQuantity",
+          "type": "int",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getProductId",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        },
+        {
+          "name": "getReservedQuantity",
+          "parameters": [],
+          "returnType": "int",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "Class",
+      "instanceName": "StockReleased",
+      "stereotype": "Event",
+      "description": "Class for StockReleased aggregate.",
+      "x": 100,
+      "y": 360,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "productId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "releasedQuantity",
+          "type": "int",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getProductId",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        },
+        {
+          "name": "getReleasedQuantity",
+          "parameters": [],
+          "returnType": "int",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "DefaultAggregate",
+      "description": "Fallback: Could not generate specific classes.",
+      "x": 100,
+      "y": 100
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

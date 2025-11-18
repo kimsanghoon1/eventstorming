@@ -1,35 +1,35 @@
 {
   "boardType": "UML",
-  "instanceName": "generated-uml-diagram",
+  "instanceName": "complaintapplication-uml",
   "items": [
     {
       "id": 1,
       "type": "Class",
-      "instanceName": "Notification",
+      "instanceName": "ComplaintApplication",
       "stereotype": "AggregateRoot",
-      "description": "Class for Notification aggregate.",
+      "description": "Class for ComplaintApplication aggregate.",
       "x": 100,
       "y": 100,
       "width": 280,
       "height": 220,
       "attributes": [
         {
-          "name": "notificationId",
+          "name": "applicationId",
           "type": "UUID",
           "visibility": "private"
         },
         {
-          "name": "citizenId",
+          "name": "customerId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "complaintType",
           "type": "String",
           "visibility": "private"
         },
         {
-          "name": "complaintId",
-          "type": "String",
-          "visibility": "private"
-        },
-        {
-          "name": "notificationType",
+          "name": "description",
           "type": "String",
           "visibility": "private"
         },
@@ -39,25 +39,25 @@
           "visibility": "private"
         },
         {
-          "name": "sentAt",
+          "name": "submittedAt",
           "type": "Instant",
           "visibility": "private"
         }
       ],
       "methods": [
         {
-          "name": "sendNotification",
+          "name": "submitComplaintApplication",
           "parameters": [
             {
-              "name": "citizenId",
+              "name": "customerId",
+              "type": "UUID"
+            },
+            {
+              "name": "complaintType",
               "type": "String"
             },
             {
-              "name": "complaintId",
-              "type": "String"
-            },
-            {
-              "name": "notificationType",
+              "name": "description",
               "type": "String"
             }
           ],
@@ -65,22 +65,7 @@
           "visibility": "public"
         }
       ]
-    },
-    {
-      "id": 1,
-      "type": "Class",
-      "instanceName": "DefaultAggregate",
-      "description": "Fallback: Could not generate specific classes.",
-      "x": 100,
-      "y": 100
     }
   ],
-  "connections": [
-    {
-      "id": "conn-1-2",
-      "from": 1,
-      "to": 2,
-      "type": "Association"
-    }
-  ]
+  "connections": []
 }

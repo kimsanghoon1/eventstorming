@@ -1,0 +1,420 @@
+{
+  "boardType": "Eventstorming",
+  "instanceName": "healthcheckapplication",
+  "items": [
+    {
+      "id": 1,
+      "type": "ContextBox",
+      "instanceName": "HealthDataCollectionContext",
+      "description": "Manages the collection and storage of health-related data from various sources.",
+      "x": 50,
+      "y": 50,
+      "width": 900,
+      "height": 590
+    },
+    {
+      "id": 2,
+      "parent": 1,
+      "type": "Command",
+      "instanceName": "CreateHealthRecord",
+      "description": "Command to create a new health record for a user.",
+      "x": 100,
+      "y": 100.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 3,
+      "parent": 1,
+      "type": "Command",
+      "instanceName": "UpdateHealthData",
+      "description": "Command to update existing health data for a user.",
+      "x": 100,
+      "y": 230.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 4,
+      "parent": 1,
+      "type": "Command",
+      "instanceName": "SubmitHealthSurvey",
+      "description": "Command to submit a user's health survey response.",
+      "x": 100,
+      "y": 360.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 5,
+      "parent": 1,
+      "type": "Policy",
+      "instanceName": "TriggerHealthAnalysisPolicy",
+      "description": "Policy to trigger a health analysis process after a health record is created or updated.",
+      "x": 100,
+      "y": 490.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 6,
+      "parent": 1,
+      "type": "Aggregate",
+      "instanceName": "HealthRecord",
+      "description": "Represents a comprehensive health record including vital signs, lab results, and lifestyle data.",
+      "x": 370,
+      "y": 230.0,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "healthrecord-uml"
+    },
+    {
+      "id": 7,
+      "parent": 1,
+      "type": "Aggregate",
+      "instanceName": "UserHealthProfile",
+      "description": "Stores aggregated health data for a user, used for analysis and recommendations.",
+      "x": 370,
+      "y": 360.0,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "userhealthprofile-uml"
+    },
+    {
+      "id": 8,
+      "parent": 1,
+      "type": "Event",
+      "instanceName": "HealthRecordCreated",
+      "description": "Occurs when a new health record is successfully created.",
+      "x": 680,
+      "y": 165.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 9,
+      "parent": 1,
+      "type": "Event",
+      "instanceName": "HealthDataUpdated",
+      "description": "Occurs when health data for a user is updated.",
+      "x": 680,
+      "y": 295.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 10,
+      "parent": 1,
+      "type": "Event",
+      "instanceName": "HealthSurveySubmitted",
+      "description": "Occurs when a user submits a health survey.",
+      "x": 680,
+      "y": 425.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 11,
+      "type": "ContextBox",
+      "instanceName": "HealthAnalysisContext",
+      "description": "Analyzes health data to generate insights, risk assessments, and recommendations.",
+      "x": 1000,
+      "y": 50,
+      "width": 900,
+      "height": 460
+    },
+    {
+      "id": 12,
+      "parent": 11,
+      "type": "Command",
+      "instanceName": "RunHealthAnalysis",
+      "description": "Command to initiate a health analysis process.",
+      "x": 1050,
+      "y": 100.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 13,
+      "parent": 11,
+      "type": "Command",
+      "instanceName": "GenerateRecommendation",
+      "description": "Command to generate personalized health recommendations.",
+      "x": 1050,
+      "y": 230.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 14,
+      "parent": 11,
+      "type": "Policy",
+      "instanceName": "SendAnalysisResultsToUserPolicy",
+      "description": "Policy to send analysis results to the user via notification.",
+      "x": 1050,
+      "y": 360.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 15,
+      "parent": 11,
+      "type": "Aggregate",
+      "instanceName": "HealthAnalysisResult",
+      "description": "Represents the outcome of a health analysis, including risk scores and recommendations.",
+      "x": 1320,
+      "y": 230.0,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "healthanalysisresult-uml"
+    },
+    {
+      "id": 16,
+      "parent": 11,
+      "type": "Event",
+      "instanceName": "HealthAnalysisCompleted",
+      "description": "Occurs when a health analysis is successfully completed.",
+      "x": 1630,
+      "y": 165.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 17,
+      "parent": 11,
+      "type": "Event",
+      "instanceName": "RecommendationGenerated",
+      "description": "Occurs when a personalized health recommendation is generated.",
+      "x": 1630,
+      "y": 295.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 18,
+      "type": "ContextBox",
+      "instanceName": "UserManagementContext",
+      "description": "Manages user accounts, authentication, and profile information.",
+      "x": 1950,
+      "y": 50,
+      "width": 900,
+      "height": 460
+    },
+    {
+      "id": 19,
+      "parent": 18,
+      "type": "Command",
+      "instanceName": "RegisterUser",
+      "description": "Command to register a new user.",
+      "x": 2000,
+      "y": 100.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 20,
+      "parent": 18,
+      "type": "Command",
+      "instanceName": "UpdateUserProfile",
+      "description": "Command to update a user's profile information.",
+      "x": 2000,
+      "y": 230.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 21,
+      "parent": 18,
+      "type": "Policy",
+      "instanceName": "SendWelcomeNotificationPolicy",
+      "description": "Policy to send a welcome notification to a newly registered user.",
+      "x": 2000,
+      "y": 360.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 22,
+      "parent": 18,
+      "type": "Aggregate",
+      "instanceName": "User",
+      "description": "Represents a user of the application.",
+      "x": 2270,
+      "y": 165.0,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "user-uml"
+    },
+    {
+      "id": 23,
+      "parent": 18,
+      "type": "Aggregate",
+      "instanceName": "UserProfile",
+      "description": "Stores user-specific information such as preferences and contact details.",
+      "x": 2270,
+      "y": 295.0,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "userprofile-uml"
+    },
+    {
+      "id": 24,
+      "parent": 18,
+      "type": "Event",
+      "instanceName": "UserRegistered",
+      "description": "Occurs when a new user is successfully registered.",
+      "x": 2580,
+      "y": 165.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 25,
+      "parent": 18,
+      "type": "Event",
+      "instanceName": "UserProfileUpdated",
+      "description": "Occurs when a user's profile is updated.",
+      "x": 2580,
+      "y": 295.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 26,
+      "type": "ContextBox",
+      "instanceName": "NotificationContext",
+      "description": "Handles sending notifications to users via email, SMS, or in-app messages.",
+      "x": 2900,
+      "y": 50,
+      "width": 320,
+      "height": 200
+    },
+    {
+      "id": 27,
+      "parent": 26,
+      "type": "Command",
+      "instanceName": "SendNotification",
+      "description": "Command to send a notification to a user.",
+      "x": 2950,
+      "y": 100.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 28,
+      "type": "ContextBox",
+      "instanceName": "RecommendationContext",
+      "description": "Manages the generation and delivery of personalized health recommendations.",
+      "x": 3270,
+      "y": 50,
+      "width": 900,
+      "height": 330
+    },
+    {
+      "id": 29,
+      "parent": 28,
+      "type": "Command",
+      "instanceName": "CreateRecommendation",
+      "description": "Command to create a new recommendation.",
+      "x": 3320,
+      "y": 100.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 30,
+      "parent": 28,
+      "type": "Command",
+      "instanceName": "SendRecommendation",
+      "description": "Command to send a recommendation to a user.",
+      "x": 3320,
+      "y": 230.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 31,
+      "parent": 28,
+      "type": "Aggregate",
+      "instanceName": "Recommendation",
+      "description": "Represents a personalized health recommendation for a user.",
+      "x": 3590,
+      "y": 165.0,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "recommendation-uml"
+    },
+    {
+      "id": 32,
+      "parent": 28,
+      "type": "Event",
+      "instanceName": "RecommendationCreated",
+      "description": "Occurs when a new recommendation is created.",
+      "x": 3900,
+      "y": 100.0,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 33,
+      "parent": 28,
+      "type": "Event",
+      "instanceName": "RecommendationSent",
+      "description": "Occurs when a recommendation is successfully sent to a user.",
+      "x": 3900,
+      "y": 230.0,
+      "width": 220,
+      "height": 100
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-24-21",
+      "from": 24,
+      "to": 21,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-8-12",
+      "from": 8,
+      "to": 12,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-9-12",
+      "from": 9,
+      "to": 12,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-10-12",
+      "from": 10,
+      "to": 12,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-16-14",
+      "from": 16,
+      "to": 14,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-17-30",
+      "from": 17,
+      "to": 30,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-14-27",
+      "from": 14,
+      "to": 27,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-32-30",
+      "from": 32,
+      "to": 30,
+      "type": "Flow"
+    }
+  ]
+}

@@ -1,0 +1,162 @@
+{
+  "boardType": "UML",
+  "instanceName": "complaintinquiry-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "ComplaintInquiry",
+      "stereotype": "AggregateRoot",
+      "description": "Class for ComplaintInquiry aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "inquiryId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "complaintId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "searchCriteria",
+          "type": "Map<String, String>",
+          "visibility": "private"
+        },
+        {
+          "name": "complaintData",
+          "type": "ComplaintData",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "searchComplaint",
+          "parameters": [
+            {
+              "name": "complaintId",
+              "type": "String"
+            },
+            {
+              "name": "searchCriteria",
+              "type": "Map<String, String>"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "getComplaintData",
+          "parameters": [],
+          "returnType": "ComplaintData",
+          "visibility": "public"
+        },
+        {
+          "name": "getStatus",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "ComplaintData",
+      "stereotype": "ValueObject",
+      "description": "Class for ComplaintData aggregate.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "complaintId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "title",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "createdDate",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "updatedDate",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getComplaintId",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        },
+        {
+          "name": "getTitle",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        },
+        {
+          "name": "getDescription",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        },
+        {
+          "name": "getStatus",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        },
+        {
+          "name": "getCreatedDate",
+          "parameters": [],
+          "returnType": "LocalDateTime",
+          "visibility": "public"
+        },
+        {
+          "name": "getUpdatedDate",
+          "parameters": [],
+          "returnType": "LocalDateTime",
+          "visibility": "public"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

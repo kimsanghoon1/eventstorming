@@ -1,58 +1,63 @@
 {
   "boardType": "UML",
-  "instanceName": "complaintlinking-uml",
+  "instanceName": "generated-uml-diagram",
   "items": [
     {
       "id": 1,
       "type": "Class",
-      "instanceName": "ComplaintLinking",
+      "instanceName": "Notification",
       "stereotype": "AggregateRoot",
-      "description": "Class for ComplaintLinking aggregate.",
+      "description": "Class for Notification aggregate.",
       "x": 100,
       "y": 100,
       "width": 280,
       "height": 220,
       "attributes": [
         {
-          "name": "complaintId",
+          "name": "notificationId",
           "type": "UUID",
           "visibility": "private"
         },
         {
-          "name": "departmentId",
+          "name": "userId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "notificationType",
           "type": "String",
           "visibility": "private"
         },
         {
-          "name": "systemId",
+          "name": "message",
           "type": "String",
           "visibility": "private"
         },
         {
-          "name": "linkStatus",
+          "name": "status",
           "type": "String",
           "visibility": "private"
         },
         {
-          "name": "linkedAt",
+          "name": "sentAt",
           "type": "Instant",
           "visibility": "private"
         }
       ],
       "methods": [
         {
-          "name": "linkComplaintToDepartment",
+          "name": "sendNotification",
           "parameters": [
             {
-              "name": "complaintId",
+              "name": "userId",
               "type": "UUID"
             },
             {
-              "name": "departmentId",
+              "name": "notificationType",
               "type": "String"
             },
             {
-              "name": "systemId",
+              "name": "message",
               "type": "String"
             }
           ],

@@ -1,0 +1,123 @@
+{
+  "boardType": "UML",
+  "instanceName": "민원발급-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "ProjectCreation",
+      "stereotype": "AggregateRoot",
+      "description": "Class for ProjectCreation aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "projectId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "projectName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "ProjectStatus",
+          "visibility": "private"
+        },
+        {
+          "name": "createdAt",
+          "type": "Instant",
+          "visibility": "private"
+        },
+        {
+          "name": "updatedAt",
+          "type": "Instant",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "createProject",
+          "parameters": [
+            {
+              "name": "projectName",
+              "type": "String"
+            },
+            {
+              "name": "projectManagerId",
+              "type": "UUID"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "updateProjectName",
+          "parameters": [
+            {
+              "name": "newName",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "assignProjectManager",
+          "parameters": [
+            {
+              "name": "managerId",
+              "type": "UUID"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "completeProject",
+          "parameters": [],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "ProjectStatus",
+      "stereotype": "ValueObject",
+      "description": "Class for ProjectStatus aggregate.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "status",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getStatus",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    }
+  ]
+}

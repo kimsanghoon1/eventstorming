@@ -1,0 +1,99 @@
+{
+  "boardType": "UML",
+  "instanceName": "민원신청-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "ProjectOrder",
+      "stereotype": "AggregateRoot",
+      "description": "Class for ProjectOrder aggregate.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "projectId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "projectName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "createdAt",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "updatedAt",
+          "type": "LocalDateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "createProjectOrder",
+          "parameters": [
+            {
+              "name": "projectId",
+              "type": "UUID"
+            },
+            {
+              "name": "projectName",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "requestProjectOrder",
+          "parameters": [
+            {
+              "name": "projectId",
+              "type": "UUID"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "applyProjectOrderCreated",
+          "parameters": [
+            {
+              "name": "projectId",
+              "type": "UUID"
+            },
+            {
+              "name": "projectName",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "private"
+        },
+        {
+          "name": "applyProjectOrderRequested",
+          "parameters": [
+            {
+              "name": "projectId",
+              "type": "UUID"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "private"
+        }
+      ]
+    }
+  ],
+  "connections": []
+}

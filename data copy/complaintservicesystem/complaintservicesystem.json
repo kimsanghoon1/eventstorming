@@ -1,0 +1,283 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "type": "ContextBox",
+      "instanceName": "민원안내컨텍스트",
+      "description": "Handles the initial guidance and information about complaints, including the process flow and user instructions.",
+      "x": 50,
+      "y": 50,
+      "width": 900,
+      "height": 200
+    },
+    {
+      "id": 2,
+      "parent": 1,
+      "type": "Command",
+      "instanceName": "민원안내요청",
+      "description": "Command to retrieve the complaint guidance information for the user.",
+      "x": 100,
+      "y": 100,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 3,
+      "parent": 1,
+      "type": "Aggregate",
+      "instanceName": "민원안내",
+      "description": "Represents the guidance information and process steps for users to understand how to file a complaint.",
+      "x": 370,
+      "y": 100,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "complaintguidance-uml"
+    },
+    {
+      "id": 4,
+      "parent": 1,
+      "type": "Event",
+      "instanceName": "민원안내제공됨",
+      "description": "Occurs when the complaint guidance information is successfully provided to the user.",
+      "x": 680,
+      "y": 100,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 5,
+      "type": "ContextBox",
+      "instanceName": "민원조회컨텍스트",
+      "description": "Manages the inquiry and search functionality for existing complaints, allowing users to check the status of their complaints.",
+      "x": 68.57142857142848,
+      "y": 345.7142857142858,
+      "width": 900,
+      "height": 200
+    },
+    {
+      "id": 6,
+      "parent": 5,
+      "type": "Command",
+      "instanceName": "민원조회",
+      "description": "Command to search for a complaint by ID or other criteria.",
+      "x": 118.57142857142848,
+      "y": 395.7142857142858,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 7,
+      "parent": 5,
+      "type": "Aggregate",
+      "instanceName": "민원조회요청",
+      "description": "Represents the inquiry request and the associated complaint data.",
+      "x": 388.5714285714285,
+      "y": 395.7142857142858,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "complaintinquiry-uml"
+    },
+    {
+      "id": 8,
+      "parent": 5,
+      "type": "Event",
+      "instanceName": "민원조회결과",
+      "description": "Occurs when the complaint inquiry result is returned to the user.",
+      "x": 698.5714285714284,
+      "y": 395.7142857142858,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 9,
+      "type": "ContextBox",
+      "instanceName": "민원신청컨텍스트",
+      "description": "Handles the submission of new complaints, including the creation and validation of complaint applications.",
+      "x": 1051.4285714285716,
+      "y": 70,
+      "width": 900,
+      "height": 200
+    },
+    {
+      "id": 10,
+      "parent": 9,
+      "type": "Command",
+      "instanceName": "민원신청제출",
+      "description": "Command to submit a new complaint application.",
+      "x": 1101.4285714285716,
+      "y": 120,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 11,
+      "parent": 9,
+      "type": "Aggregate",
+      "instanceName": "민원신청",
+      "description": "Represents a new complaint application submitted by a user.",
+      "x": 1371.4285714285716,
+      "y": 120,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "complaintapplication-uml"
+    },
+    {
+      "id": 12,
+      "parent": 9,
+      "type": "Event",
+      "instanceName": "민원신청완료",
+      "description": "Occurs when a complaint application is successfully submitted.",
+      "x": 1681.4285714285716,
+      "y": 120,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 13,
+      "type": "ContextBox",
+      "instanceName": "민원연계컨텍스트",
+      "description": "Manages the linking of complaints to relevant departments, services, or processes, ensuring proper routing.",
+      "x": 1152.8571428571427,
+      "y": 382.857142857143,
+      "width": 900,
+      "height": 200
+    },
+    {
+      "id": 14,
+      "parent": 13,
+      "type": "Command",
+      "instanceName": "민원부서연계",
+      "description": "Command to link a complaint to a specific department or service.",
+      "x": 1202.8571428571427,
+      "y": 432.857142857143,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 15,
+      "parent": 13,
+      "type": "Aggregate",
+      "instanceName": "민원연계",
+      "description": "Represents the process of linking a complaint to a specific department or service.",
+      "x": 1472.8571428571427,
+      "y": 432.857142857143,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "complaintlinking-uml"
+    },
+    {
+      "id": 16,
+      "parent": 13,
+      "type": "Event",
+      "instanceName": "민원연계완료",
+      "description": "Occurs when a complaint is successfully linked to a department or service.",
+      "x": 1782.8571428571427,
+      "y": 432.857142857143,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 17,
+      "type": "ContextBox",
+      "instanceName": "민원발급컨텍스트",
+      "description": "Handles the issuance of complaint-related documents or certificates, such as complaint confirmation numbers.",
+      "x": 1164.2857142857142,
+      "y": 690.0020092896161,
+      "width": 900,
+      "height": 200
+    },
+    {
+      "id": 18,
+      "parent": 17,
+      "type": "Command",
+      "instanceName": "민원문서발급",
+      "description": "Command to issue a complaint document or confirmation.",
+      "x": 1214.2857142857142,
+      "y": 740.0020092896161,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 19,
+      "parent": 17,
+      "type": "Aggregate",
+      "instanceName": "민원발급",
+      "description": "Represents the issuance of a complaint document or confirmation.",
+      "x": 1484.2857142857142,
+      "y": 740.0020092896161,
+      "width": 260,
+      "height": 100,
+      "linkedDiagram": "complaintissuance-uml"
+    },
+    {
+      "id": 20,
+      "parent": 17,
+      "type": "Event",
+      "instanceName": "민원문서발급완료",
+      "description": "Occurs when a complaint document is successfully issued.",
+      "x": 1794.2857142857142,
+      "y": 740.0020092896161,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 21,
+      "type": "ContextBox",
+      "instanceName": "알림컨텍스트",
+      "description": "Manages the sending of notifications to users regarding the status of their complaints.",
+      "x": 515.7142857142844,
+      "y": 780.2095249746347,
+      "width": 320,
+      "height": 200
+    },
+    {
+      "id": 22,
+      "parent": 21,
+      "type": "Policy",
+      "instanceName": "민원상태알림정책",
+      "description": "Policy to send a notification to the user when a complaint status changes.",
+      "x": 565.7142857142844,
+      "y": 830.2095249746347,
+      "width": 220,
+      "height": 100
+    },
+    {
+      "id": 23,
+      "type": "ContextBox",
+      "instanceName": "결과조회컨텍스트",
+      "description": "A CQRS-based service for querying the final results and statuses of complaints, providing read-only access to complaint data.",
+      "x": 1606.8304529979573,
+      "y": 974.8061808278567,
+      "width": 315.6677054056688,
+      "height": 158.68611701807603,
+      "rotation": 0
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-12-14",
+      "from": 12,
+      "to": 14,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-16-18",
+      "from": 16,
+      "to": 18,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-20-22",
+      "from": 20,
+      "to": 22,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-8-22",
+      "from": 8,
+      "to": 22,
+      "type": "Flow"
+    }
+  ],
+  "boardType": "Eventstorming"
+}

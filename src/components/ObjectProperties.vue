@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineProps, computed, ref, watch, nextTick } from 'vue';
+import { defineProps, computed, ref, watch, onBeforeUnmount } from 'vue';
 import type { CanvasItem, UmlAttribute, UmlOperation, Property } from '../types';
 import { store } from '../store';
 
@@ -7,8 +7,17 @@ const props = defineProps<{
   item: CanvasItem;
 }>();
 
-const localItem = ref<CanvasItem>(JSON.parse(JSON.stringify(props.item)));
+const cloneItem = (item: CanvasItem): CanvasItem =>
+  JSON.parse(JSON.stringify(item));
+
+const localItem = ref<CanvasItem>(cloneItem(props.item));
 const newEnumValue = ref('');
+const enumValues = computed(() => {
+  if (!localItem.value.enumValues) {
+    localItem.value.enumValues = [];
+  }
+  return localItem.value.enumValues;
+});
 
 const classStereotypes = ['', 'AggregateRoot', 'Entity', 'ValueObject', 'Factory'];
 const interfaceStereotypes = ['', 'Service', 'Policy', 'Factory'];
@@ -19,18 +28,33 @@ const availableStereotypes = computed(() => {
     return [];
 });
 
-const availableEvents = computed(() => store.canvasItems.filter(item => item.type === 'Event'));
-const availableTypes = computed(() => [...new Set(store.canvasItems.map(item => item.type))]);
+watch(
+  () => props.item,
+  (newItem) => {
+    localItem.value = cloneItem(newItem);
+  },
+  { deep: false }
+);
 
-watch(() => props.item, (newItem) => {
-  localItem.value = JSON.parse(JSON.stringify(newItem));
-}, { deep: true });
+let updateTimer: ReturnType<typeof setTimeout> | null = null;
 
-const update = () => {
-  nextTick(() => {
-    store.updateItem(localItem.value.id, localItem.value);
-  });
+const flushUpdate = () => {
+  if (updateTimer) {
+    clearTimeout(updateTimer);
+    updateTimer = null;
+  }
+  store.updateItem(cloneItem(localItem.value));
 };
+
+const scheduleUpdate = () => {
+  if (updateTimer) {
+    clearTimeout(updateTimer);
+  }
+  updateTimer = setTimeout(flushUpdate, 150);
+};
+onBeforeUnmount(() => {
+  flushUpdate();
+  });
 
 const addProperty = (type: 'properties' | 'attributes' | 'methods' | 'enumValues') => {
   if (!localItem.value[type]) {
@@ -42,22 +66,21 @@ const addProperty = (type: 'properties' | 'attributes' | 'methods' | 'enumValues
   if (type === 'attributes') newItem = { visibility: 'private', name: 'newAttr', type: 'string' };
   if (type === 'methods') newItem = { visibility: 'public', name: 'newMethod', parameters: [], returnType: 'void' };
   if (type === 'enumValues') {
-    if (newEnumValue.value) {
-      newItem = newEnumValue.value;
-      newEnumValue.value = '';
-    } else {
+    if (!newEnumValue.value) {
       return;
     }
+    newItem = newEnumValue.value;
+    newEnumValue.value = '';
   }
   
   (localItem.value[type] as any[]).push(newItem);
-  update();
+  scheduleUpdate();
 };
 
 const removeProperty = (type: 'properties' | 'attributes' | 'methods' | 'enumValues', index: number) => {
   if (localItem.value[type]) {
     (localItem.value[type] as any[]).splice(index, 1);
-    update();
+    scheduleUpdate();
   }
 };
 </script>
@@ -67,17 +90,17 @@ const removeProperty = (type: 'properties' | 'attributes' | 'methods' | 'enumVal
     <!-- Common Properties -->
     <div class="form-section">
       <label>Instance Name</label>
-      <input type="text" v-model="localItem.instanceName" @blur="update" />
+      <input type="text" v-model="localItem.instanceName" @input="scheduleUpdate" />
     </div>
     <div class="form-section">
       <label>Description</label>
-      <textarea v-model="localItem.description" @blur="update" rows="3"></textarea>
+      <textarea v-model="localItem.description" @input="scheduleUpdate" rows="3"></textarea>
     </div>
 
     <!-- Stereotype -->
     <div v-if="['Class', 'Interface'].includes(item.type)" class="form-section">
       <label>Stereotype</label>
-      <select v-model="localItem.stereotype" @change="update">
+      <select v-model="localItem.stereotype" @change="scheduleUpdate">
         <option v-for="s in availableStereotypes" :key="s" :value="s || undefined">{{ s || 'None' }}</option>
       </select>
     </div>
@@ -86,8 +109,8 @@ const removeProperty = (type: 'properties' | 'attributes' | 'methods' | 'enumVal
     <div v-if="item.properties" class="properties-list">
       <h4>Fields</h4>
       <div v-for="(prop, index) in localItem.properties" :key="index" class="property-item">
-        <input type="text" v-model="prop.key" @blur="update" placeholder="Key" />
-        <input type="text" v-model="prop.value" @blur="update" placeholder="Value" />
+        <input type="text" v-model="prop.key" @input="scheduleUpdate" placeholder="Key" />
+        <input type="text" v-model="prop.value" @input="scheduleUpdate" placeholder="Value" />
         <button @click="removeProperty('properties', index)" class="delete-btn">×</button>
       </div>
       <button @click="addProperty('properties')" class="add-btn">+ Add Field</button>
@@ -97,13 +120,13 @@ const removeProperty = (type: 'properties' | 'attributes' | 'methods' | 'enumVal
     <div v-if="item.attributes" class="properties-list">
       <h4>Attributes</h4>
       <div v-for="(attr, index) in localItem.attributes" :key="index" class="property-item attribute-item">
-        <select v-model="attr.visibility" @change="update">
+        <select v-model="attr.visibility" @change="scheduleUpdate">
           <option>public</option>
           <option>private</option>
           <option>protected</option>
         </select>
-        <input type="text" v-model="attr.type" @blur="update" placeholder="Type" />
-        <input type="text" v-model="attr.name" @blur="update" placeholder="Name" />
+        <input type="text" v-model="attr.type" @input="scheduleUpdate" placeholder="Type" />
+        <input type="text" v-model="attr.name" @input="scheduleUpdate" placeholder="Name" />
         <button @click="removeProperty('attributes', index)" class="delete-btn">×</button>
       </div>
       <button @click="addProperty('attributes')" class="add-btn">+ Add Attribute</button>
@@ -113,18 +136,23 @@ const removeProperty = (type: 'properties' | 'attributes' | 'methods' | 'enumVal
     <div v-if="item.methods" class="properties-list">
       <h4>Methods</h4>
       <div v-for="(method, index) in localItem.methods" :key="index" class="property-item">
-        <input type="text" v-model="method.name" @blur="update" placeholder="Name" />
-        <input type="text" v-model="method.returnType" @blur="update" placeholder="Return Type" />
+        <input type="text" v-model="method.name" @input="scheduleUpdate" placeholder="Name" />
+        <input type="text" v-model="method.returnType" @input="scheduleUpdate" placeholder="Return Type" />
         <button @click="removeProperty('methods', index)" class="delete-btn">×</button>
       </div>
       <button @click="addProperty('methods')" class="add-btn">+ Add Method</button>
     </div>
 
     <!-- Enum Values -->
-    <div v-if="item.enumValues" class="properties-list">
+    <div v-if="enumValues.length" class="properties-list">
       <h4>Enum Values</h4>
-      <div v-for="(val, index) in localItem.enumValues" :key="index" class="property-item">
-        <input type="text" v-model="localItem.enumValues[index]" @blur="update" placeholder="Value" />
+      <div v-for="(val, index) in enumValues" :key="index" class="property-item">
+        <input
+          type="text"
+          v-model="enumValues[index]"
+          @input="scheduleUpdate"
+          placeholder="Value"
+        />
         <button @click="removeProperty('enumValues', index)" class="delete-btn">×</button>
       </div>
        <div class="property-item">

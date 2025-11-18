@@ -1,0 +1,273 @@
+{
+  "boardType": "Eventstorming",
+  "instanceName": "민원서비스",
+  "items": [
+    {
+      "id": 1,
+      "type": "ContextBox",
+      "instanceName": "민원안내Context",
+      "description": "민원 서비스의 초기 안내 및 조회 기능을 제공하는 서비스.",
+      "x": 50,
+      "y": 50,
+      "width": 852,
+      "height": 254
+    },
+    {
+      "id": 2,
+      "parent": 1,
+      "type": "Command",
+      "instanceName": "민원안내조회",
+      "description": "민원 안내 정보를 조회하는 명령.",
+      "x": 100,
+      "y": 100,
+      "width": 230,
+      "height": 124
+    },
+    {
+      "id": 3,
+      "parent": 1,
+      "type": "Aggregate",
+      "instanceName": "민원안내",
+      "description": "민원 안내 정보를 관리하는 엔티티.",
+      "x": 370,
+      "y": 100,
+      "width": 260,
+      "height": 154,
+      "linkedDiagram": "민원안내-uml"
+    },
+    {
+      "id": 4,
+      "parent": 1,
+      "type": "Event",
+      "instanceName": "민원안내조회완료",
+      "description": "민원 안내 조회가 성공적으로 완료된 이벤트.",
+      "x": 680,
+      "y": 100,
+      "width": 212,
+      "height": 104
+    },
+    {
+      "id": 5,
+      "type": "ContextBox",
+      "instanceName": "민원신청Context",
+      "description": "민원 신청을 처리하는 서비스. 민원 신청 후 연계 요청을 수행.",
+      "x": 1000,
+      "y": 50,
+      "width": 870,
+      "height": 552
+    },
+    {
+      "id": 6,
+      "parent": 5,
+      "type": "Command",
+      "instanceName": "민원신청",
+      "description": "민원 신청을 시작하는 명령.",
+      "x": 1050,
+      "y": 100,
+      "width": 230,
+      "height": 124
+    },
+    {
+      "id": 7,
+      "parent": 5,
+      "type": "Command",
+      "instanceName": "민원연계요청",
+      "description": "민원 연계를 요청하는 명령.",
+      "x": 1050,
+      "y": 230,
+      "width": 230,
+      "height": 124
+    },
+    {
+      "id": 8,
+      "parent": 5,
+      "type": "Policy",
+      "instanceName": "민원연계결과처리",
+      "description": "민원 연계 결과를 수신하여 민원 발급 여부를 결정하는 정책.",
+      "x": 1050,
+      "y": 360,
+      "width": 250,
+      "height": 144
+    },
+    {
+      "id": 9,
+      "parent": 5,
+      "type": "Aggregate",
+      "instanceName": "민원신청",
+      "description": "민원 신청 정보를 관리하는 엔티티.",
+      "x": 1320,
+      "y": 230,
+      "width": 260,
+      "height": 154,
+      "linkedDiagram": "민원신청-uml"
+    },
+    {
+      "id": 10,
+      "parent": 5,
+      "type": "Event",
+      "instanceName": "민원신청완료",
+      "description": "민원 신청이 성공적으로 완료된 이벤트.",
+      "x": 1630,
+      "y": 230,
+      "width": 210,
+      "height": 104
+    },
+    {
+      "id": 11,
+      "type": "ContextBox",
+      "instanceName": "민원연계Context",
+      "description": "민원 신청과 연계되는 외부 시스템과 동기적으로 통신하는 서비스.",
+      "x": 1950,
+      "y": 50,
+      "width": 590,
+      "height": 254
+    },
+    {
+      "id": 12,
+      "parent": 11,
+      "type": "Command",
+      "instanceName": "민원연계동기호출",
+      "description": "민원 연계를 동기적으로 호출하는 명령.",
+      "x": 2000,
+      "y": 100,
+      "width": 230,
+      "height": 124
+    },
+    {
+      "id": 13,
+      "parent": 11,
+      "type": "Aggregate",
+      "instanceName": "민원연계",
+      "description": "민원 연계 정보를 관리하는 엔티티.",
+      "x": 2270,
+      "y": 100,
+      "width": 260,
+      "height": 154,
+      "linkedDiagram": "민원연계-uml"
+    },
+    {
+      "id": 14,
+      "type": "ContextBox",
+      "instanceName": "민원발급Context",
+      "description": "민원 연계 성공 후 민원을 발급하는 서비스.",
+      "x": 2630,
+      "y": 50,
+      "width": 870,
+      "height": 258
+    },
+    {
+      "id": 15,
+      "parent": 14,
+      "type": "Policy",
+      "instanceName": "민원발급요청수신",
+      "description": "민원 발급을 요청하는 비동기 이벤트를 수신하여 발급 처리를 시작하는 정책.",
+      "x": 2680,
+      "y": 100,
+      "width": 250,
+      "height": 158
+    },
+    {
+      "id": 16,
+      "parent": 14,
+      "type": "Aggregate",
+      "instanceName": "민원발급",
+      "description": "민원 발급 정보를 관리하는 엔티티.",
+      "x": 2950,
+      "y": 100,
+      "width": 260,
+      "height": 154,
+      "linkedDiagram": "민원발급-uml"
+    },
+    {
+      "id": 17,
+      "parent": 14,
+      "type": "Event",
+      "instanceName": "민원발급완료",
+      "description": "민원 발급이 성공적으로 완료된 이벤트.",
+      "x": 3260,
+      "y": 100,
+      "width": 210,
+      "height": 104
+    },
+    {
+      "id": 18,
+      "type": "ContextBox",
+      "instanceName": "알림발송Context",
+      "description": "민원 발급 완료 후 사용자에게 알림을 발송하는 서비스.",
+      "x": 3580,
+      "y": 50,
+      "width": 870,
+      "height": 258
+    },
+    {
+      "id": 19,
+      "parent": 18,
+      "type": "Policy",
+      "instanceName": "알림발송요청수신",
+      "description": "알림 발송을 요청하는 비동기 이벤트를 수신하여 알림 전송을 시작하는 정책.",
+      "x": 3630,
+      "y": 100,
+      "width": 250,
+      "height": 158
+    },
+    {
+      "id": 20,
+      "parent": 18,
+      "type": "Aggregate",
+      "instanceName": "알림",
+      "description": "알림 정보를 관리하는 엔티티.",
+      "x": 3900,
+      "y": 100,
+      "width": 260,
+      "height": 154,
+      "linkedDiagram": "알림-uml"
+    },
+    {
+      "id": 21,
+      "parent": 18,
+      "type": "Event",
+      "instanceName": "알림발송완료",
+      "description": "알림 발송이 성공적으로 완료된 이벤트.",
+      "x": 4210,
+      "y": 100,
+      "width": 210,
+      "height": 104
+    },
+    {
+      "id": 22,
+      "type": "ContextBox",
+      "instanceName": "결과조회Context",
+      "description": "민원 처리 결과를 조회하는 CQRS 기반 읽기 전용 서비스.",
+      "x": 4530,
+      "y": 50,
+      "width": 190,
+      "height": 180
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-4-9",
+      "from": 4,
+      "to": 9,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-10-12",
+      "from": 10,
+      "to": 12,
+      "type": "Association"
+    },
+    {
+      "id": "conn-10-15",
+      "from": 10,
+      "to": 15,
+      "type": "Flow"
+    },
+    {
+      "id": "conn-17-19",
+      "from": 17,
+      "to": 19,
+      "type": "Flow"
+    }
+  ]
+}

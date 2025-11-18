@@ -26,9 +26,13 @@ coverage
 *.njsproj
 *.sln
 *.sw?
-
+*.pyc
 *.tsbuildinfo
-
 .env
 .env*
 .env*.local
+
+before.server.js
+*.docx
+issue.md
+docs.md
