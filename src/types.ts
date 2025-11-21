@@ -29,7 +29,7 @@ export interface CanvasItem {
   instanceName: string;
   description?: string;
   properties: Property[];
-  
+
   attributes?: UmlAttribute[];
   methods?: UmlOperation[];
   linkedDiagram?: string | null;
@@ -54,4 +54,5 @@ export interface Connection {
   type: string;
   sourceMultiplicity?: string;
   targetMultiplicity?: string;
+  points?: number[];
 }

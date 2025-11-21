@@ -482,6 +482,9 @@ export const store = reactive<Store>({
       this.doc?.transact(() => {
         yConn.set('sourceMultiplicity', connection.sourceMultiplicity);
         yConn.set('targetMultiplicity', connection.targetMultiplicity);
+        if (connection.points) {
+          yConn.set('points', toYArray(connection.points));
+        }
       });
     }
   },

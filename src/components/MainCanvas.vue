@@ -27,7 +27,7 @@ const onCanvasClick = () => {
 </script>
 
 <template>
-  <div class="canvas-container">
+  <div class="canvas-container bg-background-light dark:bg-background-dark">
     <div v-if="store.currentView === 'loading'" class="loading-overlay">
       <div class="spinner"></div>
       <p>Loading board...</p>
@@ -42,6 +42,7 @@ const onCanvasClick = () => {
     />
     <UmlCanvas
       v-else-if="store.currentView === 'uml-canvas'"
+      class="w-full h-full"
       :highlighted-item-ids="highlightedItemIds"
       :clicked-item-id="clickedItemId"
       @item-click="onItemClick"
@@ -59,9 +60,10 @@ const onCanvasClick = () => {
   flex-grow: 1;
   position: relative;
   display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #f0f0f0; /* A neutral background for the container */
+  flex-direction: column;
+  width: 100%;
+  /* Removed centering to allow canvases to fill space */
+  /* Removed fixed background color */
 }
 
 .loading-overlay {

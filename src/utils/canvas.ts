@@ -1,11 +1,43 @@
-import type { CanvasItem } from './types';
+import type { CanvasItem } from '@/types';
 
 export function getMidpoint(item1: CanvasItem, item2: CanvasItem) {
   const x1 = item1.x + item1.width / 2;
   const y1 = item1.y + item1.height / 2;
   const x2 = item2.x + item2.width / 2;
   const y2 = item2.y + item2.height / 2;
-  return { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
+}
+
+/**
+ * Returns the point on rectangle edge closest to target point.
+ * If target is inside rectangle, snaps to nearest edge.
+ */
+export function getClosestPointOnRect(
+  rect: { x: number; y: number; width: number; height: number },
+  target: { x: number; y: number }
+) {
+  const { x, y, width, height } = rect;
+  const right = x + width;
+  const bottom = y + height;
+
+  // Clamp to rectangle bounds
+  let anchorX = Math.max(x, Math.min(target.x, right));
+  let anchorY = Math.max(y, Math.min(target.y, bottom));
+
+  // If inside, snap to nearest edge
+  if (target.x > x && target.x < right && target.y > y && target.y < bottom) {
+    const distLeft = Math.abs(target.x - x);
+    const distRight = Math.abs(target.x - right);
+    const distTop = Math.abs(target.y - y);
+    const distBottom = Math.abs(target.y - bottom);
+    const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+
+    if (minDist === distLeft) anchorX = x;
+    else if (minDist === distRight) anchorX = right;
+    else if (minDist === distTop) anchorY = y;
+    else anchorY = bottom;
+  }
+
+  return { x: anchorX, y: anchorY };
 }
 
 export function getEdgePoint(source: CanvasItem, target: CanvasItem) {

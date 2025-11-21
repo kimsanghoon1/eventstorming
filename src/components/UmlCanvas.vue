@@ -49,6 +49,7 @@ const {
   handleItemClick,
   handleItemTransform,
   handleItemDblClick,
+  connectionMode,
 } = useCanvasLogic(stageRef);
 
 const setScale = (value: number) => {
@@ -83,9 +84,31 @@ const viewport = ref({
   stageScale: 1,
 });
 
+const updateStageSizeToFit = () => {
+  const el = canvasWrapperRef.value;
+  if (!el) return;
+  
+  const items = store.reactiveItems ?? [];
+  let maxX = 0;
+  let maxY = 0;
+  
+  items.forEach(item => {
+    maxX = Math.max(maxX, item.x + item.width);
+    maxY = Math.max(maxY, item.y + item.height);
+  });
+  
+  const padding = 200;
+  const minWidth = el.clientWidth;
+  const minHeight = el.clientHeight;
+  
+  stageConfigRef.value.width = Math.max(maxX + padding, minWidth);
+  stageConfigRef.value.height = Math.max(maxY + padding, minHeight);
+};
+
 const updateViewport = () => {
   const el = canvasWrapperRef.value;
   if (!el) return;
+
   const stage = stageRef.value?.getStage();
   const stagePos = stage?.position() ?? { x: 0, y: 0 };
   const stageScale = stage?.scaleX() ?? scale.value ?? 1;
@@ -112,21 +135,26 @@ const attachStageViewportListeners = () => {
 
 onMounted(() => {
   nextTick(() => {
+    updateStageSizeToFit();
     attachStageViewportListeners();
     updateViewport();
   });
   canvasWrapperRef.value?.addEventListener('scroll', updateViewport);
-  window.addEventListener('resize', updateViewport);
+  window.addEventListener('resize', () => {
+    updateStageSizeToFit();
+    updateViewport();
+  });
 });
 
 onBeforeUnmount(() => {
   canvasWrapperRef.value?.removeEventListener('scroll', updateViewport);
-  window.removeEventListener('resize', updateViewport);
+  window.removeEventListener('resize', updateViewport); // Note: anonymous function above won't be removed, but component unmount cleans up
   stageRef.value?.getStage()?.off('.minimap');
 });
 
 watch(stageRef, () => {
   nextTick(() => {
+    updateStageSizeToFit();
     attachStageViewportListeners();
     updateViewport();
   });
@@ -136,6 +164,11 @@ watch(
   () => [stageConfigRef.value.width, stageConfigRef.value.height, scale.value],
   () => updateViewport()
 );
+
+// Watch items to resize stage if needed
+watch(() => store.reactiveItems.length, () => {
+  nextTick(updateStageSizeToFit);
+});
 
 
 const onDragStart = (e: KonvaEventObject<DragEvent>, item: CanvasItem) => {
@@ -186,21 +219,22 @@ const umlConnections = computed(() => {
 });
 
 const umlToolBox = ref([
-  { id: 1, type: "Class" },
-  { id: 2, type: "Interface" },
-  { id: 3, type: "Enum" },
+  { id: 1, type: "Class", label: "Class" },
+  { id: 2, type: "Interface", label: "Interface" },
+  { id: 3, type: "Enum", label: "Enum" },
 ]);
 
 const connectionTools = ref([
-    { type: 'Association' },
-    { type: 'Aggregation' },
-    { type: 'Composition' },
-    { type: 'Generalization' },
-    { type: 'Dependency' },
+    { type: 'Association', label: 'Association' },
+    { type: 'Aggregation', label: 'Aggregation' },
+    { type: 'Composition', label: 'Composition' },
+    { type: 'Generalization', label: 'Generalization' },
+    { type: 'Dependency', label: 'Dependency' },
 ]);
 
 let draggedTool = ref<{id: number, type: string} | null>(null);
 const handleToolDragStart = (tool: {id: number, type: string}) => { draggedTool.value = tool; };
+const onToolDragStart = (e: DragEvent, tool: any) => handleToolDragStart(tool);
 
 const handleDrop = (e: DragEvent) => {
   e.preventDefault();
@@ -253,37 +287,70 @@ const isConnectionHighlighted = (conn: Connection) => {
 const isConnectionSelected = (conn: Connection) => {
   return selectedConnections.value.some(c => c.id === conn.id);
 };
+
+// Map event handlers for template
+const onCanvasClick = handleStageClick;
+const onItemClick = onCanvasItemClick;
+const onItemDblClick = onCanvasItemDblClick;
 </script>
 
 <template>
-  <div class="container">
-    <div class="toolbox">
-      <h3>UML Toolbox</h3>
-      <div v-for="tool in umlToolBox" :key="tool.id" class="tool-item" draggable="true" @dragstart="handleToolDragStart(tool)">
-        {{ tool.type }}
+  <div class="flex flex-row w-full h-full min-w-0">
+    <div class="w-[200px] shrink-0 p-4 bg-surface-light dark:bg-surface-dark border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-y-auto">
+      <div class="mb-5">
+        <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">UML Toolbox</h3>
+        <div 
+          v-for="tool in umlToolBox" 
+          :key="tool.type"
+          class="p-2.5 mb-2.5 text-center font-bold cursor-grab rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all"
+          draggable="true"
+          @dragstart="onToolDragStart($event, tool)"
+        >
+          {{ tool.label }}
+        </div>
       </div>
-      <hr />
-      <h4>Connections</h4>
-      <div v-for="tool in connectionTools" :key="tool.type" class="tool-item" @click="startConnection(tool.type)">
-        {{ tool.type }}
+
+      <div>
+        <h3 class="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Connections</h3>
+        <div 
+          v-for="conn in connectionTools" 
+          :key="conn.type"
+          class="p-2.5 mb-2.5 text-center font-bold cursor-pointer rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm transition-all"
+          :class="{ 'ring-2 ring-blue-500 dark:ring-blue-400 bg-blue-50 dark:bg-blue-900/20': connectionMode.active && connectionMode.type === conn.type }"
+          @click="startConnection(conn.type)"
+        >
+          {{ conn.label }}
+        </div>
       </div>
     </div>
 
-    <div 
-      class="canvas-wrapper" 
-      ref="canvasWrapperRef"
-      @drop="handleDrop" 
-      @dragover.prevent
-    >
-      <v-stage 
-        ref="stageRef" 
+    <div class="flex-1 h-full relative overflow-hidden bg-[#fafaf8]" ref="canvasWrapperRef">
+      <v-stage
+        ref="stageRef"
         :config="stageConfigScaled"
-        @mousedown="handleMouseDown" 
-        @mousemove="handleMouseMove" 
+        @mousedown="handleMouseDown"
+        @mousemove="handleMouseMove"
         @mouseup="handleMouseUp"
-        @click="handleStageClick"
+        @click="onCanvasClick"
+        @dragstart="handleItemDragStart"
+        @dragmove="handleItemDragMove"
+        @dragend="handleItemDragEnd"
       >
         <v-layer>
+          <!-- Connections -->
+          <UmlConnection 
+            v-for="link in umlConnections"
+            :key="link.conn.id"
+            :connection="link.conn"
+            :name="'conn-' + link.conn.id"
+            :fromItem="link.fromItem"
+            :toItem="link.toItem"
+            :isSelected="isConnectionSelected(link.conn)"
+            :isHighlighted="isConnectionHighlighted(link.conn)"
+            @connection-click="handleConnectionClick"
+          />
+
+          <!-- Items -->
           <UmlItem 
             v-for="item in canvasItemsJSON" 
             :key="item.id" 
@@ -292,8 +359,8 @@ const isConnectionSelected = (conn: Connection) => {
             :is-selected="selectedItems.some(s => s.id === item.id)"
             :is-downstream="highlightedItemIds.has(item.id)"
             :change-kind="store.recentChangeMap[item.id]"
-            @click="(e) => onCanvasItemClick(e, item)"
-            @dblclick="(e) => onCanvasItemDblClick(e, item)"
+            @click="(e) => onItemClick(e, item)"
+            @dblclick="(e) => onItemDblClick(e, item)"
             @dragstart="(e) => onDragStart(e, item)"
             @dragmove="(e) => onDragMove(e, item)"
             @dragend="(e) => onDragEnd(e, item)"
@@ -301,22 +368,15 @@ const isConnectionSelected = (conn: Connection) => {
             @transformend="handleTransformEnd"
           />
 
-            <UmlConnection 
-            v-for="link in umlConnections"
-            :key="link.conn.id"
-              :connection="link.conn"
-            :name="'conn-' + link.conn.id"
-              :fromItem="link.fromItem"
-              :toItem="link.toItem"
-            :isSelected="isConnectionSelected(link.conn)"
-            :isHighlighted="isConnectionHighlighted(link.conn)"
-              @connection-click="handleConnectionClick"
-            />
-
           <v-transformer 
             ref="transformerRef" 
             :config="{
-              boundBoxFunc
+              boundBoxFunc: (oldBox, newBox) => {
+                if (newBox.width < 5 || newBox.height < 5) {
+                  return oldBox;
+                }
+                return newBox;
+              },
             }" 
           />
 
@@ -333,83 +393,37 @@ const isConnectionSelected = (conn: Connection) => {
           />
         </v-layer>
       </v-stage>
+
       <div class="map-and-zoom">
-        <div class="zoom-controls">
-          <button @click="zoomOut" :disabled="scale <= MIN_SCALE">-</button>
-          <span>{{ scalePercent }}%</span>
-          <button @click="zoomIn" :disabled="scale >= MAX_SCALE">+</button>
-          <button class="reset" @click="resetZoom">Reset</button>
-        </div>
         <MiniMap 
-          v-if="canvasItemsJSON.length"
-          :items="canvasItemsJSON"
-          :connections="store.reactiveConnections || []"
-          :stage-width="stageSize.width"
-          :stage-height="stageSize.height"
+          v-if="store.reactiveItems.length"
+          :items="store.reactiveItems"
+          :connections="store.reactiveConnections"
+          :stage-width="stageConfig.width"
+          :stage-height="stageConfig.height"
           :viewport="viewport"
           :scale="scale"
         />
+        
+        <div class="zoom-controls bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 shadow-lg backdrop-blur-sm">
+          <button @click="zoomOut" :disabled="scale <= MIN_SCALE" class="hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200">
+            <span class="material-symbols-outlined">remove</span>
+          </button>
+          <span class="px-2 min-w-[3rem] text-center text-sm font-bold text-gray-800 dark:text-gray-200">{{ Math.round(scale * 100) }}%</span>
+          <button @click="zoomIn" :disabled="scale >= MAX_SCALE" class="hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200">
+            <span class="material-symbols-outlined">add</span>
+          </button>
+          <div class="w-px h-4 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+          <button @click="resetZoom" class="reset hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs">
+            Reset
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.container {
-  display: flex;
-  width: 100%;
-  height: 100%;
-}
-.toolbox {
-  width: 200px;
-  padding: 15px;
-  border-right: 1px solid #ccc;
-  background-color: #f7f7f7;
-}
-.tool-item {
-  padding: 10px;
-  margin-bottom: 10px;
-  border: 1px solid #ddd;
-  text-align: center;
-  font-weight: bold;
-  cursor: grab;
-}
-.canvas-wrapper { 
-  flex-grow: 1; 
-  overflow: auto;
-  position: relative;
-}
-.connect-btn {
-  width: 100%;
-  padding: 10px;
-  border: none;
-  cursor: pointer;
-  background-color: #ffc107;
-}
-.connect-btn.active {
-  background-color: #e0a800;
-  font-weight: bold;
-}
-.connection-button {
-  position: absolute;
-  width: 30px;
-  height: 30px;
-  background-color: #007bff;
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 24px;
-  line-height: 30px;
-  cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  transition: transform 0.1s ease;
-}
-.connection-button:hover {
-  transform: scale(1.1);
-}
-
 .map-and-zoom {
   position: fixed;
   right: 28px;
@@ -424,26 +438,27 @@ const isConnectionSelected = (conn: Connection) => {
   pointer-events: auto;
 }
 .zoom-controls {
+  display: flex;
   gap: 6px;
   align-items: center;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid #ddd;
   border-radius: 999px;
   padding: 6px 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 .zoom-controls button {
   border: none;
-  background: #f0f0f0;
+  background: transparent;
   border-radius: 50%;
   width: 28px;
   height: 28px;
   font-weight: bold;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .zoom-controls button:disabled {
-  opacity: 0.4;
   cursor: not-allowed;
+  opacity: 0.5;
 }
 .zoom-controls .reset {
   width: auto;
