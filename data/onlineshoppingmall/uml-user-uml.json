@@ -1,0 +1,306 @@
+{
+  "boardType": "UML",
+  "instanceName": "user-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "RegisterUserCommand",
+      "stereotype": "Command",
+      "description": "Class for RegisterUserCommand.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "userId",
+          "type": "UserId",
+          "visibility": "private"
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "password",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "firstName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "lastName",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "LoginUserCommand",
+      "stereotype": "Command",
+      "description": "Class for LoginUserCommand.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "email",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "password",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "id": 3,
+      "type": "Class",
+      "instanceName": "UserRegisteredEvent",
+      "stereotype": "Event",
+      "description": "Class for UserRegisteredEvent.",
+      "x": 740,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "userId",
+          "type": "UserId",
+          "visibility": "private"
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "firstName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "lastName",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "id": 4,
+      "type": "Class",
+      "instanceName": "UserLoggedInEvent",
+      "stereotype": "Event",
+      "description": "Class for UserLoggedInEvent.",
+      "x": 1060,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "userId",
+          "type": "UserId",
+          "visibility": "private"
+        },
+        {
+          "name": "sessionId",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "id": 5,
+      "type": "Class",
+      "instanceName": "User",
+      "stereotype": "AggregateRoot",
+      "description": "Class for User.",
+      "x": 100,
+      "y": 360,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "userId",
+          "type": "UserId",
+          "visibility": "private"
+        },
+        {
+          "name": "email",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "firstName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "lastName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "passwordHash",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "UserStatus",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "register",
+          "parameters": [
+            {
+              "name": "command",
+              "type": "RegisterUserCommand"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "login",
+          "parameters": [
+            {
+              "name": "command",
+              "type": "LoginUserCommand"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "updateProfile",
+          "parameters": [
+            {
+              "name": "email",
+              "type": "String"
+            },
+            {
+              "name": "firstName",
+              "type": "String"
+            },
+            {
+              "name": "lastName",
+              "type": "String"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "Class",
+      "instanceName": "SendWelcomeEmailService",
+      "stereotype": "Service",
+      "description": "Class for SendWelcomeEmailService.",
+      "x": 420,
+      "y": 360,
+      "width": 280,
+      "height": 220,
+      "attributes": [],
+      "methods": [
+        {
+          "name": "onUserRegistered",
+          "parameters": [
+            {
+              "name": "event",
+              "type": "UserRegisteredEvent"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "Class",
+      "instanceName": "UserStatus",
+      "stereotype": "Enum",
+      "description": "Class for UserStatus.",
+      "x": 740,
+      "y": 360,
+      "width": 280,
+      "height": 220,
+      "attributes": [],
+      "methods": [],
+      "enumValues": [
+        "ACTIVE",
+        "INACTIVE",
+        "SUSPENDED"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-5-1",
+      "from": 5,
+      "to": 1,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-2",
+      "from": 5,
+      "to": 2,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-6-3",
+      "from": 6,
+      "to": 3,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-3",
+      "from": 5,
+      "to": 3,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-4",
+      "from": 5,
+      "to": 4,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-7",
+      "from": 5,
+      "to": 7,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    }
+  ]
+}

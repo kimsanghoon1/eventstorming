@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, defineProps, PropType } from 'vue';
+import { computed, PropType } from 'vue';
 import type { Property, UmlAttribute, UmlOperation } from '../../types';
 import { UML_ROW_HEIGHT as ROW_HEIGHT, UML_SECTION_GAP } from '@/utils/uml';
 

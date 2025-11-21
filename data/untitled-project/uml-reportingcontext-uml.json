@@ -1,0 +1,226 @@
+{
+  "boardType": "UML",
+  "instanceName": "reportingcontext-uml",
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "UpdateDailySalesPolicy",
+      "stereotype": "Service",
+      "description": "Class for UpdateDailySalesPolicy.",
+      "x": 100,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [],
+      "methods": [
+        {
+          "name": "onOrderPlaced",
+          "parameters": [
+            {
+              "name": "event",
+              "type": "OrderPlacedEvent"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "GenerateMonthlyReportPolicy",
+      "stereotype": "Service",
+      "description": "Class for GenerateMonthlyReportPolicy.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [],
+      "methods": [
+        {
+          "name": "onMonthlyAggregation",
+          "parameters": [
+            {
+              "name": "event",
+              "type": "MonthlySalesAggregatedEvent"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "Class",
+      "instanceName": "DailySalesReport",
+      "stereotype": "ReadModel",
+      "description": "Class for DailySalesReport.",
+      "x": 740,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "date",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "totalRevenue",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "orderCount",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "avgOrderValue",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "id": 4,
+      "type": "Class",
+      "instanceName": "TopSellingProductsReport",
+      "stereotype": "ReadModel",
+      "description": "Class for TopSellingProductsReport.",
+      "x": 1060,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "productId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "productName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "totalSold",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "totalRevenue",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "id": 5,
+      "type": "Class",
+      "instanceName": "OrderPlacedEvent",
+      "stereotype": "Event",
+      "description": "Class for OrderPlacedEvent.",
+      "x": 100,
+      "y": 360,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "orderId",
+          "type": "OrderId",
+          "visibility": "private"
+        },
+        {
+          "name": "customerId",
+          "type": "CustomerId",
+          "visibility": "private"
+        },
+        {
+          "name": "totalAmount",
+          "type": "Money",
+          "visibility": "private"
+        },
+        {
+          "name": "timestamp",
+          "type": "DateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "id": 6,
+      "type": "Class",
+      "instanceName": "MonthlySalesAggregatedEvent",
+      "stereotype": "Event",
+      "description": "Class for MonthlySalesAggregatedEvent.",
+      "x": 420,
+      "y": 360,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "month",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "totalRevenue",
+          "type": "Money",
+          "visibility": "private"
+        },
+        {
+          "name": "totalOrders",
+          "type": "Integer",
+          "visibility": "private"
+        },
+        {
+          "name": "timestamp",
+          "type": "DateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-1-5",
+      "from": 1,
+      "to": 5,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-2-6",
+      "from": 2,
+      "to": 6,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-3-5",
+      "from": 3,
+      "to": 5,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-4-5",
+      "from": 4,
+      "to": 5,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    }
+  ]
+}

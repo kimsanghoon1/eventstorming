@@ -1,0 +1,370 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "ViewProductCommand",
+      "stereotype": "Command",
+      "description": "Class for ViewProductCommand.",
+      "x": 155.71428571428578,
+      "y": 147.14285714285722,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "productId",
+          "type": "ProductId",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "ViewCategoryCommand",
+      "stereotype": "Command",
+      "description": "Class for ViewCategoryCommand.",
+      "x": 475.7142857142857,
+      "y": 147.14285714285722,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "categoryId",
+          "type": "CategoryId",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 3,
+      "type": "Class",
+      "instanceName": "Product",
+      "stereotype": "AggregateRoot",
+      "description": "Class for Product.",
+      "x": 795.7142857142858,
+      "y": 147.14285714285722,
+      "width": 360,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "productId",
+          "type": "ProductId",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "price",
+          "type": "Money",
+          "visibility": "private"
+        },
+        {
+          "name": "category",
+          "type": "Category",
+          "visibility": "private"
+        },
+        {
+          "name": "availability",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "view",
+          "parameters": [
+            {
+              "name": "command",
+              "type": "ViewProductCommand"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ],
+      "parent": null
+    },
+    {
+      "id": 4,
+      "type": "Class",
+      "instanceName": "Category",
+      "stereotype": "AggregateRoot",
+      "description": "Class for Category.",
+      "x": 1457.142857142857,
+      "y": 74.29513858233126,
+      "width": 368,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "categoryId",
+          "type": "CategoryId",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "parentCategory",
+          "type": "Category",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "view",
+          "parameters": [
+            {
+              "name": "command",
+              "type": "ViewCategoryCommand"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ],
+      "parent": null
+    },
+    {
+      "id": 5,
+      "type": "Class",
+      "instanceName": "ProductViewedEvent",
+      "stereotype": "Event",
+      "description": "Class for ProductViewedEvent.",
+      "x": 155.71428571428578,
+      "y": 407.14285714285717,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "productId",
+          "type": "ProductId",
+          "visibility": "private"
+        },
+        {
+          "name": "timestamp",
+          "type": "DateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 6,
+      "type": "Class",
+      "instanceName": "CategoryViewedEvent",
+      "stereotype": "Event",
+      "description": "Class for CategoryViewedEvent.",
+      "x": 455.7142857142858,
+      "y": 390.00000000000006,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "categoryId",
+          "type": "CategoryId",
+          "visibility": "private"
+        },
+        {
+          "name": "timestamp",
+          "type": "DateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 7,
+      "type": "Class",
+      "instanceName": "ProductSearchResult",
+      "stereotype": "ReadModel",
+      "description": "Class for ProductSearchResult.",
+      "x": 795.7142857142858,
+      "y": 407.14285714285717,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "productId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "price",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "category",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "availability",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 8,
+      "type": "Class",
+      "instanceName": "CategoryHierarchyView",
+      "stereotype": "ReadModel",
+      "description": "Class for CategoryHierarchyView.",
+      "x": 1115.7142857142858,
+      "y": 407.14285714285717,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "categoryId",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "parentCategory",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 9,
+      "type": "Class",
+      "instanceName": "ProductCatalogService",
+      "stereotype": "Service",
+      "description": "Class for ProductCatalogService.",
+      "x": 155.71428571428578,
+      "y": 667.1428571428573,
+      "width": 448,
+      "height": 220,
+      "attributes": [],
+      "methods": [
+        {
+          "name": "onProductViewed",
+          "parameters": [
+            {
+              "name": "event",
+              "type": "ProductViewedEvent"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "onCategoryViewed",
+          "parameters": [
+            {
+              "name": "event",
+              "type": "CategoryViewedEvent"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ],
+      "parent": null
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-3-1",
+      "from": 3,
+      "to": 1,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-4-2",
+      "from": 4,
+      "to": 2,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-3-5",
+      "from": 3,
+      "to": 5,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-4-6",
+      "from": 4,
+      "to": 6,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-9-5",
+      "from": 9,
+      "to": 5,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-9-6",
+      "from": 9,
+      "to": 6,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-3-4",
+      "from": 3,
+      "to": 4,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-4-4",
+      "from": 4,
+      "to": 4,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-8-4",
+      "from": 8,
+      "to": 4,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    }
+  ],
+  "boardType": "UML"
+}

@@ -25,17 +25,17 @@
         },
         {
           "name": "status",
-          "type": "String",
+          "type": "ProjectStatus",
           "visibility": "private"
         },
         {
           "name": "createdAt",
-          "type": "LocalDateTime",
+          "type": "Instant",
           "visibility": "private"
         },
         {
           "name": "updatedAt",
-          "type": "LocalDateTime",
+          "type": "Instant",
           "visibility": "private"
         }
       ],
@@ -56,44 +56,175 @@
           "visibility": "public"
         },
         {
-          "name": "requestProjectOrder",
+          "name": "requestProjectApproval",
           "parameters": [
             {
-              "name": "projectId",
-              "type": "UUID"
+              "name": "approvalRequest",
+              "type": "ApprovalRequest"
             }
           ],
           "returnType": "void",
           "visibility": "public"
         },
         {
-          "name": "applyProjectOrderCreated",
+          "name": "updateProjectStatus",
           "parameters": [
             {
-              "name": "projectId",
-              "type": "UUID"
-            },
-            {
-              "name": "projectName",
-              "type": "String"
+              "name": "newStatus",
+              "type": "ProjectStatus"
             }
           ],
           "returnType": "void",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "ApprovalRequest",
+      "stereotype": "ValueObject",
+      "description": "Class for ApprovalRequest aggregate.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "requestId",
+          "type": "UUID",
           "visibility": "private"
         },
         {
-          "name": "applyProjectOrderRequested",
-          "parameters": [
-            {
-              "name": "projectId",
-              "type": "UUID"
-            }
-          ],
-          "returnType": "void",
+          "name": "requesterId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "reason",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "requestedAt",
+          "type": "Instant",
           "visibility": "private"
         }
-      ]
+      ],
+      "methods": []
+    },
+    {
+      "id": 3,
+      "type": "Class",
+      "instanceName": "ProjectStatus",
+      "stereotype": "ValueObject",
+      "description": "Class for ProjectStatus aggregate.",
+      "x": 740,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "status",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "id": 4,
+      "type": "Class",
+      "instanceName": "ProjectOrderCreated",
+      "stereotype": "Event",
+      "description": "Class for ProjectOrderCreated aggregate.",
+      "x": 100,
+      "y": 360,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "eventId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "projectId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "projectName",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "createdAt",
+          "type": "Instant",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "id": 5,
+      "type": "Class",
+      "instanceName": "ProjectApprovalRequested",
+      "stereotype": "Event",
+      "description": "Class for ProjectApprovalRequested aggregate.",
+      "x": 420,
+      "y": 360,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "eventId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "projectId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "approvalRequestId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "requestedAt",
+          "type": "Instant",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
     }
   ],
-  "connections": []
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    },
+    {
+      "id": "conn-2-3",
+      "from": 2,
+      "to": 3,
+      "type": "Association"
+    },
+    {
+      "id": "conn-3-4",
+      "from": 3,
+      "to": 4,
+      "type": "Association"
+    },
+    {
+      "id": "conn-4-5",
+      "from": 4,
+      "to": 5,
+      "type": "Association"
+    }
+  ]
 }

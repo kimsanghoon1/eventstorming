@@ -25,17 +25,17 @@
         },
         {
           "name": "status",
-          "type": "String",
+          "type": "ProjectStatus",
           "visibility": "private"
         },
         {
           "name": "createdAt",
-          "type": "LocalDateTime",
+          "type": "Instant",
           "visibility": "private"
         },
         {
           "name": "updatedAt",
-          "type": "LocalDateTime",
+          "type": "Instant",
           "visibility": "private"
         }
       ],
@@ -67,87 +67,28 @@
     {
       "id": 2,
       "type": "Class",
-      "instanceName": "ProjectTask",
-      "stereotype": "AggregateRoot",
-      "description": "Class for ProjectTask aggregate.",
+      "instanceName": "ProjectStatus",
+      "stereotype": "ValueObject",
+      "description": "Class for ProjectStatus aggregate.",
       "x": 420,
       "y": 100,
       "width": 280,
       "height": 220,
       "attributes": [
         {
-          "name": "taskID",
-          "type": "UUID",
-          "visibility": "private"
-        },
-        {
-          "name": "taskName",
-          "type": "String",
-          "visibility": "private"
-        },
-        {
           "name": "status",
           "type": "String",
           "visibility": "private"
-        },
-        {
-          "name": "assignedTo",
-          "type": "String",
-          "visibility": "private"
-        },
-        {
-          "name": "dueDate",
-          "type": "LocalDateTime",
-          "visibility": "private"
-        },
-        {
-          "name": "projectId",
-          "type": "UUID",
-          "visibility": "private"
         }
       ],
-      "methods": [
-        {
-          "name": "assignTask",
-          "parameters": [
-            {
-              "name": "assignedTo",
-              "type": "String"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "updateTaskStatus",
-          "parameters": [
-            {
-              "name": "status",
-              "type": "String"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "setDueDate",
-          "parameters": [
-            {
-              "name": "dueDate",
-              "type": "LocalDateTime"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        }
-      ]
+      "methods": []
     },
     {
       "id": 3,
       "type": "Class",
-      "instanceName": "ProjectTaskAssignment",
+      "instanceName": "ProjectAssignment",
       "stereotype": "AggregateRoot",
-      "description": "Class for ProjectTaskAssignment aggregate.",
+      "description": "Class for ProjectAssignment aggregate.",
       "x": 740,
       "y": 100,
       "width": 280,
@@ -159,34 +100,112 @@
           "visibility": "private"
         },
         {
-          "name": "taskId",
+          "name": "projectId",
           "type": "UUID",
           "visibility": "private"
         },
         {
-          "name": "assignee",
-          "type": "String",
+          "name": "employeeId",
+          "type": "UUID",
           "visibility": "private"
         },
         {
-          "name": "assignedAt",
-          "type": "LocalDateTime",
+          "name": "assignmentDate",
+          "type": "Instant",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "AssignmentStatus",
           "visibility": "private"
         }
       ],
       "methods": [
         {
-          "name": "assignTask",
+          "name": "assignProject",
           "parameters": [
             {
-              "name": "assignee",
-              "type": "String"
+              "name": "projectId",
+              "type": "UUID"
+            },
+            {
+              "name": "employeeId",
+              "type": "UUID"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "updateAssignmentStatus",
+          "parameters": [
+            {
+              "name": "status",
+              "type": "AssignmentStatus"
             }
           ],
           "returnType": "void",
           "visibility": "public"
         }
       ]
+    },
+    {
+      "id": 4,
+      "type": "Class",
+      "instanceName": "AssignmentStatus",
+      "stereotype": "ValueObject",
+      "description": "Class for AssignmentStatus aggregate.",
+      "x": 100,
+      "y": 360,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "status",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "id": 5,
+      "type": "Class",
+      "instanceName": "ProjectAssignmentEvent",
+      "stereotype": "ValueObject",
+      "description": "Class for ProjectAssignmentEvent aggregate.",
+      "x": 420,
+      "y": 360,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "assignmentId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "projectId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "employeeId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "assignmentDate",
+          "type": "Instant",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "AssignmentStatus",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
     }
   ],
   "connections": [
@@ -200,6 +219,18 @@
       "id": "conn-2-3",
       "from": 2,
       "to": 3,
+      "type": "Association"
+    },
+    {
+      "id": "conn-3-4",
+      "from": 3,
+      "to": 4,
+      "type": "Association"
+    },
+    {
+      "id": "conn-4-5",
+      "from": 4,
+      "to": 5,
       "type": "Association"
     }
   ]

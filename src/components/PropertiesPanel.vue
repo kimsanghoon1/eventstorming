@@ -9,6 +9,8 @@ const props = defineProps<{
   selectedItem: CanvasItem | null;
 }>();
 
+const emit = defineEmits(['generate-code', 'generate-uml', 'open-uml']);
+
 const editableProperties = ref<Partial<CanvasItem>>({});
 
 const umlElementTypes = ['Class', 'Interface', 'Enum', 'Package', 'Component', 'Actor', 'Relationship'];
@@ -18,6 +20,9 @@ const isUmlItem = computed(() => {
   return umlElementTypes.includes(props.selectedItem.type);
 });
 const selectedLinkedDiagram = computed(() => editableProperties.value.linkedDiagram ?? null);
+const availableEvents = computed(() =>
+  (store.reactiveItems || []).filter(item => item.type === 'Event' && item.parent === props.selectedItem?.parent)
+);
 const propertiesCount = computed(() => {
   const propsLen = editableProperties.value.properties?.length || 0;
   const attrsLen = editableProperties.value.attributes?.length || 0;
@@ -46,6 +51,13 @@ const updateItem = () => {
     };
     store.updateItem(mergedItem);
   }
+};
+
+const handleProducesEventChange = (event: Event) => {
+  const target = event.target as HTMLSelectElement;
+  const value = target.value;
+  editableProperties.value.producesEventId = value ? Number(value) : undefined;
+  updateItem();
 };
 
 const createNewUmlDiagram = () => {
@@ -108,32 +120,54 @@ onMounted(() => {
           <label for="instanceName">Name</label>
           <input id="instanceName" v-model="editableProperties.instanceName" @input="updateItem" />
         </div>
+        <div v-if="selectedItem && ['Command', 'Policy'].includes(selectedItem.type)" class="form-group">
+          <label for="producesEvent">Emits Event</label>
+          <select
+            id="producesEvent"
+            :value="editableProperties.producesEventId ?? ''"
+            @change="handleProducesEventChange"
+          >
+            <option value="">None</option>
+            <option
+              v-for="eventItem in availableEvents"
+              :key="eventItem.id"
+              :value="eventItem.id"
+            >
+              {{ eventItem.instanceName }}
+            </option>
+          </select>
+          <p class="form-hint">선택한 Command가 성공 시 발생시키는 Event를 지정하세요.</p>
+        </div>
+
         <div class="form-group">
           <label for="description">Description</label>
           <textarea id="description" v-model="editableProperties.description" @input="updateItem" rows="4"></textarea>
         </div>
 
-        <div v-if="selectedItem?.type === 'Aggregate'" class="form-group">
-          <label for="linkedDiagram">Linked UML Diagram</label>
-          <select id="linkedDiagram" v-model="editableProperties.linkedDiagram" @change="updateItem">
-            <option :value="undefined">None</option>
-            <option v-for="board in store.umlBoards" :key="board.boardId" :value="board.instanceName">
-              {{ board.folderPath ? `${board.folderPath}/${board.instanceName}` : board.instanceName }}
-            </option>
-          </select>
-          <div class="uml-actions">
-            <button type="button" class="btn btn-secondary" @click="createNewUmlDiagram">
-              + Create Diagram
-            </button>
-            <button
-              type="button"
-              class="btn btn-outline"
-              @click="openUmlDiagram"
-              :disabled="!selectedLinkedDiagram"
-            >
-              ↗ Open Selected
-            </button>
+        <div v-if="selectedItem?.type === 'ContextBox'" class="form-group">
+          <label>Context Actions</label>
+          
+          <!-- Linked Diagram Selection -->
+          <div class="linked-diagram-group">
+            <label class="sub-label">Linked UML</label>
+            <div class="input-group">
+              <select v-model="editableProperties.linkedDiagram" @change="updateItem">
+                <option :value="undefined">-- None --</option>
+                <option v-for="board in store.umlBoards" :key="board.boardId" :value="board.boardId">
+                  {{ board.instanceName }}
+                </option>
+              </select>
+              <button v-if="editableProperties.linkedDiagram" class="icon-btn" @click="$emit('open-uml', editableProperties.linkedDiagram)" title="Open UML">↗</button>
+            </div>
           </div>
+
+          <button type="button" class="btn btn-primary generate-btn" @click="$emit('generate-uml', selectedItem)">
+            {{ editableProperties.linkedDiagram ? 'Regenerate UML' : 'Generate UML' }}
+          </button>
+
+          <button type="button" class="btn btn-primary generate-btn" @click="$emit('generate-code', selectedItem)">
+            Generate Source Code
+          </button>
         </div>
       </template>
     </div>
@@ -207,6 +241,12 @@ onMounted(() => {
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 
+.form-hint {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
 .uml-actions {
   display: flex;
   gap: 0.5rem;
@@ -267,4 +307,53 @@ onMounted(() => {
   width: 100%;
 }
 
+.btn-primary {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+.btn-primary:hover {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+.generate-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.linked-diagram-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.sub-label {
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+.input-group {
+  display: flex;
+  gap: 4px;
+}
+.input-group input {
+  flex: 1;
+}
+.icon-btn {
+  background-color: #f8f9fa;
+  border: 1px solid #ced4da;
+  color: #495057;
+  border-radius: 4px;
+  width: 36px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+.icon-btn:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+  color: #212529;
+}
 </style>

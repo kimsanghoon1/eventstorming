@@ -20,7 +20,7 @@ type BoardItem = {
 
 type ListItem = FolderItem | BoardItem;
 
-const API_BASE = 'http://localhost:3000';
+const API_BASE = `${window.location.protocol}//${window.location.hostname}:3000`;
 
 const router = useRouter();
 
@@ -57,6 +57,13 @@ const moveError = ref<string | null>(null);
 
 const draggingItem = ref<ListItem | null>(null);
 const dropTarget = ref<string | null>(null);
+
+const currentView = ref<'dashboard' | 'projects'>('dashboard');
+const isProjectsOpen = ref(true);
+
+const toggleProjectsTree = () => {
+  isProjectsOpen.value = !isProjectsOpen.value;
+};
 
 const contextMenu = ref({
   visible: false,
@@ -488,316 +495,351 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="board-list-view">
-    <header class="header">
-      <div class="header-left">
-        <h1 v-if="!currentPath">My Boards</h1>
-        <div v-else class="breadcrumbs">
-          <button class="breadcrumb-btn" @click="navigateTo('')">Home</button>
-          <span v-for="(part, index) in currentPath.split(/[\\/]/).filter(Boolean)" :key="index" class="breadcrumb-part">
-            / {{ part }}
-          </span>
-        </div>
+  <div class="flex h-screen w-full bg-background-light dark:bg-background-dark font-display text-gray-900 dark:text-white">
+    <!-- SideNavBar -->
+    <aside class="flex w-64 flex-col bg-white/5 dark:bg-black/20 p-4 border-r border-gray-200 dark:border-white/10">
+      <div class="flex items-center gap-3 px-2 mb-8">
+        <span class="material-symbols-outlined text-primary text-3xl">hub</span>
+        <span class="text-xl font-bold">Diagramr</span>
       </div>
-      <div class="header-actions">
-        <button class="secondary-btn" @click="openCreateModelModal" style="font-size: 1rem; color: #fafaf8; background-color: #4CAF50">
-          <svg xmlns="http://www.w3.org/2000/svg" :width="'1em'" :height="'1em'" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle;">
-            <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-          </svg>
-          <span style="vertical-align: middle; margin-left: 0.4em;">Create Model With LLM</span>
-        </button>
-        <button class="secondary-btn" @click="openNewBoardModal" style="font-size: 1rem; color: #fafaf8; background-color: #4CAF50">
-          <svg xmlns="http://www.w3.org/2000/svg" :width="'1em'" :height="'1em'" viewBox="0 0 20 20" fill="currentColor" style="vertical-align: middle;">
-            <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-          </svg>
-          <span style="vertical-align: middle; margin-left: 0.4em;">New Canvas</span>
-        </button>
-        <button class="secondary-btn" @click="openFolderCreationModal">
-          New Folder
-        </button>
-      </div>
-    </header>
-
-    <div v-if="isLoading" class="loading">Loading boards...</div>
-    <div v-if="error" class="error-message">{{ error }}</div>
-
-    <div v-if="!isLoading && !error" class="board-grid">
-      <!-- "Up" folder -->
-      <div
-        v-if="parentPath !== null"
-        class="board-card folder-card"
-        :class="{ 'drop-target': dropTarget === parentPath }"
-        @click="navigateTo(parentPath!)"
-        @dragover.prevent="handleDragOverParent"
-        @drop.prevent="handleDropOnParent"
-      >
-        <div class="card-content">
-          <div class="folder-icon">..</div>
-          <div class="board-info">
-            <h2 class="board-name">Up to parent</h2>
+      <div class="flex h-full flex-col justify-between">
+        <div class="flex flex-col gap-2">
+          <div 
+            class="flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition-colors duration-200"
+            :class="currentView === 'dashboard' ? 'bg-primary/20 text-primary' : 'text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'"
+            @click="currentView = 'dashboard'"
+          >
+            <span class="material-symbols-outlined" :class="{ 'fill': currentView === 'dashboard' }">dashboard</span>
+            <p class="text-sm font-bold leading-normal">Dashboard</p>
           </div>
-        </div>
-      </div>
-      
-      <div
-        v-for="item in items"
-        :key="isFolder(item) ? item.path : item.boardId"
-        class="board-card"
-        :class="{ 'drop-target': isFolder(item) && dropTarget === item.path }"
-        draggable="true"
-        @dragstart="handleDragStart($event, item)"
-        @dragend="handleDragEnd"
-        @contextmenu.prevent="openContextMenu($event, item)"
-      >
-        <!-- Folder Card -->
-        <div
-          v-if="isFolder(item)"
-          class="card-content folder-card"
-          @click="navigateTo(item.path)"
-          @dragover.prevent="handleDragOverFolder($event, item)"
-          @drop.prevent="handleDropOnFolder(item)"
-        >
-          <div class="folder-icon">📁</div>
-           <div class="board-info">
-            <h2 class="board-name">{{ item.name }}</h2>
-          </div>
-        </div>
-
-        <!-- Board Card -->
-        <div v-else>
-          <div class="card-content" @click="openBoard(item.boardId)">
-            <img 
-              :src="item.snapshotUrl ? `${API_BASE}${item.snapshotUrl}` : '/No-Image-Placeholder.svg'" 
-              alt="Board snapshot" 
-              class="board-snapshot"
-              @error="($event.target as HTMLImageElement).src = '/No-Image-Placeholder.svg'"
-            />
-            <div class="board-info">
-              <h2 class="board-name">{{ item.name }}</h2>
-              <p class="board-type">{{ item.type }}</p>
-              <p class="board-date">Saved: {{ new Date(item.savedAt).toLocaleString() }}</p>
+          
+          <!-- All Projects (File Tree) -->
+          <div class="flex flex-col gap-1">
+            <div 
+              class="flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition-colors duration-200"
+              :class="currentView === 'projects' ? 'bg-primary/20 text-primary' : 'text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white'"
+              @click="toggleProjectsTree"
+            >
+              <span class="material-symbols-outlined">folder_open</span>
+              <p class="text-sm font-medium leading-normal">All Projects</p>
+              <span class="material-symbols-outlined ml-auto text-sm transition-transform" :class="{ 'rotate-90': isProjectsOpen }">chevron_right</span>
+            </div>
+            
+            <div v-if="isProjectsOpen" class="pl-4 flex flex-col gap-1">
+               <!-- File Tree Component Placeholder -->
+               <div v-if="isLoading" class="text-xs text-gray-500 px-3">Loading...</div>
+               <div v-else class="flex flex-col">
+                  <div 
+                    v-for="folder in allFolders" 
+                    :key="folder"
+                    class="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm text-gray-600 dark:text-white/60 hover:bg-gray-100 dark:hover:bg-white/5 cursor-pointer truncate"
+                    @click="navigateTo(folder)"
+                    :class="{ 'bg-gray-200 dark:bg-white/10 text-gray-900 dark:text-white': currentPath === folder }"
+                  >
+                    <span class="material-symbols-outlined text-base">folder</span>
+                    <span class="truncate">{{ formatFolderLabel(folder) }}</span>
+                  </div>
+               </div>
             </div>
           </div>
-          <button class="delete-btn" @click.stop="deleteBoard(item)" title="Delete board">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5">
-              <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1z" clip-rule="evenodd" />
-            </svg>
+
+          <div class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 cursor-pointer">
+            <span class="material-symbols-outlined">grid_view</span>
+            <p class="text-sm font-medium leading-normal">Templates</p>
+          </div>
+          <div class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 cursor-pointer">
+            <span class="material-symbols-outlined">settings</span>
+            <p class="text-sm font-medium leading-normal">Settings</p>
+          </div>
+        </div>
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 cursor-pointer">
+            <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-8 bg-gray-300"></div>
+            <div class="flex flex-col">
+              <h1 class="text-sm font-medium leading-tight">User</h1>
+              <p class="text-xs font-normal leading-tight opacity-50">user@example.com</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 cursor-pointer">
+            <span class="material-symbols-outlined">logout</span>
+            <p class="text-sm font-medium leading-normal">Log out</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto">
+      <div class="mx-auto max-w-7xl p-6 lg:p-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div class="lg:col-span-2">
+            <!-- PageHeading & SearchBar -->
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+              <div class="flex min-w-72 flex-col gap-2">
+                <p class="text-4xl font-black leading-tight tracking-[-0.033em]">Welcome back!</p>
+                <p class="text-gray-500 dark:text-white/60 text-base font-normal leading-normal">Here's what's happening with your projects today.</p>
+              </div>
+              <div class="flex items-center gap-4">
+                <label class="flex flex-col h-12 w-64">
+                  <div class="flex w-full flex-1 items-stretch rounded-lg h-full bg-white dark:bg-white/5 border border-gray-200 dark:border-none">
+                    <div class="text-gray-500 dark:text-white/60 flex items-center justify-center pl-4 rounded-l-lg">
+                      <span class="material-symbols-outlined">search</span>
+                    </div>
+                    <input class="flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg bg-transparent text-gray-900 dark:text-white focus:outline-0 focus:ring-0 border-none h-full placeholder:text-gray-500 dark:placeholder:text-white/60 px-4 rounded-l-none pl-2 text-base font-normal leading-normal" placeholder="Search projects..." value=""/>
+                  </div>
+                </label>
+                <button @click="openNewBoardModal" class="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-12 px-5 bg-primary text-white dark:text-background-dark text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">
+                  <span class="material-symbols-outlined">add_circle</span>
+                  <span class="truncate">New Project</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- SectionHeader & TextGrid -->
+            <h2 class="text-[22px] font-bold leading-tight tracking-[-0.015em] pb-3 pt-5">Start a New Project</h2>
+            <div class="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-6">
+              <div @click="openNewBoardModal" class="flex flex-1 gap-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[.02] p-5 flex-col hover:bg-gray-50 dark:hover:bg-white/5 hover:border-gray-300 dark:hover:border-white/20 transition-all duration-200 cursor-pointer shadow-sm dark:shadow-none">
+                <div class="text-primary"><span class="material-symbols-outlined text-3xl">storm</span></div>
+                <div class="flex flex-col gap-1">
+                  <h2 class="text-base font-bold leading-tight">New Eventstorming Project</h2>
+                  <p class="text-gray-500 dark:text-white/60 text-sm font-normal leading-normal">Map out complex business domains.</p>
+                </div>
+              </div>
+              <div @click="openNewBoardModal" class="flex flex-1 gap-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[.02] p-5 flex-col hover:bg-gray-50 dark:hover:bg-white/5 hover:border-gray-300 dark:hover:border-white/20 transition-all duration-200 cursor-pointer shadow-sm dark:shadow-none">
+                <div class="text-primary"><span class="material-symbols-outlined text-3xl">account_tree</span></div>
+                <div class="flex flex-col gap-1">
+                  <h2 class="text-base font-bold leading-tight">New UML Diagram</h2>
+                  <p class="text-gray-500 dark:text-white/60 text-sm font-normal leading-normal">Visualize your system architecture.</p>
+                </div>
+              </div>
+               <div @click="openCreateModelModal" class="flex flex-1 gap-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[.02] p-5 flex-col hover:bg-gray-50 dark:hover:bg-white/5 hover:border-gray-300 dark:hover:border-white/20 transition-all duration-200 cursor-pointer shadow-sm dark:shadow-none">
+                <div class="text-primary"><span class="material-symbols-outlined text-3xl">auto_awesome</span></div>
+                <div class="flex flex-col gap-1">
+                  <h2 class="text-base font-bold leading-tight">Generate with AI</h2>
+                  <p class="text-gray-500 dark:text-white/60 text-sm font-normal leading-normal">Create models from text description.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Projects Section -->
+            <div class="flex items-center justify-between pb-3 pt-10">
+               <h2 class="text-[22px] font-bold leading-tight tracking-[-0.015em]">
+                 {{ currentPath ? `Folder: ${currentPath}` : 'Recent Projects' }}
+               </h2>
+               <div v-if="currentPath" class="flex gap-2">
+                 <button @click="openFolderCreationModal" class="text-sm text-primary hover:underline">New Folder</button>
+                 <button @click="navigateTo(parentPath || '')" class="text-sm text-gray-500 hover:text-gray-900 dark:hover:text-white">Up</button>
+               </div>
+            </div>
+
+            <div v-if="isLoading" class="py-8 text-center text-gray-500">Loading items...</div>
+            <div v-else-if="error" class="py-8 text-center text-red-500">{{ error }}</div>
+            
+            <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- Folder Items -->
+              <div 
+                v-for="item in items.filter(isFolder)" 
+                :key="item.path"
+                class="group flex items-center gap-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[.02] p-4 hover:bg-gray-50 dark:hover:bg-white/5 hover:border-gray-300 dark:hover:border-white/20 transition-all duration-200 cursor-pointer shadow-sm dark:shadow-none"
+                @click="navigateTo(item.path)"
+                @dragover.prevent="handleDragOverFolder($event, item)"
+                @drop.prevent="handleDropOnFolder(item)"
+                @contextmenu.prevent="openContextMenu($event, item)"
+              >
+                 <span class="material-symbols-outlined text-3xl text-yellow-500">folder</span>
+                 <div class="flex flex-col">
+                    <h3 class="text-lg font-bold">{{ item.name }}</h3>
+                    <p class="text-gray-500 dark:text-white/60 text-xs">Folder</p>
+                 </div>
+              </div>
+
+              <!-- Board Items -->
+              <div 
+                v-for="item in (items.filter(i => !isFolder(i)) as BoardItem[])" 
+                :key="item.boardId"
+                class="group flex flex-col gap-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/[.02] p-5 hover:bg-gray-50 dark:hover:bg-white/5 hover:border-gray-300 dark:hover:border-white/20 transition-all duration-200 cursor-pointer shadow-sm dark:shadow-none"
+                draggable="true"
+                @dragstart="handleDragStart($event, item)"
+                @dragend="handleDragEnd"
+                @contextmenu.prevent="openContextMenu($event, item)"
+                @click="openBoard(item.boardId)"
+              >
+                <div class="flex-grow aspect-video bg-gray-100 dark:bg-white/5 rounded-lg overflow-hidden relative">
+                  <img 
+                    :src="item.snapshotUrl ? `${API_BASE}${item.snapshotUrl}` : '/No-Image-Placeholder.svg'" 
+                    class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    @error="($event.target as HTMLImageElement).src = '/No-Image-Placeholder.svg'"
+                  />
+                  <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                     <button @click.stop="deleteBoard(item)" class="p-1 bg-red-500 text-white rounded hover:bg-red-600">
+                        <span class="material-symbols-outlined text-sm">delete</span>
+                     </button>
+                  </div>
+                </div>
+                <div class="flex justify-between items-start">
+                  <div>
+                    <p class="text-gray-500 dark:text-white/60 text-xs font-medium uppercase tracking-wider">{{ item.type }}</p>
+                    <h3 class="text-lg font-bold">{{ item.name }}</h3>
+                    <p class="text-gray-500 dark:text-white/60 text-sm">Saved: {{ new Date(item.savedAt).toLocaleDateString() }}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Right Sidebar (Activity) -->
+          <div class="lg:col-span-1">
+            <div class="bg-white dark:bg-white/5 rounded-xl p-6 sticky top-8 border border-gray-200 dark:border-white/10 shadow-sm dark:shadow-none">
+              <h2 class="text-[22px] font-bold leading-tight tracking-[-0.015em] pb-4">Team Activity</h2>
+              <div class="flex flex-col gap-5">
+                <!-- Mock Activity Items -->
+                <div class="flex gap-4">
+                  <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 bg-gray-300"></div>
+                  <div class="flex flex-col">
+                    <p class="text-sm"><span class="font-bold">You</span> logged in</p>
+                    <p class="text-gray-500 dark:text-white/50 text-xs mt-1">Just now</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Modals (Reused logic, styled) -->
+    <div v-if="showModelModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div class="bg-white dark:bg-[#1e293b] rounded-xl p-6 w-full max-w-lg shadow-2xl border border-gray-200 dark:border-white/10">
+        <h2 class="text-xl font-bold mb-4">Create New Model with LLM</h2>
+        <p class="mb-4 text-gray-600 dark:text-gray-300">Enter a prompt describing the system you want to model.</p>
+        <textarea v-model="prompt" class="w-full h-32 p-3 rounded-lg bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 focus:ring-2 focus:ring-primary focus:border-transparent resize-none mb-4" placeholder="e.g., I want to model an online library system..."></textarea>
+        <div v-if="creationError" class="text-red-500 mb-4 text-sm">{{ creationError }}</div>
+        <div class="flex justify-end gap-3">
+          <button @click="showModelModal = false" class="px-4 py-2 rounded-lg border border-gray-300 dark:border-white/20 hover:bg-gray-100 dark:hover:bg-white/5">Cancel</button>
+          <button @click="handleCreateModel" class="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50" :disabled="isCreatingModel">
+            {{ isCreatingModel ? 'Generating...' : 'Generate' }}
           </button>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- New Modal for Creating Model -->
-  <div v-if="showModelModal" class="modal-overlay">
-    <div class="modal-content">
-      <h2>Create New Model with LLM</h2>
-      <p>Enter a prompt describing the system you want to model. The orchestrator will generate an Eventstorming board and corresponding UML diagrams.</p>
-      
-      <textarea v-model="prompt" placeholder="e.g., I want to model an online library system..."></textarea>
-      
-      <div v-if="creationError" class="error-message modal-error">{{ creationError }}</div>
-
-      <div class="modal-actions">
-        <button class="secondary-btn" @click="showModelModal = false" :disabled="isCreatingModel">Cancel</button>
-        <button class="primary-btn" @click="handleCreateModel" :disabled="isCreatingModel">
-          <span v-if="!isCreatingModel">Generate</span>
-          <span v-else class="spinner"></span>
-        </button>
+    <div v-if="showNewBoardModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div class="bg-white dark:bg-[#1e293b] rounded-xl p-6 w-full max-w-md shadow-2xl border border-gray-200 dark:border-white/10">
+        <h2 class="text-xl font-bold mb-4">Create Blank Canvas</h2>
+        <div class="flex flex-col gap-4">
+          <label>
+            <span class="block text-sm font-medium mb-1">Name</span>
+            <input v-model="newBoardName" type="text" class="w-full p-2 rounded-lg bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 focus:ring-primary" placeholder="e.g., CustomerJourney" />
+          </label>
+          <label>
+            <span class="block text-sm font-medium mb-1">Type</span>
+            <select v-model="newBoardType" class="w-full p-2 rounded-lg bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 focus:ring-primary">
+              <option value="Eventstorming">Eventstorming</option>
+              <option value="UML">UML</option>
+            </select>
+          </label>
+          <label>
+            <span class="block text-sm font-medium mb-1">Folder</span>
+            <select v-model="newBoardPath" class="w-full p-2 rounded-lg bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 focus:ring-primary">
+              <option value="">/</option>
+              <option v-for="folder in allFolders" :key="folder" :value="folder">{{ formatFolderLabel(folder) }}</option>
+            </select>
+          </label>
+        </div>
+        <div v-if="newBoardError" class="text-red-500 mt-4 text-sm">{{ newBoardError }}</div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button @click="showNewBoardModal = false" class="px-4 py-2 rounded-lg border border-gray-300 dark:border-white/20 hover:bg-gray-100 dark:hover:bg-white/5">Cancel</button>
+          <button @click="handleCreateBlankBoard" class="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50" :disabled="isCreatingBoard">
+            {{ isCreatingBoard ? 'Creating...' : 'Create' }}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Blank board modal -->
-  <div v-if="showNewBoardModal" class="modal-overlay">
-    <div class="modal-content">
-      <h2>Create Blank Canvas</h2>
-      <p>Start from an empty Eventstorming or UML canvas by choosing a name and destination folder.</p>
-      <label class="modal-label">
-        Name
-        <input v-model="newBoardName" type="text" placeholder="e.g., CustomerJourney" />
-      </label>
-      <label class="modal-label">
-        Board Type
-        <select v-model="newBoardType">
-          <option value="Eventstorming">Eventstorming</option>
-          <option value="UML">UML</option>
-        </select>
-      </label>
-      <label class="modal-label">
-        Folder
-        <select v-model="newBoardPath">
-          <option value="">/</option>
-          <option v-for="folder in allFolders" :key="folder" :value="folder">
-            {{ formatFolderLabel(folder) }}
-          </option>
-        </select>
-      </label>
-      <div v-if="newBoardError" class="error-message modal-error">{{ newBoardError }}</div>
-      <div class="modal-actions">
-        <button class="secondary-btn" @click="showNewBoardModal = false" :disabled="isCreatingBoard">Cancel</button>
-        <button class="primary-btn" @click="handleCreateBlankBoard" :disabled="isCreatingBoard">
-          <span v-if="!isCreatingBoard">Create</span>
-          <span v-else class="spinner"></span>
-        </button>
+    <div v-if="showFolderModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div class="bg-white dark:bg-[#1e293b] rounded-xl p-6 w-full max-w-md shadow-2xl border border-gray-200 dark:border-white/10">
+        <h2 class="text-xl font-bold mb-4">Create Folder</h2>
+        <div class="flex flex-col gap-4">
+          <label>
+            <span class="block text-sm font-medium mb-1">Parent Folder</span>
+            <select v-model="newFolderParent" class="w-full p-2 rounded-lg bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 focus:ring-primary">
+              <option value="">/</option>
+              <option v-for="folder in allFolders" :key="folder" :value="folder">{{ formatFolderLabel(folder) }}</option>
+            </select>
+          </label>
+          <label>
+            <span class="block text-sm font-medium mb-1">Folder Name</span>
+            <input v-model="newFolderName" type="text" class="w-full p-2 rounded-lg bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 focus:ring-primary" placeholder="e.g., domain/ordering" />
+          </label>
+        </div>
+        <div v-if="newFolderError" class="text-red-500 mt-4 text-sm">{{ newFolderError }}</div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button @click="showFolderModal = false" class="px-4 py-2 rounded-lg border border-gray-300 dark:border-white/20 hover:bg-gray-100 dark:hover:bg-white/5">Cancel</button>
+          <button @click="handleCreateFolder" class="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50" :disabled="isCreatingFolder">
+            {{ isCreatingFolder ? 'Creating...' : 'Create' }}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
-
-  <!-- Folder modal -->
-  <div v-if="showFolderModal" class="modal-overlay">
-    <div class="modal-content">
-      <h2>Create Folder</h2>
-      <label class="modal-label">
-        Parent Folder
-        <select v-model="newFolderParent">
-          <option value="">/</option>
-          <option v-for="folder in allFolders" :key="folder" :value="folder">
-            {{ formatFolderLabel(folder) }}
-          </option>
-        </select>
-      </label>
-      <label class="modal-label">
-        Folder Name
-        <input v-model="newFolderName" type="text" placeholder="e.g., domain/ordering" />
-      </label>
-      <div v-if="newFolderError" class="error-message modal-error">{{ newFolderError }}</div>
-      <div class="modal-actions">
-        <button class="secondary-btn" @click="showFolderModal = false" :disabled="isCreatingFolder">Cancel</button>
-        <button class="primary-btn" @click="handleCreateFolder" :disabled="isCreatingFolder">
-          <span v-if="!isCreatingFolder">Create</span>
-          <span v-else class="spinner"></span>
-        </button>
+    
+    <!-- Move Modal -->
+    <div v-if="showMoveModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div class="bg-white dark:bg-[#1e293b] rounded-xl p-6 w-full max-w-md shadow-2xl border border-gray-200 dark:border-white/10">
+        <h2 class="text-xl font-bold mb-4">Move "{{ itemToMove?.name }}"</h2>
+        <label>
+          <span class="block text-sm font-medium mb-1">Destination</span>
+          <select v-model="moveTargetPath" class="w-full p-2 rounded-lg bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-white/10 focus:ring-primary">
+            <option v-for="folder in availableMoveTargets" :key="folder || 'root'" :value="folder">{{ formatFolderLabel(folder) }}</option>
+          </select>
+        </label>
+        <div v-if="moveError" class="text-red-500 mt-4 text-sm">{{ moveError }}</div>
+        <div class="flex justify-end gap-3 mt-6">
+          <button @click="showMoveModal = false" class="px-4 py-2 rounded-lg border border-gray-300 dark:border-white/20 hover:bg-gray-100 dark:hover:bg-white/5">Cancel</button>
+          <button @click="handleMoveItem" class="px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50" :disabled="isMovingItem">
+            {{ isMovingItem ? 'Moving...' : 'Move' }}
+          </button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Move modal -->
-  <div v-if="showMoveModal" class="modal-overlay">
-    <div class="modal-content">
-      <h2>Move "{{ itemToMove?.name }}"</h2>
-      <p>Select the destination folder.</p>
-      <label class="modal-label">
-        Destination
-        <select v-model="moveTargetPath">
-          <option v-for="folder in availableMoveTargets" :key="folder || 'root'" :value="folder">
-            {{ formatFolderLabel(folder) }}
-          </option>
-        </select>
-      </label>
-      <div v-if="moveError" class="error-message modal-error">{{ moveError }}</div>
-      <div class="modal-actions">
-        <button class="secondary-btn" @click="showMoveModal = false" :disabled="isMovingItem">Cancel</button>
-        <button class="primary-btn" @click="handleMoveItem" :disabled="isMovingItem || availableMoveTargets.length === 0">
-          <span v-if="!isMovingItem">Move</span>
-          <span v-else class="spinner"></span>
-        </button>
-      </div>
+    <!-- Context Menu -->
+    <div
+      v-if="contextMenu.visible"
+      class="fixed z-50 bg-white dark:bg-[#1e293b] border border-gray-200 dark:border-white/10 rounded-lg shadow-xl py-1 min-w-[150px]"
+      :style="{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }">
+
+      <button @click="handleContextAction('open')" class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-white/5 text-sm">Open</button>
+      <button @click="handleContextAction('move')" class="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-white/5 text-sm">Move</button>
+      <button @click="handleContextAction('delete')" class="w-full text-left px-4 py-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">Delete</button>
     </div>
-  </div>
 
-  <!-- Context menu -->
-  <div
-    v-if="contextMenu.visible"
-    class="context-menu"
-    :style="{ top: `${contextMenu.y}px`, left: `${contextMenu.x}px` }"
-  >
-    <button @click="handleContextAction('open')">Open</button>
-    <button @click="handleContextAction('move')">Move</button>
-    <button class="danger" @click="handleContextAction('delete')">Delete</button>
   </div>
 </template>
 
 <style scoped>
-.board-list-view {
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
+/* Scrollbar customization if needed */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
 }
 
-.header-left {
-  display: flex;
-  align-items: center;
-}
-
-.breadcrumbs {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--color-heading);
-}
-
-.breadcrumb-btn {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #4f46e5;
-  cursor: pointer;
-  padding: 0;
-}
-.breadcrumb-btn:hover {
-  text-decoration: underline;
-}
-.breadcrumb-part {
-  color: #64748b;
-}
-
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 1rem;
-}
-
-.header-actions {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-}
-
-.header h1 {
-  font-size: 2rem;
-  font-weight: 600;
-}
-
-.create-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: #4f46e5;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-.create-btn:hover {
-  background-color: #4338ca;
-}
-.create-btn svg {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-.secondary-btn {
-  background-color: white;
-  color: #475569;
-  border: 1px solid #cbd5e1;
-  padding: 0.6rem 1.2rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 500;
-}
-.secondary-btn:hover:not(:disabled) {
-  background-color: #f1f5f9;
-}
-.secondary-btn:disabled {
-  opacity: 0.7;
+.disabled {
   cursor: not-allowed;
 }
 

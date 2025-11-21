@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineProps, PropType } from 'vue';
+import { computed, PropType } from 'vue';
 import type { CanvasItem, Connection } from '../../types';
 
 const props = defineProps({
@@ -17,13 +17,9 @@ const highlightColor = '#FF4500'; // OrangeRed for high visibility
 const selectionColor = '#007bff'; // Blue for selection
 
 const strokeColor = computed(() => {
-  if (props.isSelected) return selectionColor;
-  if (props.isHighlighted) return highlightColor;
   return 'black';
 });
 const strokeWidth = computed(() => {
-  if (props.isSelected) return 4;
-  if (props.isHighlighted) return 3;
   return 2;
 });
 

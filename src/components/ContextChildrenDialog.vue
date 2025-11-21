@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineProps, defineEmits, computed } from 'vue';
+import { computed } from 'vue';
 import type { CanvasItem } from '../types';
 import { store } from '../store';
 

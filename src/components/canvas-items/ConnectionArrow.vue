@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, ref, watch, onMounted, onBeforeUnmount } from "vue";
+import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
 import type { Connection } from "@/types";
 import { useStore } from "@/store";
-import { getEdgePoint } from "@/utils/canvas";
+import { getOrthogonalPoints } from "@/utils/canvas";
 import Konva from 'konva';
 
 const props = defineProps<{
@@ -21,10 +21,7 @@ const points = computed(() => {
     return [0, 0, 0, 0];
   }
 
-  const fromPoint = getEdgePoint(fromNode, toNode);
-  const toPoint = getEdgePoint(toNode, fromNode);
-
-  return [fromPoint.x, fromPoint.y, toPoint.x, toPoint.y];
+  return getOrthogonalPoints(fromNode, toNode);
 });
 
 const isPubSub = computed(() => {
@@ -101,15 +98,46 @@ const stopAnimations = () => {
 };
 
 const getPointAlongLine = (t: number, reverse = false) => {
-  const [x1, y1, x2, y2] = points.value;
-  const startX = reverse ? x2 : x1;
-  const startY = reverse ? y2 : y1;
-  const endX = reverse ? x1 : x2;
-  const endY = reverse ? y1 : y2;
+  const pts = points.value;
+  
+  // Calculate total length by summing all segments
+  let totalLength = 0;
+  for (let i = 0; i < pts.length - 2; i += 2) {
+    const dx = pts[i + 2] - pts[i];
+    const dy = pts[i + 3] - pts[i + 1];
+    totalLength += Math.sqrt(dx * dx + dy * dy);
+  }
 
+  let targetLength = totalLength * t;
+  if (reverse) {
+    targetLength = totalLength * (1 - t);
+  }
+
+  // Find the segment and position along it
+  let currentLength = 0;
+  for (let i = 0; i < pts.length - 2; i += 2) {
+    const x1 = pts[i];
+    const y1 = pts[i + 1];
+    const x2 = pts[i + 2];
+    const y2 = pts[i + 3];
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const segmentLength = Math.sqrt(dx * dx + dy * dy);
+
+    if (currentLength + segmentLength >= targetLength) {
+      const segmentT = segmentLength > 0 ? (targetLength - currentLength) / segmentLength : 0;
+      return {
+        x: x1 + dx * segmentT,
+        y: y1 + dy * segmentT,
+      };
+    }
+    currentLength += segmentLength;
+  }
+
+  // Fallback to end point
   return {
-    x: startX + (endX - startX) * t,
-    y: startY + (endY - startY) * t,
+    x: pts[pts.length - 2],
+    y: pts[pts.length - 1],
   };
 };
 
@@ -121,6 +149,11 @@ const setMarkerPosition = (node: Konva.Node | null | undefined, t: number, rever
   const clamped = t % 1;
   const pos = getPointAlongLine(clamped, reverse);
   node.position(pos);
+  
+  // Log position updates occasionally
+  if (Math.random() < 0.05) { // 5% of the time
+    console.log('setMarkerPosition:', pos, 'visible:', node.visible());
+  }
 };
 
 const startFlowAnimation = (
@@ -137,9 +170,13 @@ const startFlowAnimation = (
     onDirectionChange?: (direction: 1 | -1) => void;
   }
 ) => {
-  if (!node || !node.getLayer()) return null;
+  if (!node || !node.getLayer()) {
+    console.log('startFlowAnimation: no node or layer', node, node?.getLayer());
+    return null;
+  }
   let direction: 1 | -1 = initialDirection;
   let progress = 0;
+  let frameCount = 0;
 
   const applyDirection = () => {
     onDirectionChange?.(direction);
@@ -149,6 +186,10 @@ const startFlowAnimation = (
   applyDirection();
 
   const anim = new Konva.Animation((frame) => {
+    frameCount++;
+    if (frameCount % 30 === 0) { // Log every 30 frames
+      console.log('Animation frame update:', frameCount, 'progress:', progress);
+    }
     if (!frame) return;
     progress += (frame.timeDiff ?? 0) / duration;
     if (progress >= 1) {
@@ -166,6 +207,7 @@ const startFlowAnimation = (
   }, node.getLayer());
 
   anim.start();
+  console.log('Animation started, isRunning:', anim.isRunning());
   return anim;
 };
 
@@ -199,19 +241,43 @@ const startRequestAnimation = (node: Konva.Path | null | undefined) => {
   });
 };
 
-const setupAnimations = () => {
+let setupTimer: ReturnType<typeof setTimeout> | null = null;
+
+const setupAnimations = async () => {
+  console.log('setupAnimations called, isHighlighted:', props.isHighlighted);
+  
+  // Clear any pending setup
+  if (setupTimer) {
+    clearTimeout(setupTimer);
+    setupTimer = null;
+  }
+  
+  if (!props.isHighlighted) {
+    // Delay stopping animations to avoid race conditions
+    setupTimer = setTimeout(() => {
+      stopAnimations();
+      setupTimer = null;
+    }, 50);
+    return;
+  }
+  
   stopAnimations();
-  if (!props.isHighlighted) return;
+  await nextTick();
   requestAnimationFrame(() => {
+    console.log('requestAnimationFrame, isPubSub:', isPubSub.value, 'isRequestResponse:', isRequestResponse.value);
     if (isPubSub.value) {
       const node = resolveNode<Konva.Path>(pubDataRef.value);
+      console.log('pubDataRef node:', node);
       if (node) {
         pubDataAnim = startPubAnimation(node);
+        console.log('pubDataAnim started:', pubDataAnim);
       }
     } else if (isRequestResponse.value) {
       const node = resolveNode<Konva.Path>(reqDataRef.value);
+      console.log('reqDataRef node:', node);
       if (node) {
         reqDataAnim = startRequestAnimation(node);
+        console.log('reqDataAnim started:', reqDataAnim);
       }
     }
   });

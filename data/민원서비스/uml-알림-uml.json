@@ -5,122 +5,75 @@
     {
       "id": 1,
       "type": "Class",
-      "instanceName": "Lobby",
+      "instanceName": "License",
       "stereotype": "AggregateRoot",
-      "description": "Class for Lobby aggregate.",
+      "description": "Class for License aggregate.",
       "x": 100,
       "y": 100,
       "width": 280,
       "height": 220,
       "attributes": [
         {
-          "name": "lobbyId",
+          "name": "licenseId",
           "type": "UUID",
           "visibility": "private"
         },
         {
-          "name": "name",
+          "name": "licenseType",
           "type": "String",
           "visibility": "private"
         },
         {
           "name": "status",
-          "type": "LobbyStatus",
+          "type": "String",
           "visibility": "private"
         },
         {
-          "name": "maxPlayers",
-          "type": "int",
+          "name": "issueDate",
+          "type": "LocalDate",
           "visibility": "private"
         },
         {
-          "name": "currentPlayers",
-          "type": "int",
+          "name": "expirationDate",
+          "type": "LocalDate",
           "visibility": "private"
         },
         {
-          "name": "creatorId",
-          "type": "UUID",
-          "visibility": "private"
-        },
-        {
-          "name": "createdDate",
-          "type": "LocalDateTime",
-          "visibility": "private"
-        },
-        {
-          "name": "updatedDate",
-          "type": "LocalDateTime",
+          "name": "policy",
+          "type": "LicensePolicy",
           "visibility": "private"
         }
       ],
       "methods": [
         {
-          "name": "createLobby",
+          "name": "issueLicense",
           "parameters": [
             {
-              "name": "name",
+              "name": "licenseType",
               "type": "String"
             },
             {
-              "name": "maxPlayers",
-              "type": "int"
-            },
-            {
-              "name": "creatorId",
-              "type": "UUID"
+              "name": "policy",
+              "type": "LicensePolicy"
             }
           ],
           "returnType": "void",
           "visibility": "public"
         },
         {
-          "name": "joinLobby",
+          "name": "renewLicense",
           "parameters": [
             {
-              "name": "playerId",
-              "type": "UUID"
+              "name": "newExpirationDate",
+              "type": "LocalDate"
             }
           ],
           "returnType": "void",
           "visibility": "public"
         },
         {
-          "name": "startGame",
+          "name": "cancelLicense",
           "parameters": [],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "leaveLobby",
-          "parameters": [
-            {
-              "name": "playerId",
-              "type": "UUID"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "updateStatus",
-          "parameters": [
-            {
-              "name": "status",
-              "type": "LobbyStatus"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "updateName",
-          "parameters": [
-            {
-              "name": "name",
-              "type": "String"
-            }
-          ],
           "returnType": "void",
           "visibility": "public"
         }
@@ -129,38 +82,72 @@
     {
       "id": 2,
       "type": "Class",
-      "instanceName": "LobbyStatus",
-      "stereotype": "Enum",
-      "description": "Class for LobbyStatus aggregate.",
+      "instanceName": "LicensePolicy",
+      "stereotype": "ValueObject",
+      "description": "Class for LicensePolicy aggregate.",
       "x": 420,
       "y": 100,
       "width": 280,
       "height": 220,
       "attributes": [
         {
-          "name": "PENDING",
-          "type": "LobbyStatus",
-          "visibility": "public"
+          "name": "policyId",
+          "type": "UUID",
+          "visibility": "private"
         },
         {
-          "name": "ACTIVE",
-          "type": "LobbyStatus",
-          "visibility": "public"
+          "name": "validPeriod",
+          "type": "Period",
+          "visibility": "private"
         },
         {
-          "name": "FULL",
-          "type": "LobbyStatus",
-          "visibility": "public"
+          "name": "allowedUsage",
+          "type": "String",
+          "visibility": "private"
         },
         {
-          "name": "STARTED",
-          "type": "LobbyStatus",
-          "visibility": "public"
+          "name": "fee",
+          "type": "Money",
+          "visibility": "private"
+        }
+      ],
+      "methods": []
+    },
+    {
+      "id": 3,
+      "type": "Class",
+      "instanceName": "LicenseIssuedEvent",
+      "stereotype": "Event",
+      "description": "Class for LicenseIssuedEvent aggregate.",
+      "x": 740,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "licenseId",
+          "type": "UUID",
+          "visibility": "private"
         },
         {
-          "name": "CLOSED",
-          "type": "LobbyStatus",
-          "visibility": "public"
+          "name": "licenseType",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "issueDate",
+          "type": "LocalDate",
+          "visibility": "private"
+        },
+        {
+          "name": "expirationDate",
+          "type": "LocalDate",
+          "visibility": "private"
+        },
+        {
+          "name": "policyId",
+          "type": "UUID",
+          "visibility": "private"
         }
       ],
       "methods": []
@@ -171,6 +158,12 @@
       "id": "conn-1-2",
       "from": 1,
       "to": 2,
+      "type": "Association"
+    },
+    {
+      "id": "conn-2-3",
+      "from": 2,
+      "to": 3,
       "type": "Association"
     }
   ]

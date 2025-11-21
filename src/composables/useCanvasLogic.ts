@@ -3,7 +3,7 @@ import Konva from 'konva';
 import { store } from '../store';
 import type { CanvasItem, Connection } from '../types';
 import { getEdgePoint } from '../utils/canvas';
-import { ensureCanvasItemDimensions, ensureUmlItemDimensions } from '@/utils/uml';
+import { ensureCanvasItemDimensions } from '@/utils/uml';
 
 // Helper to get pointer position respecting stage's scale and position
 const getTransformedPointerPosition = (stage: Konva.Stage | null) => {
@@ -288,37 +288,52 @@ export function useCanvasLogic(
     }
   };
 
-  const handleItemTransform = (e: Konva.KonvaEventObject<Event>, item: CanvasItem) => {
-    const node = e.target;
-    if (!node) return;
-    const scaleX = node.scaleX();
-    const scaleY = node.scaleY();
-    if (scaleX === 1 && scaleY === 1) return;
-
-    const nextItem = ensureCanvasItemDimensions({
-      ...item,
-      x: node.x(),
-      y: node.y(),
-      rotation: node.rotation(),
-      width: Math.max(5, item.width * scaleX),
-      height: Math.max(5, item.height * scaleY),
-    });
-
-    node.scaleX(1);
-    node.scaleY(1);
-    store.updateItem(nextItem);
-
+const scheduleTransformerRefresh = (() => {
+  let pending = false;
+  return () => {
+    if (pending) return;
+    pending = true;
     requestAnimationFrame(() => {
+      pending = false;
       updateTransformer();
       const transformerNode = transformerRef.value?.getNode();
+      transformerNode?.forceUpdate?.();
       const layer = transformerNode ? transformerNode.getLayer() : null;
       if (layer && typeof (layer as any).batchDraw === 'function') {
         (layer as any).batchDraw();
       }
     });
   };
+})();
 
-  const handleItemDblClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
+const resizeNodeAndPersist = (node: Konva.Node, item: CanvasItem) => {
+  const scaleX = node.scaleX();
+  const scaleY = node.scaleY();
+  if (scaleX === 1 && scaleY === 1) return;
+
+  const nextItem = ensureCanvasItemDimensions({
+    ...item,
+    x: node.x(),
+    y: node.y(),
+    rotation: node.rotation(),
+    width: Math.max(5, item.width * scaleX),
+    height: Math.max(5, item.height * scaleY),
+  });
+
+  node.scaleX(1);
+  node.scaleY(1);
+  node.size({ width: nextItem.width, height: nextItem.height });
+  store.updateItem(nextItem);
+  scheduleTransformerRefresh();
+};
+
+const handleItemTransform = (e: Konva.KonvaEventObject<Event>, item: CanvasItem) => {
+  const node = e.target;
+  if (!node) return;
+  resizeNodeAndPersist(node, item);
+};
+
+const handleItemDblClick = (e: Konva.KonvaEventObject<MouseEvent>, item: CanvasItem) => {
     console.log('handleItemDblClick triggered in useCanvasLogic for item:', item);
     store.setSelectedItem(item);
   };
@@ -346,46 +361,19 @@ export function useCanvasLogic(
     store.setSelectedItem(null); // Or you can have properties for connections too
   };
 
-  const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
-    if (!transformerRef.value) return;
-    const transformer = transformerRef.value.getNode();
-    const nodes = (e.target as any) === transformer ? transformer.nodes() : [e.target];
+const handleTransformEnd = (e: Konva.KonvaEventObject<Event>) => {
+  if (!transformerRef.value) return;
+  const transformer = transformerRef.value.getNode();
+  const nodes = (e.target as any) === transformer ? transformer.nodes() : [e.target];
 
-    nodes.forEach((node: Konva.Node) => {
-      const id = Number(node.name().split('-')[1]);
-      const baseItem = store.reactiveItems.find(item => item.id === id);
-      if (!baseItem) return;
-
-      const scaleX = node.scaleX();
-      const scaleY = node.scaleY();
-
-      const nextItem = ensureUmlItemDimensions({
-        ...baseItem,
-        x: node.x(),
-        y: node.y(),
-        rotation: node.rotation(),
-        width: Math.max(5, baseItem.width * scaleX),
-        height: Math.max(5, baseItem.height * scaleY),
-      });
-
-      node.scaleX(1);
-      node.scaleY(1);
-      node.size({ width: nextItem.width, height: nextItem.height });
-
-      store.updateItem(nextItem);
-    });
-
-    requestAnimationFrame(() => {
-      updateTransformer();
-      const transformerNode = transformerRef.value?.getNode();
-      transformerNode?.forceUpdate?.();
-      const layer = transformerNode ? transformerNode.getLayer() : null;
-      if (layer && typeof (layer as any).batchDraw === 'function') {
-        (layer as any).batchDraw();
-      }
-    });
-    updateStageSize();
-  };
+  nodes.forEach((node: Konva.Node) => {
+    const id = Number(node.name().split('-')[1]);
+    const baseItem = store.reactiveItems.find(item => item.id === id);
+    if (!baseItem) return;
+    resizeNodeAndPersist(node, baseItem);
+  });
+  updateStageSize();
+};
 
   const updateTransformer = () => {
     if (!transformerRef.value || !stageRef.value) return;

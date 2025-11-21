@@ -11,9 +11,10 @@ export default defineConfig({
     vueDevTools(),
   ],
   server: {
+    host: '0.0.0.0', // Listen on all network interfaces
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: process.env.VITE_API_TARGET || 'http://localhost:3000',
         changeOrigin: true,
       }
     }

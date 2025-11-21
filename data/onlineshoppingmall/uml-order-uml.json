@@ -1,0 +1,747 @@
+{
+  "items": [
+    {
+      "id": 1,
+      "type": "Class",
+      "instanceName": "PlaceOrderCommand",
+      "stereotype": "Command",
+      "description": "Class for PlaceOrderCommand.",
+      "x": 1207.0525403421116,
+      "y": 481.43703201491576,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "userId",
+          "type": "UserId",
+          "visibility": "private"
+        },
+        {
+          "name": "cartItems",
+          "type": "List<CartItem>",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "ViewOrderHistoryCommand",
+      "stereotype": "Command",
+      "description": "Class for ViewOrderHistoryCommand.",
+      "x": 1215.62396891354,
+      "y": 755.7227463006302,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "userId",
+          "type": "UserId",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 3,
+      "type": "Class",
+      "instanceName": "OrderPlacedEvent",
+      "stereotype": "Event",
+      "description": "Class for OrderPlacedEvent.",
+      "x": 842.7668260563973,
+      "y": 748.5798891577731,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "orderId",
+          "type": "OrderId",
+          "visibility": "private"
+        },
+        {
+          "name": "userId",
+          "type": "UserId",
+          "visibility": "private"
+        },
+        {
+          "name": "totalAmount",
+          "type": "Money",
+          "visibility": "private"
+        },
+        {
+          "name": "createdDate",
+          "type": "DateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 4,
+      "type": "Class",
+      "instanceName": "OrderHistoryViewedEvent",
+      "stereotype": "Event",
+      "description": "Class for OrderHistoryViewedEvent.",
+      "x": 837.0838642180911,
+      "y": 484.29417487205876,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "userId",
+          "type": "UserId",
+          "visibility": "private"
+        },
+        {
+          "name": "orderIds",
+          "type": "List<OrderId>",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 5,
+      "type": "Class",
+      "instanceName": "Order",
+      "stereotype": "AggregateRoot",
+      "description": "Class for Order.",
+      "x": 853.4202989481769,
+      "y": 125.72274630063035,
+      "width": 602.1993750708039,
+      "height": 282.80000000000024,
+      "attributes": [
+        {
+          "name": "orderId",
+          "type": "OrderId",
+          "visibility": "private"
+        },
+        {
+          "name": "userId",
+          "type": "UserId",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "OrderStatus",
+          "visibility": "private"
+        },
+        {
+          "name": "totalAmount",
+          "type": "Money",
+          "visibility": "private"
+        },
+        {
+          "name": "createdDate",
+          "type": "DateTime",
+          "visibility": "private"
+        },
+        {
+          "name": "items",
+          "type": "List<OrderItem>",
+          "visibility": "private"
+        },
+        {
+          "name": "shippingAddress",
+          "type": "ShippingAddress",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "placeOrder",
+          "parameters": [
+            {
+              "name": "command",
+              "type": "PlaceOrderCommand"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "cancel",
+          "parameters": [],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "updateStatus",
+          "parameters": [
+            {
+              "name": "newStatus",
+              "type": "OrderStatus"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ],
+      "parent": null,
+      "rotation": 0
+    },
+    {
+      "id": 6,
+      "type": "Class",
+      "instanceName": "OrderItem",
+      "stereotype": "Entity",
+      "description": "Class for OrderItem.",
+      "x": 452.635203728787,
+      "y": 492.8656034434872,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "productId",
+          "type": "ProductId",
+          "visibility": "private"
+        },
+        {
+          "name": "quantity",
+          "type": "Integer",
+          "visibility": "private"
+        },
+        {
+          "name": "unitPrice",
+          "type": "Money",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 7,
+      "type": "Class",
+      "instanceName": "ShippingAddress",
+      "stereotype": "ValueObject",
+      "description": "Class for ShippingAddress.",
+      "x": 1539.83189371704,
+      "y": 290.0084605863443,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "street",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "city",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "state",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "zipCode",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "country",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 8,
+      "type": "Class",
+      "instanceName": "OrderId",
+      "stereotype": "ValueObject",
+      "description": "Class for OrderId.",
+      "x": 1538.4811117706834,
+      "y": 44.29417487205865,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "value",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 9,
+      "type": "Class",
+      "instanceName": "UserId",
+      "stereotype": "ValueObject",
+      "description": "Class for UserId.",
+      "x": 1871.3382546278256,
+      "y": 35.766715711479875,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "value",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 10,
+      "type": "Class",
+      "instanceName": "ProductId",
+      "stereotype": "ValueObject",
+      "description": "Class for ProductId.",
+      "x": 1869.9096831992545,
+      "y": 274.3167364356435,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "value",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 11,
+      "type": "Class",
+      "instanceName": "Money",
+      "stereotype": "ValueObject",
+      "description": "Class for Money.",
+      "x": 1875.9610710364216,
+      "y": 532.8656034434873,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "amount",
+          "type": "Decimal",
+          "visibility": "private"
+        },
+        {
+          "name": "currency",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 12,
+      "type": "Class",
+      "instanceName": "DateTime",
+      "stereotype": "ValueObject",
+      "description": "Class for DateTime.",
+      "x": 1546.840270807989,
+      "y": 532.8656034434873,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "value",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 13,
+      "type": "Class",
+      "instanceName": "OrderStatus",
+      "stereotype": "Enum",
+      "description": "Class for OrderStatus.",
+      "x": 98.48111177068301,
+      "y": 264.34096447835674,
+      "width": 280,
+      "height": 220,
+      "attributes": [],
+      "methods": [],
+      "enumValues": [
+        "Pending",
+        "Confirmed",
+        "Shipped",
+        "Delivered",
+        "Cancelled"
+      ],
+      "parent": null
+    },
+    {
+      "id": 15,
+      "type": "Class",
+      "instanceName": "DeductInventoryService",
+      "stereotype": "Service",
+      "description": "Class for DeductInventoryService.",
+      "x": 287.14156330742117,
+      "y": 1052.865603443492,
+      "width": 434.23152434191127,
+      "height": 220.00000000000114,
+      "attributes": [],
+      "methods": [
+        {
+          "name": "onOrderPlaced",
+          "parameters": [
+            {
+              "name": "event",
+              "type": "OrderPlacedEvent"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ],
+      "parent": null,
+      "rotation": 0
+    },
+    {
+      "id": 16,
+      "type": "Class",
+      "instanceName": "SendOrderConfirmationService",
+      "stereotype": "Service",
+      "description": "Class for SendOrderConfirmationService.",
+      "x": 739.0070788235105,
+      "y": 1045.722746300633,
+      "width": 489.4572328808405,
+      "height": 220.0000000000008,
+      "attributes": [],
+      "methods": [
+        {
+          "name": "onOrderPlaced",
+          "parameters": [
+            {
+              "name": "event",
+              "type": "OrderPlacedEvent"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ],
+      "parent": null,
+      "rotation": 0
+    },
+    {
+      "id": 17,
+      "type": "Class",
+      "instanceName": "UpdateOrderStatusService",
+      "stereotype": "Service",
+      "description": "Class for UpdateOrderStatusService.",
+      "x": 164.9201697792456,
+      "y": 795.745179673514,
+      "width": 562.1287398131308,
+      "height": 220.00000000000028,
+      "attributes": [],
+      "methods": [
+        {
+          "name": "onPaymentConfirmed",
+          "parameters": [
+            {
+              "name": "event",
+              "type": "PaymentConfirmedEvent"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        },
+        {
+          "name": "onFulfillmentCompleted",
+          "parameters": [
+            {
+              "name": "event",
+              "type": "FulfillmentCompletedEvent"
+            }
+          ],
+          "returnType": "void",
+          "visibility": "public"
+        }
+      ],
+      "parent": null,
+      "rotation": 0
+    },
+    {
+      "id": 18,
+      "type": "Class",
+      "instanceName": "OrderSummaryReadModel",
+      "stereotype": "ReadModel",
+      "description": "Class for OrderSummaryReadModel.",
+      "x": 457.05254034211157,
+      "y": 225.7963277636851,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "orderId",
+          "type": "OrderId",
+          "visibility": "private"
+        },
+        {
+          "name": "userId",
+          "type": "UserId",
+          "visibility": "private"
+        },
+        {
+          "name": "status",
+          "type": "OrderStatus",
+          "visibility": "private"
+        },
+        {
+          "name": "totalAmount",
+          "type": "Money",
+          "visibility": "private"
+        },
+        {
+          "name": "createdDate",
+          "type": "DateTime",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    },
+    {
+      "id": 19,
+      "type": "Class",
+      "instanceName": "OrderItemView",
+      "stereotype": "ReadModel",
+      "description": "Class for OrderItemView.",
+      "x": 1279.9096831992542,
+      "y": 1045.72274630063,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "orderId",
+          "type": "OrderId",
+          "visibility": "private"
+        },
+        {
+          "name": "productId",
+          "type": "ProductId",
+          "visibility": "private"
+        },
+        {
+          "name": "quantity",
+          "type": "Integer",
+          "visibility": "private"
+        },
+        {
+          "name": "unitPrice",
+          "type": "Money",
+          "visibility": "private"
+        }
+      ],
+      "methods": [],
+      "parent": null
+    }
+  ],
+  "connections": [
+    {
+      "id": "conn-5-1",
+      "from": 5,
+      "to": 1,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-3",
+      "from": 5,
+      "to": 3,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-2",
+      "from": 5,
+      "to": 2,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-4",
+      "from": 5,
+      "to": 4,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-15-3",
+      "from": 15,
+      "to": 3,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-16-3",
+      "from": 16,
+      "to": 3,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-17-3",
+      "from": 17,
+      "to": 3,
+      "type": "Dependency",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-6",
+      "from": 5,
+      "to": 6,
+      "type": "Composition",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "*"
+    },
+    {
+      "id": "conn-5-7",
+      "from": 5,
+      "to": 7,
+      "type": "Composition",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-8",
+      "from": 5,
+      "to": 8,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-9",
+      "from": 5,
+      "to": 9,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-13",
+      "from": 5,
+      "to": 13,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-11",
+      "from": 5,
+      "to": 11,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-5-12",
+      "from": 5,
+      "to": 12,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-6-10",
+      "from": 6,
+      "to": 10,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-6-11",
+      "from": 6,
+      "to": 11,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-18-8",
+      "from": 18,
+      "to": 8,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-18-9",
+      "from": 18,
+      "to": 9,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-18-13",
+      "from": 18,
+      "to": 13,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-18-11",
+      "from": 18,
+      "to": 11,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-18-12",
+      "from": 18,
+      "to": 12,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-19-8",
+      "from": 19,
+      "to": 8,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-19-10",
+      "from": 19,
+      "to": 10,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    },
+    {
+      "id": "conn-19-11",
+      "from": 19,
+      "to": 11,
+      "type": "Association",
+      "sourceMultiplicity": "",
+      "targetMultiplicity": "1"
+    }
+  ],
+  "boardType": "UML"
+}

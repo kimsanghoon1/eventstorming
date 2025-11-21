@@ -1,0 +1,473 @@
+{
+  "boardType": "Eventstorming",
+  "instanceName": "onlineshoppingmall",
+  "items": [
+    {
+      "id": 1,
+      "type": "ContextBox",
+      "instanceName": "UserManagementContext",
+      "description": "Manages user registration, login, and profile management.",
+      "x": 50,
+      "y": 50,
+      "width": 960,
+      "height": 580
+    },
+    {
+      "id": 2,
+      "parent": 1,
+      "type": "Command",
+      "instanceName": "RegisterUser",
+      "description": "Registers a new user with the system.",
+      "x": 100,
+      "y": 100.0,
+      "width": 248,
+      "height": 124,
+      "producesEventId": 6
+    },
+    {
+      "id": 3,
+      "parent": 1,
+      "type": "Command",
+      "instanceName": "LoginUser",
+      "description": "Authenticates a user and returns a session token.",
+      "x": 100,
+      "y": 254.0,
+      "width": 230,
+      "height": 138
+    },
+    {
+      "id": 4,
+      "parent": 1,
+      "type": "Policy",
+      "instanceName": "SendWelcomeEmail",
+      "description": "Sends a welcome email to the newly registered user.",
+      "x": 100,
+      "y": 422.0,
+      "width": 284,
+      "height": 158
+    },
+    {
+      "id": 5,
+      "parent": 1,
+      "type": "Aggregate",
+      "instanceName": "User",
+      "description": "Represents a registered user in the system.",
+      "x": 434,
+      "y": 256.0,
+      "width": 260,
+      "height": 168,
+      "linkedDiagram": "user-uml"
+    },
+    {
+      "id": 6,
+      "parent": 1,
+      "type": "Event",
+      "instanceName": "UserRegistered",
+      "description": "Triggered when a new user is successfully registered.",
+      "x": 744,
+      "y": 207.0,
+      "width": 266,
+      "height": 118
+    },
+    {
+      "id": 7,
+      "parent": 1,
+      "type": "Event",
+      "instanceName": "UserLoggedIn",
+      "description": "Triggered when a user successfully logs in.",
+      "x": 744,
+      "y": 355.0,
+      "width": 248,
+      "height": 118
+    },
+    {
+      "id": 8,
+      "type": "ContextBox",
+      "instanceName": "ProductCatalogContext",
+      "description": "Manages product listings, categories, and search functionality.",
+      "x": 1060,
+      "y": 50,
+      "width": 987,
+      "height": 810
+    },
+    {
+      "id": 9,
+      "parent": 8,
+      "type": "Command",
+      "instanceName": "ViewProduct",
+      "description": "Retrieves details of a specific product.",
+      "x": 1110,
+      "y": 302.0,
+      "width": 239,
+      "height": 138
+    },
+    {
+      "id": 10,
+      "parent": 8,
+      "type": "Command",
+      "instanceName": "ViewCategory",
+      "description": "Retrieves products within a specific category.",
+      "x": 1110,
+      "y": 470.0,
+      "width": 248,
+      "height": 138
+    },
+    {
+      "id": 11,
+      "parent": 8,
+      "type": "Aggregate",
+      "instanceName": "Product",
+      "description": "Represents a product available for purchase.",
+      "x": 1408,
+      "y": 279.0,
+      "width": 260,
+      "height": 168,
+      "linkedDiagram": "product-uml"
+    },
+    {
+      "id": 12,
+      "parent": 8,
+      "type": "Aggregate",
+      "instanceName": "Category",
+      "description": "Represents a category of products.",
+      "x": 1408,
+      "y": 477.0,
+      "width": 260,
+      "height": 154,
+      "linkedDiagram": "category-uml"
+    },
+    {
+      "id": 13,
+      "parent": 8,
+      "type": "Event",
+      "instanceName": "ProductViewed",
+      "description": "Triggered when a product is viewed by a user.",
+      "x": 1718,
+      "y": 100.0,
+      "width": 257,
+      "height": 118
+    },
+    {
+      "id": 14,
+      "parent": 8,
+      "type": "Event",
+      "instanceName": "CategoryViewed",
+      "description": "Triggered when a category is viewed by a user.",
+      "x": 1718,
+      "y": 248.0,
+      "width": 266,
+      "height": 118
+    },
+    {
+      "id": 15,
+      "parent": 8,
+      "type": "ReadModel",
+      "instanceName": "ProductSearchResult",
+      "description": "Projection of product data optimized for search queries.",
+      "x": 1718,
+      "y": 396.0,
+      "width": 311,
+      "height": 198,
+      "attributes": [
+        {
+          "name": "productId",
+          "type": "String"
+        },
+        {
+          "name": "name",
+          "type": "String"
+        },
+        {
+          "name": "price",
+          "type": "String"
+        },
+        {
+          "name": "category",
+          "type": "String"
+        },
+        {
+          "name": "availability",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "parent": 8,
+      "type": "ReadModel",
+      "instanceName": "CategoryHierarchyView",
+      "description": "View of the hierarchical structure of categories.",
+      "x": 1718,
+      "y": 624.0,
+      "width": 329,
+      "height": 186,
+      "attributes": [
+        {
+          "name": "categoryId",
+          "type": "String"
+        },
+        {
+          "name": "name",
+          "type": "String"
+        },
+        {
+          "name": "parentCategory",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "type": "ContextBox",
+      "instanceName": "OrderManagementContext",
+      "description": "Manages order creation, processing, and history.",
+      "x": 2097,
+      "y": 50,
+      "width": 1068,
+      "height": 956
+    },
+    {
+      "id": 18,
+      "parent": 17,
+      "type": "Command",
+      "instanceName": "PlaceOrder",
+      "description": "Creates a new order from selected items.",
+      "x": 2147,
+      "y": 100.0,
+      "width": 230,
+      "height": 138,
+      "producesEventId": 24
+    },
+    {
+      "id": 19,
+      "parent": 17,
+      "type": "Command",
+      "instanceName": "ViewOrderHistory",
+      "description": "Retrieves a user's past orders.",
+      "x": 2147,
+      "y": 268.0,
+      "width": 284,
+      "height": 124
+    },
+    {
+      "id": 20,
+      "parent": 17,
+      "type": "Policy",
+      "instanceName": "DeductInventory",
+      "description": "Reduces inventory levels for products in the placed order.",
+      "x": 2147,
+      "y": 422.0,
+      "width": 275,
+      "height": 158
+    },
+    {
+      "id": 21,
+      "parent": 17,
+      "type": "Policy",
+      "instanceName": "SendOrderConfirmation",
+      "description": "Sends a confirmation email to the user after order placement.",
+      "x": 2147,
+      "y": 610.0,
+      "width": 329,
+      "height": 158
+    },
+    {
+      "id": 22,
+      "parent": 17,
+      "type": "Policy",
+      "instanceName": "UpdateOrderStatus",
+      "description": "Updates the status of an order based on payment and fulfillment events.",
+      "x": 2147,
+      "y": 798.0,
+      "width": 293,
+      "height": 158
+    },
+    {
+      "id": 23,
+      "parent": 17,
+      "type": "Aggregate",
+      "instanceName": "Order",
+      "description": "Represents an order placed by a user.",
+      "x": 2526,
+      "y": 451.0,
+      "width": 260,
+      "height": 154,
+      "linkedDiagram": "order-uml"
+    },
+    {
+      "id": 24,
+      "parent": 17,
+      "type": "Event",
+      "instanceName": "OrderPlaced",
+      "description": "Triggered when a new order is successfully placed.",
+      "x": 2836,
+      "y": 170.0,
+      "width": 239,
+      "height": 118
+    },
+    {
+      "id": 25,
+      "parent": 17,
+      "type": "Event",
+      "instanceName": "OrderHistoryViewed",
+      "description": "Triggered when a user views their order history.",
+      "x": 2836,
+      "y": 318.0,
+      "width": 302,
+      "height": 118
+    },
+    {
+      "id": 26,
+      "parent": 17,
+      "type": "ReadModel",
+      "instanceName": "OrderSummaryReadModel",
+      "description": "Projection of order data for display in user dashboards.",
+      "x": 2836,
+      "y": 466.0,
+      "width": 329,
+      "height": 198,
+      "attributes": [
+        {
+          "name": "orderId",
+          "type": "String"
+        },
+        {
+          "name": "userId",
+          "type": "String"
+        },
+        {
+          "name": "status",
+          "type": "String"
+        },
+        {
+          "name": "totalAmount",
+          "type": "String"
+        },
+        {
+          "name": "createdDate",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "parent": 17,
+      "type": "ReadModel",
+      "instanceName": "OrderItemView",
+      "description": "View of individual items within an order.",
+      "x": 2836,
+      "y": 694.0,
+      "width": 257,
+      "height": 192,
+      "attributes": [
+        {
+          "name": "orderId",
+          "type": "String"
+        },
+        {
+          "name": "productId",
+          "type": "String"
+        },
+        {
+          "name": "quantity",
+          "type": "String"
+        },
+        {
+          "name": "unitPrice",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "type": "ContextBox",
+      "instanceName": "ReportingContext",
+      "description": "Provides analytics, reports, and dashboards for business insights.",
+      "x": 3215,
+      "y": 50,
+      "width": 785,
+      "height": 514
+    },
+    {
+      "id": 29,
+      "parent": 28,
+      "type": "Policy",
+      "instanceName": "UpdateDailySales",
+      "description": "Updates daily sales figures based on new order placements.",
+      "x": 3265,
+      "y": 134.0,
+      "width": 284,
+      "height": 158
+    },
+    {
+      "id": 30,
+      "parent": 28,
+      "type": "Policy",
+      "instanceName": "GenerateMonthlyReport",
+      "description": "Generates a monthly sales report based on aggregated data.",
+      "x": 3265,
+      "y": 322.0,
+      "width": 329,
+      "height": 158
+    },
+    {
+      "id": 31,
+      "parent": 28,
+      "type": "ReadModel",
+      "instanceName": "DailySalesReport",
+      "description": "Daily summary of sales data including total revenue and order count.",
+      "x": 3644,
+      "y": 100.0,
+      "width": 284,
+      "height": 192,
+      "attributes": [
+        {
+          "name": "date",
+          "type": "String"
+        },
+        {
+          "name": "totalRevenue",
+          "type": "String"
+        },
+        {
+          "name": "orderCount",
+          "type": "String"
+        },
+        {
+          "name": "avgOrderValue",
+          "type": "String"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "parent": 28,
+      "type": "ReadModel",
+      "instanceName": "TopSellingProductsReport",
+      "description": "List of top-selling products by quantity and revenue.",
+      "x": 3644,
+      "y": 322.0,
+      "width": 356,
+      "height": 192,
+      "attributes": [
+        {
+          "name": "productId",
+          "type": "String"
+        },
+        {
+          "name": "productName",
+          "type": "String"
+        },
+        {
+          "name": "totalSold",
+          "type": "String"
+        },
+        {
+          "name": "totalRevenue",
+          "type": "String"
+        }
+      ]
+    }
+  ],
+  "connections": []
+}

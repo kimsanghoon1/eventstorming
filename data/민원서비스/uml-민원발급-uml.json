@@ -24,18 +24,13 @@
           "visibility": "private"
         },
         {
+          "name": "creationPolicy",
+          "type": "ProjectCreationPolicy",
+          "visibility": "private"
+        },
+        {
           "name": "status",
           "type": "ProjectStatus",
-          "visibility": "private"
-        },
-        {
-          "name": "createdAt",
-          "type": "Instant",
-          "visibility": "private"
-        },
-        {
-          "name": "updatedAt",
-          "type": "Instant",
           "visibility": "private"
         }
       ],
@@ -44,54 +39,89 @@
           "name": "createProject",
           "parameters": [
             {
+              "name": "projectId",
+              "type": "UUID"
+            },
+            {
               "name": "projectName",
               "type": "String"
             },
             {
-              "name": "projectManagerId",
-              "type": "UUID"
+              "name": "creationPolicy",
+              "type": "ProjectCreationPolicy"
             }
           ],
           "returnType": "void",
           "visibility": "public"
         },
         {
-          "name": "updateProjectName",
+          "name": "validateCreationPolicy",
           "parameters": [
             {
-              "name": "newName",
-              "type": "String"
+              "name": "policy",
+              "type": "ProjectCreationPolicy"
             }
           ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "assignProjectManager",
-          "parameters": [
-            {
-              "name": "managerId",
-              "type": "UUID"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "completeProject",
-          "parameters": [],
-          "returnType": "void",
-          "visibility": "public"
+          "returnType": "boolean",
+          "visibility": "private"
         }
       ]
     },
     {
       "id": 2,
       "type": "Class",
+      "instanceName": "ProjectCreationPolicy",
+      "stereotype": "ValueObject",
+      "description": "Class for ProjectCreationPolicy aggregate.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "policyId",
+          "type": "UUID",
+          "visibility": "private"
+        },
+        {
+          "name": "name",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "description",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getPolicyId",
+          "parameters": [],
+          "returnType": "UUID",
+          "visibility": "public"
+        },
+        {
+          "name": "getName",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        },
+        {
+          "name": "getDescription",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "Class",
       "instanceName": "ProjectStatus",
       "stereotype": "ValueObject",
       "description": "Class for ProjectStatus aggregate.",
-      "x": 420,
+      "x": 740,
       "y": 100,
       "width": 280,
       "height": 220,
@@ -117,6 +147,12 @@
       "id": "conn-1-2",
       "from": 1,
       "to": 2,
+      "type": "Association"
+    },
+    {
+      "id": "conn-2-3",
+      "from": 2,
+      "to": 3,
       "type": "Association"
     }
   ]

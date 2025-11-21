@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dashboard - Diagramming App</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined.fill {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#13b6ec",
+              "background-light": "#f6f8f8",
+              "background-dark": "#101d22",
+            },
+            fontFamily: {
+              "display": ["Space Grotesk", "sans-serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+<div class="flex h-screen w-full">
+<!-- SideNavBar -->
+<aside class="flex w-64 flex-col bg-white/5 dark:bg-black/20 p-4 border-r border-white/10">
+<div class="flex items-center gap-3 px-2 mb-8">
+<span class="material-symbols-outlined text-primary text-3xl">hub</span>
+<span class="text-white text-xl font-bold">Diagramr</span>
+</div>
+<div class="flex h-full flex-col justify-between">
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-3 rounded-lg bg-primary/20 px-3 py-2">
+<span class="material-symbols-outlined text-primary fill">dashboard</span>
+<p class="text-sm font-bold leading-normal text-primary">Dashboard</p>
+</div>
+<div class="flex items-center gap-3 rounded-lg px-3 py-2 text-white/70 hover:bg-white/5 hover:text-white transition-colors duration-200">
+<span class="material-symbols-outlined">folder_open</span>
+<p class="text-sm font-medium leading-normal">All Projects</p>
+</div>
+<div class="flex items-center gap-3 rounded-lg px-3 py-2 text-white/70 hover:bg-white/5 hover:text-white transition-colors duration-200">
+<span class="material-symbols-outlined">grid_view</span>
+<p class="text-sm font-medium leading-normal">Templates</p>
+</div>
+<div class="flex items-center gap-3 rounded-lg px-3 py-2 text-white/70 hover:bg-white/5 hover:text-white transition-colors duration-200">
+<span class="material-symbols-outlined">settings</span>
+<p class="text-sm font-medium leading-normal">Settings</p>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-3 rounded-lg px-3 py-2 text-white/70 hover:bg-white/5 hover:text-white transition-colors duration-200">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-8" data-alt="User avatar of Alex Hartman" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA6BqEkttQnwzSnHnQ64XpG-VLUX2BsPniXJ4oaX59tlJI4jJWNdkZQi8mTWCvWFnUT1kihIsyWsAnZurYC_w8ZUVwlUZnePklwNImF4mpSQDURpKsFsdn_M6PS6sl0pipKGS6bzhyaiAQ3yCBxWSV_FPXIZBuOlvwuyfMpLQUVaBcwXW1qCv_P-0l3rekkIZe6MzVu0GNolDPHeUq-S3X_WBMyqLkjjvi-o4lb6l8xD84SCaN666ACe-Nm6KfRWsOkNhzBzMLisQc");'></div>
+<div class="flex flex-col">
+<h1 class="text-white text-sm font-medium leading-tight">Alex Hartman</h1>
+<p class="text-white/50 text-xs font-normal leading-tight">alex.hartman@example.com</p>
+</div>
+</div>
+<div class="flex items-center gap-3 rounded-lg px-3 py-2 text-white/70 hover:bg-white/5 hover:text-white transition-colors duration-200">
+<span class="material-symbols-outlined">logout</span>
+<p class="text-sm font-medium leading-normal">Log out</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto">
+<div class="mx-auto max-w-7xl p-6 lg:p-8">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<div class="lg:col-span-2">
+<!-- PageHeading & SearchBar -->
+<div class="flex flex-wrap items-center justify-between gap-4 mb-8">
+<div class="flex min-w-72 flex-col gap-2">
+<p class="text-white text-4xl font-black leading-tight tracking-[-0.033em]">Welcome back, Alex!</p>
+<p class="text-white/60 text-base font-normal leading-normal">Here's what's happening with your projects today.</p>
+</div>
+<div class="flex items-center gap-4">
+<label class="flex flex-col h-12 w-64">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full">
+<div class="text-white/60 flex border-none bg-white/5 items-center justify-center pl-4 rounded-l-lg border-r-0">
+<span class="material-symbols-outlined">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-white focus:outline-0 focus:ring-0 border-none bg-white/5 focus:border-none h-full placeholder:text-white/60 px-4 rounded-l-none border-l-0 pl-2 text-base font-normal leading-normal" placeholder="Search projects..." value=""/>
+</div>
+</label>
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-12 px-5 bg-primary text-background-dark text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">
+<span class="material-symbols-outlined">add_circle</span>
+<span class="truncate">New Project</span>
+</button>
+</div>
+</div>
+<!-- SectionHeader & TextGrid -->
+<h2 class="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] pb-3 pt-5">Start a New Project</h2>
+<div class="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-6">
+<div class="flex flex-1 gap-4 rounded-xl border border-white/10 bg-white/[.02] p-5 flex-col hover:bg-white/5 hover:border-white/20 transition-all duration-200">
+<div class="text-primary"><span class="material-symbols-outlined text-3xl">storm</span></div>
+<div class="flex flex-col gap-1">
+<h2 class="text-white text-base font-bold leading-tight">New Eventstorming Project</h2>
+<p class="text-white/60 text-sm font-normal leading-normal">Map out complex business domains.</p>
+</div>
+</div>
+<div class="flex flex-1 gap-4 rounded-xl border border-white/10 bg-white/[.02] p-5 flex-col hover:bg-white/5 hover:border-white/20 transition-all duration-200">
+<div class="text-primary"><span class="material-symbols-outlined text-3xl">account_tree</span></div>
+<div class="flex flex-col gap-1">
+<h2 class="text-white text-base font-bold leading-tight">New UML Diagram</h2>
+<p class="text-white/60 text-sm font-normal leading-normal">Visualize your system architecture.</p>
+</div>
+</div>
+</div>
+<!-- Recent Projects Section -->
+<h2 class="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] pb-3 pt-10">Recent Projects</h2>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="group flex flex-col gap-4 rounded-xl border border-white/10 bg-white/[.02] p-5 hover:bg-white/5 hover:border-white/20 transition-all duration-200">
+<div class="flex-grow aspect-video bg-white/5 rounded-lg overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Abstract gradient representing a project thumbnail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8o15IXzprxvmUIi--jfJLbjhmDz5Dc5wgr8Y-YYZ_b6E6zVhJLtPPqSK0i7NVhUh4YF2iIoHU8HYrqEOY__EXNFJRNhzJd3hJ4vR2fGr9D6Nhw80jVg2caZa1fAk6wQrvSV0etgRj82oAR7bCWqFG6cBEgtCG2H4YJsT1_fwe8g9O0PoKKaDDSG50eVtMfefwRNvjGSEF-7MUaWiijvUy1xKWttZjsyMNiC0I_oM-KZgqIvdZQp8YnFf4jXuC7eNZSuPdzhnMm-Y"/>
+</div>
+<div class="flex justify-between items-start">
+<div>
+<p class="text-white/60 text-xs font-medium uppercase tracking-wider">Eventstorming</p>
+<h3 class="text-white text-lg font-bold">User Authentication Flow</h3>
+<p class="text-white/60 text-sm">Edited 2 hours ago</p>
+</div>
+<div class="flex -space-x-2 relative">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-8 border-2 border-background-dark" data-alt="Collaborator avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBGMABl4uN_Lg8SrmYQI8ztDhCp5UlJ7FlxS2VA_MKCU0coDdUEyqGVPEbdLMmU2V2u6jlH7IUvD9ek5vGyQDlbo2uZNd0WIMGK-PDcxxo65ZQbJMAOFPLR3WDxQYJ0Mw7ezfUPUt0loSyJClHk3XMhWaYNwGcP7O0P16Dj8tuF222gBVh4zqaHSKQMQx8_dlIrlSLD1Wghkl24BqbEUfthZlPuA0eg2LmRfwGS47bTP1_4_wOamRfk-fiFqqb7aM7joPVHfPHuoyE");'></div>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-8 border-2 border-background-dark" data-alt="Collaborator avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA7ayP6DP_VYFjkWl17gsvfhZgFYncTL3M87BoAmAhuBc4-LF5GDMX2xOlOOnb7ATg4njyKunKLFTfumzQoojbrHm57yVjfh4lAe0DD_3M4upO9AKfQzP9RbDNb1aM_DRd7siZvFBR0539d0PaeiRTLFClhrNxNVw1SrkZ0a70V6kl331DboB7AaOKKGA9jUJxthRdUd2_b5UdF6weMEA4IHiaASnh4odPe7bAURTH0n-4csup8J1GzMtVyOqhcOH9Vu5K-l97L9gs");'></div>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-8 border-2 border-background-dark" data-alt="Collaborator avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC88ePXzWCt8Dh_wh329AJ47zeanWPHYpS_6ZvhuLKw2GC8AVrtvU998vXvRCAD9zn04sNMJMYkiA_lmwwZXbQBC1LrcK1FgjWz_bCRU_RHbswTbjK_CbcdobTTyM7R76x_xmcg5Tl_iN745BFQoK4LA124ZwqhzeB8g-cWw6bUqcfQUBXMAHJ1ldfebt0JgBfpsig-C7cNAbfqwhvGOdGJ1wHeGNK97HA5nPzkfY0uQjupFoYToXXkaiUBzqSMYyzFOq4mOd4m8EM");'></div>
+</div>
+</div>
+</div>
+<div class="group flex flex-col gap-4 rounded-xl border border-white/10 bg-white/[.02] p-5 hover:bg-white/5 hover:border-white/20 transition-all duration-200">
+<div class="flex-grow aspect-video bg-white/5 rounded-lg overflow-hidden">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="Abstract gradient representing a project thumbnail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAt4RfzzDkzXjViqyXT3whY__DqcpA47UM7-jcw4t9lPSwaLnTi1qzxOLKaAosJi1c8ZqLfXPMSw1dwv22BgiZ8IrEco1sqcNPOYL2BaJtRG9EnLCljcrS3A0sQNY36YbxZ0fOPMPBiAegRY7g8sGmLafAGQ0JFxk_jgyDBoWQ_aDSRdUFoAGZ_CHstcttNaHtc4gqthe1AylAa-AAv2Ak8St76uuMCBX-dG3ExHv3nOGbnUpQvwJInXEmx4v7tvHpMCc4tKmJ7_Y4"/>
+</div>
+<div class="flex justify-between items-start">
+<div>
+<p class="text-white/60 text-xs font-medium uppercase tracking-wider">UML Diagram</p>
+<h3 class="text-white text-lg font-bold">API Gateway Architecture</h3>
+<p class="text-white/60 text-sm">Edited yesterday</p>
+</div>
+<div class="flex -space-x-2 relative">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-8 border-2 border-background-dark" data-alt="Collaborator avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAZmlmQ0M64wRpFx9_8w1sCNqwnZks6FLaDJ2Sbyj9kc2eXaBZHGH65MOGDMMF5E-Su4FCboV1o06CekH7ZYLkbHKGqhAqsQs1QY5vfs2umGxvkl_wHF2OrTFR1bnXRJCG2e7RjS57oDpcCeOe3kEI71iqw_Odbdo7VI8jtpFHWvKe-05tgjgQ5ftZEROthfWsKLFsMxxNcBgI5qwkdZ06kQftXIdiOxxX8zq3KYPpJ2Pl8dG998xklgddkAUfAaNBcHOgOZL3kyZk");'></div>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-8 border-2 border-background-dark" data-alt="Collaborator avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD3uDTUuRrO7oeHk7zA_oJHzRSDy0DrdTkEJZURwfcPkXygMJbuXdovqjqydGxb9rDi-O0VN9vg7dzCL0Kt0JWM1-_Ktt1ZH-ROT0lGqeaypgDc53fDZMONQn0TBKTZaOAJhER0VqtIPO7TYSVZUjgDsjX5JE2z2TzFRoxrejBc7YZFSgLZOjWaNKxnSGN1LhTLnC2_GE8z5_WGdmxwceAlUgiDEomlceLoFCnrY_I9gZNC38G6TIEfdZ3MiWlK1mpKkQ1iajpAXD0");'></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="lg:col-span-1">
+<div class="bg-white/5 rounded-xl p-6 sticky top-8">
+<h2 class="text-white text-[22px] font-bold leading-tight tracking-[-0.015em] pb-4">Team Activity</h2>
+<div class="flex flex-col gap-5">
+<div class="flex gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="User avatar of Jane Doe" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA7lb_cGS7SCGdOXwCxGVMuf_EbYf6bLSUDwuaAk3ioNZl97x8sf2r6bVdPkgiG20mVJjGu6AFtpbq-WuZ-3Fk2M7t1Ve24-l0XrEvxldW-2UWZXw6L7__knHfJjkSmXmB0pCu1hvNGf81ITiMZcQnwqBgoURTICWIhrC0WSuD01qY1SekawEFm4Xy1u5maKZw0eWwO1K_fgUxFjjb5qQ-szZrhq-LCXkF6ok4PblV1hGG55O0l0TozY7RmWIAruURw_07vO26JXYA");'></div>
+<div class="flex flex-col">
+<p class="text-white text-sm"><span class="font-bold">Jane Doe</span> commented on <span class="font-bold text-primary/80">User Authentication Flow</span></p>
+<p class="text-white/50 text-xs mt-1">15 minutes ago</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="User avatar of John Smith" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD7Hn9ann-5W4sh2355x7BjsNqLbyzpJTSn6yFPtwWfw5Yx8Y-je6SIK2Db0lyolCGPSvFY6Iiriqbnz_tBFjSX26LLS_4qptVpHYhuQUbK8uhDew3KKC33DX6TxauvNIjhbk-fR4C-RtCP2sWPwpAlBF26mlaPUHk1AUq5GoDWl7eJVkvy2wKIzGyHlAaxe4fiEHu05PVeFHhaDyLB_QjM-HcWS5r-3hWtPOYbYTT66DxF7BDIWP9XQsjkJkGddGPLKUuyyjBi7D8");'></div>
+<div class="flex flex-col">
+<p class="text-white text-sm"><span class="font-bold">John Smith</span> created a new project <span class="font-bold text-primary/80">Order Processing Service</span></p>
+<p class="text-white/50 text-xs mt-1">1 hour ago</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="User avatar of Emily White" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDg_nE8zyA5lNRxIq6YN4eWGEW4GJHzfejTK01f0qgZ81IcPkCXkoJh8bfhsJXGbpbiX6FjX6mqa6dsAMHn57oEZhSNyfl-sAIXTCQnbWm6QRslnDjlDVamLVFtLx_lHkYkAoFUWay24vwe6SxpFn_UuQn_PRlrsKwcNOVlvruXAQ4_I8zvksZXYM1vbyFMSzks8rm6KSql6GeR8fx5HWGMTJD3TGGJ38DwPXhaT3LPc1To6jr0AWXbXApWAuldE7HORMPqKtRn4oM");'></div>
+<div class="flex flex-col">
+<p class="text-white text-sm"><span class="font-bold">Emily White</span> invited you to <span class="font-bold text-primary/80">API Gateway Architecture</span></p>
+<p class="text-white/50 text-xs mt-1">3 hours ago</p>
+</div>
+</div>
+<div class="flex gap-4">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="User avatar of Alex Hartman" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBLHvlJ9xt4QuAi8mfdA46WRxrYPeHgsXKUT3TPq_fWoaYR5MFVtazcIkq93qdyugRkovdqlEEtCM7UBYS6j8VhkiGtopqgRIgQdLBSFqLk0f_Nj52mgBaoDJqal1MAN49FFNQd75YUwSUoFupN2fmJVVFS6PgJ_UaGIY8WKYvJML03DE0S2Z00ZzxtwOx8lXFVbRsDc5uuMNeFfTSA7De-dDelTCsLCpPANqVnsIwZZ1kHLGh83eCA6w4O0J1Md35rbZGQ5pjTmc0");'></div>
+<div class="flex flex-col">
+<p class="text-white text-sm"><span class="font-bold">You</span> edited <span class="font-bold text-primary/80">User Authentication Flow</span></p>
+<p class="text-white/50 text-xs mt-1">Yesterday</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

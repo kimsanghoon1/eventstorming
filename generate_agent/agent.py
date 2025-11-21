@@ -1,147 +1,140 @@
+import json
 import os
-
+import logging
 from collections.abc import AsyncIterable
 from typing import Any, Literal
 
-import httpx
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.prebuilt import create_react_agent
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+logging.basicConfig(level=logging.INFO, encoding='utf-8')
 
-memory = MemorySaver()
+# --- Pydantic Models for Code Generation ---
+class GeneratedFile(BaseModel):
+    path: str = Field(description="Relative path of the file (e.g., src/main/java/com/example/demo/domain/Order.java)")
+    content: str = Field(description="Complete source code content.")
 
-
-# @tool
-# def get_exchange_rate(
-#     currency_from: str = 'USD',
-#     currency_to: str = 'EUR',
-#     currency_date: str = 'latest',
-# ):
-#     """Use this to get current exchange rate.
-
-#     Args:
-#         currency_from: The currency to convert from (e.g., "USD").
-#         currency_to: The currency to convert to (e.g., "EUR").
-#         currency_date: The date for the exchange rate or "latest". Defaults to
-#             "latest".
-
-#     Returns:
-#         A dictionary containing the exchange rate data, or an error message if
-#         the request fails.
-#     """
-#     try:
-#         response = httpx.get(
-#             f'https://api.frankfurter.app/{currency_date}',
-#             params={'from': currency_from, 'to': currency_to},
-#         )
-#         response.raise_for_status()
-
-#         data = response.json()
-#         if 'rates' not in data:
-#             return {'error': 'Invalid API response format.'}
-#         return data
-#     except httpx.HTTPError as e:
-#         return {'error': f'API request failed: {e}'}
-#     except ValueError:
-#         return {'error': 'Invalid JSON response from API.'}
-
-
-class ResponseFormat(BaseModel):
-    """Respond to the user in this format."""
-
-    status: Literal['input_required', 'completed', 'error'] = 'input_required'
-    message: str
-
+class CodeGenerationResult(BaseModel):
+    files: list[GeneratedFile] = Field(description="List of generated source files.")
 
 class GenerateAgent:
-    """GenerateAgent - a specialized assistant for generating source code from a visual board model."""
+    """
+    GenerateAgent - A specialized agent for generating Java Spring Boot source code 
+    from a UML class diagram (JSON).
+    """
 
     def __init__(self):
-        self.system_instruction = (
-            'You are a specialized assistant for currency conversions. '
-            "Your sole purpose is to use the 'get_exchange_rate' tool to answer questions about currency exchange rates. "
-            'If the user asks about anything other than currency conversion or exchange rates, '
-            'politely state that you cannot help with that topic and can only assist with currency-related queries. '
-            'Do not attempt to answer unrelated questions or use tools for other purposes.'
-        )
+        self.system_instruction = """
+You are an expert Java Spring Boot Architect and Developer.
+Your task is to generate a production-ready Microservice based on the provided UML Class Diagram.
+
+**Technology Stack:**
+- Language: Java 17+
+- Framework: Spring Boot 3.x
+- Architecture: Hexagonal or Layered Architecture (Controller -> Service -> Repository)
+- Persistence: Spring Data JPA (Hibernate)
+- Messaging: Spring Cloud Stream (Kafka) or Spring Kafka
+- Build Tool: Maven (pom.xml)
+
+**Input:**
+- A JSON representation of a UML Class Diagram containing Classes (Aggregates, Entities, ValueObjects, Enums, DTOs, Services) and Relationships.
+
+**Generation Rules:**
+
+1.  **Project Structure**:
+
+4.  **Service Layer**:
+    - Implement business logic in `@Service` classes.
+    - **Command Handling**: Methods that accept Command DTOs, load Aggregates via Repository, invoke Aggregate methods, and save.
+    - **Event Handling**: Methods annotated with `@KafkaListener` (or `@StreamListener`) to handle incoming events.
+
+5.  **API Layer (Controllers)**:
+    - Expose REST endpoints for Commands.
+    - Use `@RestController`, `@PostMapping`.
+    - Map HTTP requests to Command DTOs and call the Service.
+
+6.  **Infrastructure**:
+    - Generate `Repository` interfaces extending `JpaRepository`.
+    - Generate `application.yml` with basic Kafka and Database config.
+
+**CRITICAL INSTRUCTION**:
+- Ensure the code is compilable.
+- Add Javadoc comments explaining the mapping from UML.
+- If a Class is a `Service` in UML, generate it as a Spring `@Service`.
+- If a Class is an `AggregateRoot`, generate it as an `@Entity` and also generate a corresponding `Repository`.
+"""
         
         self.openai_api_key = os.getenv('OPENAI_API_KEY')
         self.llm = ChatOpenAI(
             api_key=self.openai_api_key,
             base_url=os.getenv('OPENAI_API_BASE_URL'),
-            model=os.getenv('OPENAI_API_MODEL'),
-            temperature=0,
+            model=os.getenv('OPENAI_API_MODEL', 'openai/gpt-oss-120b'),
+            temperature=0.1, # Low temperature for precise code generation
         )
+
+    async def stream(self, query: str, context_id: str) -> AsyncIterable[dict[str, Any]]:
+        """
+        Streams the code generation process. 
+        The 'query' is expected to be the UML JSON string.
+        """
         
-        self.tools = []
-
-        self.graph = create_react_agent(
-            self.llm,
-            tools=self.tools,
-            checkpointer=memory,
-        )
-
-    async def stream(self, query, context_id) -> AsyncIterable[dict[str, Any]]:
-        system_message = ('system', self.system_instruction)
-        inputs = {'messages': [system_message, ('user', query)]}
-        config = {'configurable': {'thread_id': context_id}}
-
-        for item in self.graph.stream(inputs, config, stream_mode='values'):
-            message = item['messages'][-1]
-            if (
-                isinstance(message, AIMessage)
-                and message.tool_calls
-                and len(message.tool_calls) > 0
-            ):
-                yield {
-                    'is_task_complete': False,
-                    'require_user_input': False,
-                    'content': 'Looking up the exchange rates...',
-                }
-            elif isinstance(message, ToolMessage):
-                yield {
-                    'is_task_complete': False,
-                    'require_user_input': False,
-                    'content': 'Processing the exchange rates..',
-                }
-
-        yield self.get_agent_response(config)
-
-    def get_agent_response(self, config):
-        current_state = self.graph.get_state(config)
-        structured_response = current_state.values.get('structured_response')
-        if structured_response and isinstance(
-            structured_response, ResponseFormat
-        ):
-            if structured_response.status == 'input_required':
-                return {
-                    'is_task_complete': False,
-                    'require_user_input': True,
-                    'content': structured_response.message,
-                }
-            if structured_response.status == 'error':
-                return {
-                    'is_task_complete': False,
-                    'require_user_input': True,
-                    'content': structured_response.message,
-                }
-            if structured_response.status == 'completed':
-                return {
-                    'is_task_complete': True,
-                    'require_user_input': False,
-                    'content': structured_response.message,
-                }
-
-        return {
+        # 1. Notify start
+        yield {
             'is_task_complete': False,
-            'require_user_input': True,
-            'content': (
-                'We are unable to process your request at the moment. '
-                'Please try again.'
-            ),
+            'require_user_input': False,
+            'content': 'Analyzing UML model and planning Spring Boot architecture...',
         }
 
-    SUPPORTED_CONTENT_TYPES = ['text', 'text/plain']
+        try:
+            # 2. Invoke LLM
+            messages = [
+                SystemMessage(content=self.system_instruction),
+                HumanMessage(content=f"Generate Java Spring Boot code for this UML model:\n\n{query}")
+            ]
+
+            # We use with_structured_output to get a clean list of files
+            structured_llm = self.llm.with_structured_output(CodeGenerationResult)
+            result = await structured_llm.ainvoke(messages)
+
+            # 3. Stream back the files
+            if result and result.files:
+                file_count = len(result.files)
+                yield {
+                    'is_task_complete': False,
+                    'require_user_input': False,
+                    'content': f'Generated {file_count} source files. Preparing output...',
+                }
+
+                # Format the output as a markdown code block or a list
+                # For the A2A interface, we usually return a summary text.
+                # The actual files might be better handled as artifacts, but here we'll dump them in the text for now
+                # or assume the executor handles artifacts.
+                
+                # Let's construct a readable summary
+                summary = f"## Generated Spring Boot Project\n\n"
+                for file in result.files:
+                    summary += f"### `{file.path}`\n"
+                    summary += f"```java\n{file.content}\n```\n\n"
+
+                yield {
+                    'is_task_complete': True,
+                    'require_user_input': False,
+                    'content': summary,
+                }
+            else:
+                yield {
+                    'is_task_complete': True,
+                    'require_user_input': False,
+                    'content': "Failed to generate code. The model might be empty or invalid.",
+                }
+
+        except Exception as e:
+            logging.error(f"Code generation failed: {e}")
+            yield {
+                'is_task_complete': True,
+                'require_user_input': False,
+                'content': f"An error occurred during code generation: {str(e)}",
+            }
+
+    SUPPORTED_CONTENT_TYPES = ['text', 'text/plain', 'application/json']

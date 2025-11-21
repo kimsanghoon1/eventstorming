@@ -24,18 +24,23 @@
           "visibility": "private"
         },
         {
-          "name": "reservationStatus",
-          "type": "String",
+          "name": "reservationPeriod",
+          "type": "Period",
           "visibility": "private"
         },
         {
-          "name": "reservationDate",
-          "type": "LocalDateTime",
+          "name": "status",
+          "type": "ReservationStatus",
           "visibility": "private"
         },
         {
-          "name": "projectName",
-          "type": "String",
+          "name": "createdAt",
+          "type": "Instant",
+          "visibility": "private"
+        },
+        {
+          "name": "updatedAt",
+          "type": "Instant",
           "visibility": "private"
         }
       ],
@@ -48,12 +53,8 @@
               "type": "UUID"
             },
             {
-              "name": "projectName",
-              "type": "String"
-            },
-            {
-              "name": "reservationDate",
-              "type": "LocalDateTime"
+              "name": "reservationPeriod",
+              "type": "Period"
             }
           ],
           "returnType": "void",
@@ -66,18 +67,94 @@
           "visibility": "public"
         },
         {
-          "name": "updateReservationStatus",
+          "name": "extendReservation",
           "parameters": [
             {
-              "name": "status",
-              "type": "String"
+              "name": "newPeriod",
+              "type": "Period"
             }
           ],
           "returnType": "void",
           "visibility": "public"
         }
       ]
+    },
+    {
+      "id": 2,
+      "type": "Class",
+      "instanceName": "Period",
+      "stereotype": "ValueObject",
+      "description": "Class for Period aggregate.",
+      "x": 420,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "start",
+          "type": "Instant",
+          "visibility": "private"
+        },
+        {
+          "name": "end",
+          "type": "Instant",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getStart",
+          "parameters": [],
+          "returnType": "Instant",
+          "visibility": "public"
+        },
+        {
+          "name": "getEnd",
+          "parameters": [],
+          "returnType": "Instant",
+          "visibility": "public"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "Class",
+      "instanceName": "ReservationStatus",
+      "stereotype": "ValueObject",
+      "description": "Class for ReservationStatus aggregate.",
+      "x": 740,
+      "y": 100,
+      "width": 280,
+      "height": 220,
+      "attributes": [
+        {
+          "name": "value",
+          "type": "String",
+          "visibility": "private"
+        }
+      ],
+      "methods": [
+        {
+          "name": "getValue",
+          "parameters": [],
+          "returnType": "String",
+          "visibility": "public"
+        }
+      ]
     }
   ],
-  "connections": []
+  "connections": [
+    {
+      "id": "conn-1-2",
+      "from": 1,
+      "to": 2,
+      "type": "Association"
+    },
+    {
+      "id": "conn-2-3",
+      "from": 2,
+      "to": 3,
+      "type": "Association"
+    }
+  ]
 }

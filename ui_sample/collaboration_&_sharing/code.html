@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Team Management - EventStorm Pro</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#13b6ec",
+            "background-light": "#f6f8f8",
+            "background-dark": "#101d22",
+          },
+          fontFamily: {
+            "display": ["Space Grotesk", "sans-serif"]
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings:
+        'FILL' 0,
+        'wght' 400,
+        'GRAD' 0,
+        'opsz' 24
+    }
+    
+    .material-symbols-outlined.fill {
+        font-variation-settings: 'FILL' 1;
+    }
+  </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
+<div class="relative flex h-auto min-h-screen w-full flex-col">
+<div class="flex h-full min-h-screen flex-1">
+<!-- SideNavBar -->
+<aside class="flex w-64 flex-col border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-[#152329] p-4">
+<div class="flex flex-col gap-4">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Workspace logo with abstract shapes" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC6BXdWGbATBMSBSzCDsGdY9r98RzGi_zb4XBogAwl8PqKcUG4WrmNnKsIR7rdVFtSBUneVWulHa1R-RJ6ES2MSsBehzkA2vkOXGaYSpbER7eenCWTgEQpNxwJ9bF1ETH0uj8i0MWKcw9oid0Jee1fxnuojMphxpE8s8de_vkNjHLOsCj9Xl-C8z3jZPG8LOAf5h-Ondih7TfJkvfT0C6c-CBXs8hsTN1n6jKRym0d2PxY6OCfSMAjxhfzYrO4oCuf1MUmP4eNRKZg");'></div>
+<div class="flex flex-col">
+<h1 class="text-gray-900 dark:text-white text-base font-medium leading-normal">EventStorm Pro</h1>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">Workspace Settings</p>
+</div>
+</div>
+<nav class="flex flex-col gap-1 mt-4">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/20 text-primary" href="#">
+<span class="material-symbols-outlined fill">group</span>
+<p class="text-sm font-medium leading-normal">Team Members</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined">share</span>
+<p class="text-sm font-medium leading-normal">Project Sharing</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined">credit_card</span>
+<p class="text-sm font-medium leading-normal">Billing</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined">key</span>
+<p class="text-sm font-medium leading-normal">API Keys</p>
+</a>
+</nav>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 p-6 sm:p-8 md:p-12">
+<div class="mx-auto flex max-w-4xl flex-col">
+<!-- PageHeading -->
+<div class="flex flex-wrap items-center justify-between gap-4">
+<div class="flex min-w-72 flex-col gap-2">
+<p class="text-gray-900 dark:text-white text-3xl font-bold leading-tight">Manage Team Members</p>
+<p class="text-gray-500 dark:text-gray-400 text-base font-normal leading-normal">Invite, manage, and set permissions for your team.</p>
+</div>
+<button class="flex min-w-[84px] cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-wide hover:opacity-90 transition-opacity">
+<span class="material-symbols-outlined text-lg">add</span>
+<span class="truncate">Invite New Member</span>
+</button>
+</div>
+<!-- SearchBar -->
+<div class="mt-8">
+<label class="flex flex-col min-w-40 h-12 w-full">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-background-dark focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/50 transition-all">
+<div class="text-gray-400 dark:text-gray-500 flex items-center justify-center pl-4">
+<span class="material-symbols-outlined">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-gray-900 dark:text-white focus:outline-0 focus:ring-0 border-none bg-transparent h-full placeholder:text-gray-400 dark:placeholder:text-gray-500 pl-2 text-base font-normal leading-normal" placeholder="Search by name or email..." value=""/>
+</div>
+</label>
+</div>
+<!-- Table -->
+<div class="mt-6 @container">
+<div class="flex overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#152329]">
+<table class="w-full">
+<thead class="bg-gray-50 dark:bg-white/5">
+<tr>
+<th class="table-col-member px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Member</th>
+<th class="table-col-role px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Role</th>
+<th class="table-col-status px-6 py-4 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Status</th>
+<th class="table-col-actions relative py-4 pl-3 pr-4 sm:pr-6">
+<span class="sr-only">Actions</span>
+</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+<tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<td class="table-col-member whitespace-nowrap px-6 py-4">
+<div class="flex items-center gap-3">
+<img class="size-9 rounded-full" data-alt="Avatar for Alice Johnson" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBk51gqVnsNmh3WuAg0s_D0c6gmGzPqRJJ8heiElthCyOZDFPrb7MfnfG3sWTCkOfKEfiXv5s1Au0FkSlZx8MluY0dfh3_hTJW_GNlASgHBRz35QvY-fAekBYPR8X-GqIl3tZeIpkd0jggDcp82LwO-vZIco9JqPXBwWJ_yXLvJkzhYQAKh6b6VdV2IduQJDpNHmcpX3tH3MRB402B5_LVPAu3Abm8HI0n3cPlWLg5hVvEdGQN_kONykpe1pPUGzgZVNTqO-9d-YvI"/>
+<div class="flex flex-col">
+<p class="text-sm font-medium text-gray-900 dark:text-white">Alice Johnson</p>
+<p class="text-sm text-gray-500 dark:text-gray-400">alice@example.com</p>
+</div>
+</div>
+</td>
+<td class="table-col-role whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">Admin</td>
+<td class="table-col-status whitespace-nowrap px-6 py-4">
+<span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/50 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:text-green-300">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>
+                        Active
+                      </span>
+</td>
+<td class="table-col-actions whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+<button class="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<td class="table-col-member whitespace-nowrap px-6 py-4">
+<div class="flex items-center gap-3">
+<img class="size-9 rounded-full" data-alt="Avatar for Bob Williams" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBzOQ8nzWHZ0wRmTTtu1yR8ZCFCuHV7qiWTv93hZXwbbK9egjHYRNWvCiJrp6lRDDfOv_Cdt8ApaG_7G72t6kkT1JKkW0TiIgUnlLZaLQHUqG8CFXBb-mI3DKHkpFum_8yfYYTVI7t8RUhRU5T7YUIONYtu1T8XSP1_67KoRHRa5mytJfDKhMf2ZJPH6FHYnl73Oi7cQMZRYTkiy1JICdbZ8FrYPkKJxGDxLlrw1uuM5h_NqwgfQABTSI3VzeopRyvo3jMEPaiftlo"/>
+<div class="flex flex-col">
+<p class="text-sm font-medium text-gray-900 dark:text-white">Bob Williams</p>
+<p class="text-sm text-gray-500 dark:text-gray-400">bob@example.com</p>
+</div>
+</div>
+</td>
+<td class="table-col-role whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">Editor</td>
+<td class="table-col-status whitespace-nowrap px-6 py-4">
+<span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/50 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:text-green-300">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>
+                        Active
+                      </span>
+</td>
+<td class="table-col-actions whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+<button class="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<td class="table-col-member whitespace-nowrap px-6 py-4">
+<div class="flex items-center gap-3">
+<img class="size-9 rounded-full" data-alt="Avatar for Charlie Brown" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDo3e5fuFrnV2BSkaMSv4apyACQEBNH8BjbzZ3zHDPoIR1hgK7OWx084PIJbag7OywP-pRkLv-11BUo7wW5iiDNZXBGoXfCGqKuIlFzqhOsKOXhN6bTVxpWQzmFeSaOZChztqpd2g1vxQtP4-eAsVCdSWPXZWP7pan43f1qpzFiqo1Uou9ZarIA5MPjqHhevhTpua_FSEh7NOsOFH1FdmLJJTdbdHqlz-qzWDsTH4YlaTXEj-cm_UDbRGHO33G9AjetuDN8rLt3HFQ"/>
+<div class="flex flex-col">
+<p class="text-sm font-medium text-gray-900 dark:text-white">Charlie Brown</p>
+<p class="text-sm text-gray-500 dark:text-gray-400">charlie@example.com</p>
+</div>
+</div>
+</td>
+<td class="table-col-role whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">Viewer</td>
+<td class="table-col-status whitespace-nowrap px-6 py-4">
+<span class="inline-flex items-center rounded-full bg-green-100 dark:bg-green-900/50 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:text-green-300">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500 mr-1.5"></span>
+                        Active
+                      </span>
+</td>
+<td class="table-col-actions whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+<button class="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</td>
+</tr>
+<tr class="hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+<td class="table-col-member whitespace-nowrap px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="size-9 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 font-medium">D</div>
+<div class="flex flex-col">
+<p class="text-sm font-medium text-gray-900 dark:text-white">diana@example.com</p>
+<p class="text-sm text-gray-500 dark:text-gray-400 italic">Invitation sent</p>
+</div>
+</div>
+</td>
+<td class="table-col-role whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">Editor</td>
+<td class="table-col-status whitespace-nowrap px-6 py-4">
+<span class="inline-flex items-center rounded-full bg-yellow-100 dark:bg-yellow-900/50 px-2.5 py-0.5 text-xs font-medium text-yellow-800 dark:text-yellow-300">
+<span class="w-1.5 h-1.5 rounded-full bg-yellow-500 mr-1.5"></span>
+                        Pending
+                      </span>
+</td>
+<td class="table-col-actions whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+<button class="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_horiz</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<style>
+            @container(max-width: 640px) {
+              .table-col-role, .table-col-status { display: none; }
+            }
+            @container(max-width: 480px) {
+              .table-col-member { 
+                padding-left: 1rem;
+                padding-right: 1rem;
+               }
+               .table-col-actions {
+                 padding-left: 1rem;
+                padding-right: 1rem;
+               }
+            }
+          </style>
+<!-- Pagination -->
+<div class="mt-6 flex items-center justify-center">
+<nav class="flex items-center gap-1">
+<a class="flex size-9 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined text-xl">chevron_left</span>
+</a>
+<a class="text-sm font-bold leading-normal flex size-9 items-center justify-center rounded-lg bg-primary text-white" href="#">1</a>
+<a class="text-sm font-normal leading-normal flex size-9 items-center justify-center rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5" href="#">2</a>
+<a class="text-sm font-normal leading-normal flex size-9 items-center justify-center rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5" href="#">3</a>
+<span class="text-sm font-normal leading-normal flex size-9 items-center justify-center text-gray-500 dark:text-gray-400" href="#">...</span>
+<a class="text-sm font-normal leading-normal flex size-9 items-center justify-center rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5" href="#">8</a>
+<a class="flex size-9 items-center justify-center rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined text-xl">chevron_right</span>
+</a>
+</nav>
+</div>
+</div>
+</main>
+</div>
+</div>
+</body></html>

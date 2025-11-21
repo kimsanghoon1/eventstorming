@@ -8,6 +8,7 @@ import ConnectionArrow from './canvas-items/ConnectionArrow.vue';
 import type { CanvasItem } from '@/types';
 import { useCanvasLogic } from '../composables/useCanvasLogic';
 import MiniMap from './MiniMap.vue';
+import { getEdgePoint } from '@/utils/canvas';
 
 const props = defineProps({
   highlightedItemIds: {
@@ -306,183 +307,205 @@ const connectionsWithDetails = computed(() => {
   });
 });
 
+const activePreviewIds = computed(() => {
+  const ids = new Set<number>();
+  selectedItems.value.forEach(item => ids.add(item.id));
+  props.highlightedItemIds.forEach(id => ids.add(id));
+  return ids;
+});
+
+const commandEventPreviews = computed(() => {
+  if (!activePreviewIds.value.size) return [];
+  return store.reactiveItems
+    .filter(item => (
+      (item.type === 'Command' || item.type === 'Policy') &&
+      item.producesEventId &&
+      activePreviewIds.value.has(item.id)
+    ))
+    .map(item => {
+      const target = store.getItemById(item.producesEventId!);
+      if (!target) return null;
+      if (item.parent === null || target.parent === null) return null;
+      if (item.parent !== target.parent) return null;
+
+      const fromPoint = getEdgePoint(item, target);
+      const toPoint = getEdgePoint(target, item);
+      return {
+        id: `command-preview-${item.id}-${target.id}`,
+        points: [fromPoint.x, fromPoint.y, toPoint.x, toPoint.y],
+      };
+    })
+    .filter((entry): entry is { id: string; points: number[] } => Boolean(entry));
+});
+
 </script>
 
 <template>
-  <div class="container">
-    <div class="toolbox">
-      <h3>Toolbox</h3>
-      <div v-for="tool in toolBox" :key="tool.id" class="tool-item" :style="{ backgroundColor: colorMap[tool.type] }" draggable="true" @dragstart="handleToolDragStart(tool)">
-        {{ tool.type }}
-      </div>
-      <hr />
-      <button @click="startConnection('Association')" class="connect-btn">
-        Add Connection
-      </button>
-    </div>
-
-    <div 
-      class="canvas-wrapper" 
-      ref="canvasWrapperRef"
-      @drop="handleDrop" 
-      @dragover.prevent
-    >
-      <v-stage 
-        ref="stageRef" 
-        :config="stageConfigScaled" 
-        @mousedown="handleMouseDown" 
-        @mousemove="handleMouseMove" 
-        @mouseup="handleMouseUp"
-        @click="handleStageClick"
-      >
-        <v-layer>
-          <EventItem 
-            v-for="item in canvasItemsJSON" 
-            :key="item.id" 
-            :item="item" 
-            :scale="scale"
-            :is-selected="selectedItems.some(s => s.id === item.id)"
-            :is-downstream="highlightedItemIds.has(item.id)"
-            :change-kind="store.recentChangeMap[item.id]"
-            @click="(e) => onCanvasItemClick(e, item)"
-            @dblclick="(e) => onCanvasItemDblClick(e, item)"
-            @dragstart="(e) => onDragStart(e, item)"
-            @dragmove="(e) => onDragMove(e, item)"
-            @dragend="(e) => onDragEnd(e, item)"
-            @transform="(e) => handleItemTransform(e, item)"
-            @transformend="handleTransformEnd"
-          />
-          <ConnectionArrow
-            v-for="conn in connectionsWithDetails"
-            :key="conn.id"
-            :connection="conn"
-            :isHighlighted="conn.isHighlighted"
-            :isSelected="conn.isSelected"
-            @click="handleConnectionClick($event, conn)"
-          />
-
-          <v-transformer 
-            ref="transformerRef" 
-            :config="{
-              boundBoxFunc
-            }" 
-          />
-
-          <v-rect 
-            ref="selectionRectRef" 
-            :config="{
-              x: Math.min(selection.x1, selection.x2),
-              y: Math.min(selection.y1, selection.y2),
-              width: Math.abs(selection.x1 - selection.x2),
-              height: Math.abs(selection.y1 - selection.y2),
-              fill: 'rgba(0, 161, 255, 0.3)',
-              visible: selection.visible,
-            }" 
-          />
-        </v-layer>
-      </v-stage>
-      <!-- Connection Button -->
+  <div class="relative flex h-screen w-full flex-col overflow-hidden bg-background-light dark:bg-background-dark font-display text-gray-800 dark:text-gray-200">
+    <!-- Main Content -->
+    <main class="relative flex-1 overflow-hidden">
+      <!-- Canvas -->
       <div 
-        v-if="connectionButtonPosition" 
-        class="connection-button"
-        :style="connectionButtonPosition"
-        title="Start connection"
-        @click="startConnection('Association')"
+        class="absolute inset-0 bg-dots"
+        ref="canvasWrapperRef"
+        @drop="handleDrop" 
+        @dragover.prevent
       >
-        +
-      </div>
-      <div class="map-and-zoom">
-        <div class="zoom-controls">
-          <button @click="zoomOut" :disabled="scale <= MIN_SCALE">-</button>
-          <span>{{ scalePercent }}%</span>
-          <button @click="zoomIn" :disabled="scale >= MAX_SCALE">+</button>
-          <button class="reset" @click="resetZoom">Reset</button>
+        <v-stage 
+          ref="stageRef" 
+          :config="stageConfigScaled" 
+          @mousedown="handleMouseDown" 
+          @mousemove="handleMouseMove" 
+          @mouseup="handleMouseUp"
+          @click="handleStageClick"
+        >
+          <v-layer>
+            <EventItem 
+              v-for="item in canvasItemsJSON" 
+              :key="item.id" 
+              :item="item" 
+              :scale="scale"
+              :is-selected="selectedItems.some(s => s.id === item.id)"
+              :is-downstream="highlightedItemIds.has(item.id)"
+              :change-kind="store.recentChangeMap[item.id]"
+              @click="(e) => onCanvasItemClick(e, item)"
+              @dblclick="(e) => onCanvasItemDblClick(e, item)"
+              @dragstart="(e) => onDragStart(e, item)"
+              @dragmove="(e) => onDragMove(e, item)"
+              @dragend="(e) => onDragEnd(e, item)"
+              @transform="(e) => handleItemTransform(e, item)"
+              @transformend="handleTransformEnd"
+            />
+            <ConnectionArrow
+              v-for="conn in connectionsWithDetails"
+              :key="conn.id"
+              :connection="conn"
+              :isHighlighted="conn.isHighlighted"
+              :isSelected="conn.isSelected"
+              @click="handleConnectionClick($event, conn)"
+            />
+            <v-arrow
+              v-for="preview in commandEventPreviews"
+              :key="preview.id"
+              :config="{
+                points: preview.points,
+                stroke: '#7c3aed',
+                dash: [12, 6],
+                strokeWidth: 3,
+                pointerLength: 12,
+                pointerWidth: 12,
+                opacity: 0.9
+              }"
+            />
+            <v-transformer 
+              ref="transformerRef" 
+              :config="{
+                boundBoxFunc
+              }" 
+            />
+
+            <v-rect 
+              ref="selectionRectRef" 
+              :config="{
+                x: Math.min(selection.x1, selection.x2),
+                y: Math.min(selection.y1, selection.y2),
+                width: Math.abs(selection.x1 - selection.x2),
+                height: Math.abs(selection.y1 - selection.y2),
+                fill: 'rgba(0, 161, 255, 0.3)',
+                visible: selection.visible,
+              }" 
+            />
+          </v-layer>
+        </v-stage>
+        
+        <!-- Connection Button -->
+        <div 
+          v-if="connectionButtonPosition" 
+          class="absolute z-50 flex items-center justify-center w-9 h-9 bg-white text-blue-500 border border-gray-200 rounded-full cursor-pointer hover:scale-110 hover:bg-gray-50 hover:text-blue-700 transition-all"
+          :style="connectionButtonPosition"
+          title="Start connection"
+          @click="startConnection('Association')"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
         </div>
-        <MiniMap 
-          v-if="canvasItemsJSON.length"
-          :items="canvasItemsJSON"
-          :connections="store.reactiveConnections || []"
-          :stage-width="stageSize.width"
-          :stage-height="stageSize.height"
-          :viewport="viewport"
-          :scale="scale"
-        />
       </div>
-    </div>
+
+      <!-- Toolbar -->
+      <div class="absolute top-4 left-4 z-20">
+        <div class="flex items-center gap-1 p-1.5 bg-background-light dark:bg-background-dark border border-gray-200 dark:border-gray-700 rounded-xl">
+          <div 
+            v-for="tool in toolBox" 
+            :key="tool.id" 
+            class="p-2.5 rounded-lg cursor-grab hover:bg-gray-100 dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300 transition-colors"
+            :style="{ borderLeft: `4px solid ${colorMap[tool.type]}` }"
+            draggable="true" 
+            @dragstart="handleToolDragStart(tool)"
+            :title="tool.type"
+          >
+             <!-- Simple icons based on type -->
+             <span v-if="tool.type === 'Command'" class="material-symbols-outlined text-blue-400">terminal</span>
+             <span v-else-if="tool.type === 'Event'" class="material-symbols-outlined text-orange-400">bolt</span>
+             <span v-else-if="tool.type === 'Aggregate'" class="material-symbols-outlined text-yellow-200">layers</span>
+             <span v-else-if="tool.type === 'Policy'" class="material-symbols-outlined text-pink-300">gavel</span>
+             <span v-else-if="tool.type === 'ContextBox'" class="material-symbols-outlined text-gray-400">crop_square</span>
+             <span v-else-if="tool.type === 'Actor'" class="material-symbols-outlined text-green-200">person</span>
+             <span v-else-if="tool.type === 'ReadModel'" class="material-symbols-outlined text-green-400">visibility</span>
+             <span v-else class="material-symbols-outlined">circle</span>
+          </div>
+          <div class="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+          <button 
+            class="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 text-gray-700 dark:text-gray-300"
+            @click="startConnection('Association')"
+            title="Add Connection"
+          >
+            <span class="material-symbols-outlined">timeline</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- View Controls / FAB -->
+      <div class="absolute bottom-5 right-5 z-20 flex flex-col items-end gap-2 pointer-events-none">
+        <div class="pointer-events-auto">
+           <MiniMap 
+            v-if="canvasItemsJSON.length"
+            :items="canvasItemsJSON"
+            :connections="store.reactiveConnections || []"
+            :stage-width="stageSize.width"
+            :stage-height="stageSize.height"
+            :viewport="viewport"
+            :scale="scale"
+          />
+        </div>
+        
+        <div class="flex items-center gap-1 p-1.5 bg-background-light dark:bg-background-dark border border-gray-200 dark:border-gray-700 rounded-xl pointer-events-auto">
+          <button @click="zoomOut" :disabled="scale <= MIN_SCALE" class="p-2 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 disabled:opacity-50">
+            <span class="material-symbols-outlined text-base">remove</span>
+          </button>
+          <span class="truncate text-sm font-bold text-gray-800 dark:text-white px-2 min-w-[3rem] text-center">{{ scalePercent }}%</span>
+          <button @click="zoomIn" :disabled="scale >= MAX_SCALE" class="p-2 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 disabled:opacity-50">
+            <span class="material-symbols-outlined text-base">add</span>
+          </button>
+          <div class="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+          <button @click="resetZoom" class="p-2 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50" title="Reset Zoom">
+            <span class="material-symbols-outlined text-base">fullscreen</span>
+          </button>
+        </div>
+      </div>
+    </main>
   </div>
 </template>
 
 <style scoped>
-.container { display: flex; width: 100%; height: 100%; flex-direction: row; }
-.toolbox { width: 200px; padding: 15px; border-right: 1px solid #ccc; background-color: #f7f7f7; flex-shrink: 0; }
-.tool-item { padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; cursor: grab; text-align: center; font-weight: bold; }
-.canvas-wrapper { 
-  flex-grow: 1; 
-  overflow: auto;
-  position: relative; /* Needed for the connection button */
+.bg-dots {
+  background-color: #fafaf8;
+  background-image: radial-gradient(circle at 1px 1px, hsla(0, 0%, 0%, 0.1) 1px, transparent 0);
+  background-size: 20px 20px;
 }
-.connect-btn { width: 100%; padding: 10px; background-color: #ffc107; border: none; cursor: pointer; }
-.connect-btn.active { background-color: #e0a800; font-weight: bold; }
-
-.connection-button {
-  position: absolute;
-  width: 30px;
-  height: 30px;
-  background-color: #007bff;
-  color: white;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 24px;
-  line-height: 30px;
-  cursor: pointer;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-  transition: transform 0.1s ease;
-}
-.connection-button:hover {
-  transform: scale(1.1);
-}
-
-.map-and-zoom {
-  position: fixed;
-  right: 28px;
-  bottom: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 10;
-  pointer-events: none;
-}
-.map-and-zoom > * {
-  pointer-events: auto;
-}
-.zoom-controls {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid #ddd;
-  border-radius: 999px;
-  padding: 6px 12px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-.zoom-controls button {
-  border: none;
-  background: #f0f0f0;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  font-weight: bold;
-  cursor: pointer;
-}
-.zoom-controls button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.zoom-controls .reset {
-  width: auto;
-  border-radius: 12px;
-  padding: 0 10px;
+.dark .bg-dots {
+  background-color: #fafaf8;
+  background-image: radial-gradient(circle at 1px 1px, hsla(0, 0%, 100%, 0.1) 1px, transparent 0);
 }
 </style>

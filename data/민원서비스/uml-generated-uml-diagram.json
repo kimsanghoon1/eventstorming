@@ -15,7 +15,7 @@
       "attributes": [
         {
           "name": "projectId",
-          "type": "UUID",
+          "type": "String",
           "visibility": "private"
         },
         {
@@ -24,23 +24,28 @@
           "visibility": "private"
         },
         {
-          "name": "description",
+          "name": "projectDescription",
           "type": "String",
           "visibility": "private"
         },
         {
-          "name": "status",
+          "name": "projectStatus",
           "type": "String",
           "visibility": "private"
         },
         {
-          "name": "createdAt",
-          "type": "Instant",
+          "name": "projectType",
+          "type": "String",
           "visibility": "private"
         },
         {
-          "name": "updatedAt",
-          "type": "Instant",
+          "name": "projectStartDate",
+          "type": "String",
+          "visibility": "private"
+        },
+        {
+          "name": "projectEndDate",
+          "type": "String",
           "visibility": "private"
         }
       ],
@@ -49,15 +54,15 @@
           "name": "createProject",
           "parameters": [
             {
-              "name": "projectId",
-              "type": "UUID"
-            },
-            {
               "name": "projectName",
               "type": "String"
             },
             {
-              "name": "description",
+              "name": "projectDescription",
+              "type": "String"
+            },
+            {
+              "name": "projectType",
               "type": "String"
             }
           ],
@@ -72,22 +77,10 @@
               "type": "String"
             },
             {
-              "name": "description",
+              "name": "projectDescription",
               "type": "String"
             }
           ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "activateProject",
-          "parameters": [],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "deactivateProject",
-          "parameters": [],
           "returnType": "void",
           "visibility": "public"
         }
@@ -96,268 +89,25 @@
     {
       "id": 2,
       "type": "Class",
-      "instanceName": "Task",
-      "stereotype": "AggregateRoot",
-      "description": "Class for Task aggregate.",
+      "instanceName": "ProjectStatus",
+      "stereotype": "ValueObject",
+      "description": "Class for ProjectStatus aggregate.",
       "x": 420,
       "y": 100,
       "width": 280,
       "height": 220,
       "attributes": [
         {
-          "name": "taskId",
-          "type": "UUID",
-          "visibility": "private"
-        },
-        {
-          "name": "projectId",
-          "type": "UUID",
-          "visibility": "private"
-        },
-        {
-          "name": "taskName",
-          "type": "String",
-          "visibility": "private"
-        },
-        {
-          "name": "description",
-          "type": "String",
-          "visibility": "private"
-        },
-        {
           "name": "status",
           "type": "String",
-          "visibility": "private"
-        },
-        {
-          "name": "assignedTo",
-          "type": "String",
-          "visibility": "private"
-        },
-        {
-          "name": "dueDate",
-          "type": "Instant",
-          "visibility": "private"
-        },
-        {
-          "name": "createdAt",
-          "type": "Instant",
-          "visibility": "private"
-        },
-        {
-          "name": "updatedAt",
-          "type": "Instant",
           "visibility": "private"
         }
       ],
       "methods": [
         {
-          "name": "createTask",
-          "parameters": [
-            {
-              "name": "taskId",
-              "type": "UUID"
-            },
-            {
-              "name": "projectId",
-              "type": "UUID"
-            },
-            {
-              "name": "taskName",
-              "type": "String"
-            },
-            {
-              "name": "description",
-              "type": "String"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "updateTask",
-          "parameters": [
-            {
-              "name": "taskName",
-              "type": "String"
-            },
-            {
-              "name": "description",
-              "type": "String"
-            },
-            {
-              "name": "assignedTo",
-              "type": "String"
-            },
-            {
-              "name": "dueDate",
-              "type": "Instant"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "assignTask",
-          "parameters": [
-            {
-              "name": "assignee",
-              "type": "String"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "completeTask",
+          "name": "getStatus",
           "parameters": [],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "reopenTask",
-          "parameters": [],
-          "returnType": "void",
-          "visibility": "public"
-        }
-      ]
-    },
-    {
-      "id": 3,
-      "type": "Class",
-      "instanceName": "Sprint",
-      "stereotype": "AggregateRoot",
-      "description": "Class for Sprint aggregate.",
-      "x": 740,
-      "y": 100,
-      "width": 280,
-      "height": 220,
-      "attributes": [
-        {
-          "name": "sprintId",
-          "type": "UUID",
-          "visibility": "private"
-        },
-        {
-          "name": "projectId",
-          "type": "UUID",
-          "visibility": "private"
-        },
-        {
-          "name": "sprintName",
-          "type": "String",
-          "visibility": "private"
-        },
-        {
-          "name": "startDate",
-          "type": "Instant",
-          "visibility": "private"
-        },
-        {
-          "name": "endDate",
-          "type": "Instant",
-          "visibility": "private"
-        },
-        {
-          "name": "status",
-          "type": "String",
-          "visibility": "private"
-        },
-        {
-          "name": "tasks",
-          "type": "List<Task>",
-          "visibility": "private"
-        },
-        {
-          "name": "createdAt",
-          "type": "Instant",
-          "visibility": "private"
-        },
-        {
-          "name": "updatedAt",
-          "type": "Instant",
-          "visibility": "private"
-        }
-      ],
-      "methods": [
-        {
-          "name": "createSprint",
-          "parameters": [
-            {
-              "name": "sprintId",
-              "type": "UUID"
-            },
-            {
-              "name": "projectId",
-              "type": "UUID"
-            },
-            {
-              "name": "sprintName",
-              "type": "String"
-            },
-            {
-              "name": "startDate",
-              "type": "Instant"
-            },
-            {
-              "name": "endDate",
-              "type": "Instant"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "updateSprint",
-          "parameters": [
-            {
-              "name": "sprintName",
-              "type": "String"
-            },
-            {
-              "name": "startDate",
-              "type": "Instant"
-            },
-            {
-              "name": "endDate",
-              "type": "Instant"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "startSprint",
-          "parameters": [],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "endSprint",
-          "parameters": [],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "addTask",
-          "parameters": [
-            {
-              "name": "task",
-              "type": "Task"
-            }
-          ],
-          "returnType": "void",
-          "visibility": "public"
-        },
-        {
-          "name": "removeTask",
-          "parameters": [
-            {
-              "name": "taskId",
-              "type": "UUID"
-            }
-          ],
-          "returnType": "void",
+          "returnType": "String",
           "visibility": "public"
         }
       ]
@@ -368,12 +118,6 @@
       "id": "conn-1-2",
       "from": 1,
       "to": 2,
-      "type": "Association"
-    },
-    {
-      "id": "conn-2-3",
-      "from": 2,
-      "to": 3,
       "type": "Association"
     }
   ]

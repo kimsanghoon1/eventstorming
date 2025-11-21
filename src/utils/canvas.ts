@@ -25,7 +25,7 @@ export function getEdgePoint(source: CanvasItem, target: CanvasItem) {
   }
 
   const angle = Math.atan2(dy, dx);
-  
+
   const tanAngle = Math.tan(angle);
   const tanRect = halfHeight / halfWidth;
 
@@ -42,4 +42,53 @@ export function getEdgePoint(source: CanvasItem, target: CanvasItem) {
   }
 
   return { x, y };
+}
+
+export function getOrthogonalPoints(source: CanvasItem, target: CanvasItem): number[] {
+  const sourceCenter = {
+    x: source.x + source.width / 2,
+    y: source.y + source.height / 2,
+  };
+  const targetCenter = {
+    x: target.x + target.width / 2,
+    y: target.y + target.height / 2,
+  };
+
+  const dx = targetCenter.x - sourceCenter.x;
+  const dy = targetCenter.y - sourceCenter.y;
+
+  // Determine start and end points on the edges
+  let startPoint, endPoint;
+
+  if (Math.abs(dx) > Math.abs(dy)) {
+    // Horizontal dominance
+    if (dx > 0) {
+      startPoint = { x: source.x + source.width, y: sourceCenter.y };
+      endPoint = { x: target.x, y: targetCenter.y };
+    } else {
+      startPoint = { x: source.x, y: sourceCenter.y };
+      endPoint = { x: target.x + target.width, y: targetCenter.y };
+    }
+  } else {
+    // Vertical dominance
+    if (dy > 0) {
+      startPoint = { x: sourceCenter.x, y: source.y + source.height };
+      endPoint = { x: targetCenter.x, y: target.y };
+    } else {
+      startPoint = { x: sourceCenter.x, y: source.y };
+      endPoint = { x: targetCenter.x, y: target.y + target.height };
+    }
+  }
+
+  // Calculate intermediate points for elbow
+  const midX = (startPoint.x + endPoint.x) / 2;
+  const midY = (startPoint.y + endPoint.y) / 2;
+
+  if (Math.abs(dx) > Math.abs(dy)) {
+    // Horizontal start
+    return [startPoint.x, startPoint.y, midX, startPoint.y, midX, endPoint.y, endPoint.x, endPoint.y];
+  } else {
+    // Vertical start
+    return [startPoint.x, startPoint.y, startPoint.x, midY, endPoint.x, midY, endPoint.x, endPoint.y];
+  }
 }

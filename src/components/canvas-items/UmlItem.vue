@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { defineProps, computed, defineEmits, ref, onMounted, watch, onBeforeUnmount } from "vue";
+import { computed, ref, onMounted, watch, onBeforeUnmount } from "vue";
 import type { CanvasItem } from "../../types";
 import type { KonvaEventObject } from "konva/lib/Node";
 import Konva from 'konva';
@@ -102,9 +102,9 @@ const hasDetailSection = computed(() => {
       width: item.width,
       height: item.height,
       fill: item.type === 'Enum' ? '#e9ecef' : '#ffffff',
-      stroke: isSelected || isDownstream ? highlightColor : 'black',
-      strokeWidth: isSelected ? 4 / scale : isDownstream ? 3 / scale : 2 / scale,
-      dash: isDownstream ? [20, 5] : [],
+      stroke: 'black',
+      strokeWidth: 2 / scale,
+      dash: [],
       shadowColor: changeShadowColor || undefined,
       shadowBlur: changeShadowColor ? 25 : 0,
       shadowOpacity: changeShadowColor ? 0.8 : 0,

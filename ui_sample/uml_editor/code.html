@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>UML Diagrammer</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings:
+                'FILL' 0,
+                'wght' 400,
+                'GRAD' 0,
+                'opsz' 24
+        }
+    </style>
+<script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#13b6ec",
+                        "background-light": "#f6f8f8",
+                        "background-dark": "#101d22",
+                    },
+                    fontFamily: {
+                        "display": ["Space Grotesk", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display">
+<div class="flex flex-col h-screen w-full">
+<!-- Top Navigation Bar -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-gray-200/80 dark:border-white/10 px-6 py-2 bg-background-light dark:bg-background-dark z-20">
+<div class="flex items-center gap-4 text-gray-800 dark:text-white">
+<div class="text-primary">
+<svg class="w-6 h-6" fill="none" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M6 6H42L36 24L42 42H6L12 24L6 6Z" fill="currentColor"></path>
+</svg>
+</div>
+<h2 class="text-lg font-bold tracking-[-0.015em]">Untitled Diagram</h2>
+</div>
+<div class="flex flex-1 justify-end items-center gap-6">
+<div class="flex items-center gap-6 text-gray-600 dark:text-gray-300">
+<a class="text-sm font-medium leading-normal" href="#">File</a>
+<a class="text-sm font-medium leading-normal" href="#">Edit</a>
+<a class="text-sm font-medium leading-normal" href="#">View</a>
+</div>
+<div class="flex items-center gap-2">
+<button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
+<span class="material-symbols-outlined text-base">undo</span>
+</button>
+<button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
+<span class="material-symbols-outlined text-base">redo</span>
+</button>
+<button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
+<span class="material-symbols-outlined text-base">zoom_in</span>
+</button>
+<button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
+<span class="material-symbols-outlined text-base">zoom_out</span>
+</button>
+<button class="flex max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white gap-2 text-sm font-bold leading-normal tracking-[0.015em] min-w-0 px-2.5">
+<span class="material-symbols-outlined text-base">fit_screen</span>
+</button>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center">
+<div class="overflow-visible -ml-2">
+<div class="bg-center bg-no-repeat aspect-square bg-cover border-2 border-background-light dark:border-background-dark rounded-full size-8" data-alt="User avatar 1" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAoEkoOJJZVNxcmJ-pLvU9Z8Xk6udOdaEu5bMs7zvvSx91ZjifLdGXrsL9UX_E-FRSGx3qmsYL4YYQv-hA3691ZSSQc2EOe8jqMLafKFwE-WMJwVlZBK7O_Z2bPpVmC-dImD4Pp6NgYd5hU-38IHCRODXi370hQxYw0KCYluk5XUQd3xnzE9mXKW7vaxNaFc09s8qX8-kOoafs_HkSLHRWiwI3j4vfybVw3vcfpebI_osIfUV3PYJjeKiaLK1PIHrgNEwOUIKcCshI");'></div>
+</div>
+<div class="overflow-visible -ml-2">
+<div class="bg-center bg-no-repeat aspect-square bg-cover border-2 border-background-light dark:border-background-dark rounded-full size-8" data-alt="User avatar 2" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBpHrfF-hvYSunE9HsnIc5whFt5b40v7WHjBGFHpVORErdoecQcSUhnFh8NxMorBkVii8aojf4mw2C6BMDp8f3ZGvHWRYaSMrlkaQ6TMr43y4LsMH_Culz0vVWjxekqMhbUSfLpXWWzWG3Aj8b_C2fjKlVeEG78UjSml4fc9uoMVurzfggUce0X8ybmkMAB3DSkaRFdAReXr4x344IKajbqzRJUYC_6IxGYhTH49w0RZ5-nJ11vcOEHEjzW44UTLOe4U-MlYyg8D_s");'></div>
+</div>
+<div class="overflow-visible -ml-2">
+<div class="bg-center bg-no-repeat aspect-square bg-cover border-2 border-background-light dark:border-background-dark rounded-full flex items-center justify-center size-8 bg-gray-300 dark:bg-white/20 text-gray-600 dark:text-white text-xs font-bold" data-alt="More users avatar">
+                                +3
+                            </div>
+</div>
+</div>
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-9 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em]">
+<span class="truncate">Share</span>
+</button>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-9" data-alt="Current user's avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuCOsg9PDyPYcwmVdmbq3gYQe3g9xHE0jdU_nqacs5asn5UXfk4iQyTK0VC-Lv9bkllRR6Apvq1FoLu6Sq-2Ytq_4Eg1tu7LjZHYFIAxDPCpUsKOf5qlghHTAciAi5RRgKkHSK4pYxPvSeK8HeJHqNRHi-f8JkdzPTVR7P_Lq1UDaMiQWPupzjG8OvIhLgOFBEC7F1dATIm8CtXsA8ZGFI5FKgLJfJMhxUMe44J1NwauMaRHOfMi_dqOSPRcFG6E_4Q9KIpYGywieK4");'></div>
+</div>
+</div>
+</header>
+<main class="flex flex-1 overflow-hidden">
+<!-- Left Side NavBar -->
+<aside class="flex flex-col w-64 bg-background-light dark:bg-background-dark border-r border-gray-200/80 dark:border-white/10 p-4 overflow-y-auto">
+<div class="flex items-center gap-3 mb-4">
+<div class="text-primary">
+<span class="material-symbols-outlined !text-2xl">widgets</span>
+</div>
+<div class="flex flex-col">
+<h1 class="text-base font-medium leading-normal text-gray-800 dark:text-white">UML Elements</h1>
+<p class="text-sm font-normal leading-normal text-gray-500 dark:text-gray-400">Drag to canvas</p>
+</div>
+</div>
+<div class="flex flex-col gap-1 text-gray-800 dark:text-white">
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg bg-primary/20 text-primary" href="#">
+<span class="material-symbols-outlined !text-xl">arrow_selector_tool</span>
+<p class="text-sm font-medium leading-normal">Selection Tool</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined !text-xl">pan_tool</span>
+<p class="text-sm font-medium leading-normal">Pan Tool</p>
+</a>
+<div class="h-px bg-gray-200 dark:bg-white/10 my-2"></div>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined !text-xl">rectangle</span>
+<p class="text-sm font-medium leading-normal">Class</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined !text-xl">circle</span>
+<p class="text-sm font-medium leading-normal">Interface</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined !text-xl">person</span>
+<p class="text-sm font-medium leading-normal">Actor</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined !text-xl">orbit</span>
+<p class="text-sm font-medium leading-normal">Use Case</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined !text-xl">inventory_2</span>
+<p class="text-sm font-medium leading-normal">Component</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined !text-xl">note</span>
+<p class="text-sm font-medium leading-normal">Note</p>
+</a>
+<div class="h-px bg-gray-200 dark:bg-white/10 my-2"></div>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined !text-xl">linear_scale</span>
+<p class="text-sm font-medium leading-normal">Association</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined !text-xl">north</span>
+<p class="text-sm font-medium leading-normal">Inheritance</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-200/50 dark:hover:bg-white/5" href="#">
+<span class="material-symbols-outlined !text-xl" style="transform: rotate(45deg);">straight</span>
+<p class="text-sm font-medium leading-normal">Dependency</p>
+</a>
+</div>
+</aside>
+<!-- Main Canvas -->
+<section class="flex-1 bg-gray-50 dark:bg-[#0D1518] p-4">
+<div class="w-full h-full bg-background-light dark:bg-background-dark rounded-lg flex items-center justify-center relative overflow-hidden" style="background-image: radial-gradient(circle, #E0E0E0 1px, transparent 1px), radial-gradient(circle, #E0E0E0 1px, transparent 1px); background-size: 20px 20px; background-position: 0 0, 10px 10px; dark:background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px), radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px); ">
+<div class="text-center">
+<p class="text-gray-600 dark:text-gray-400 text-lg font-medium">Drag an element from the toolbar to get started.</p>
+<p class="text-gray-400 dark:text-gray-500 text-sm">Or right-click for more options.</p>
+</div>
+</div>
+</section>
+<!-- Right Properties Panel -->
+<aside class="flex flex-col w-80 bg-background-light dark:bg-background-dark border-l border-gray-200/80 dark:border-white/10">
+<div class="border-b border-gray-200/80 dark:border-white/10">
+<div class="flex px-4 gap-6">
+<a class="flex flex-col items-center justify-center border-b-[3px] border-b-primary text-primary pb-[10px] pt-4" href="#">
+<p class="text-sm font-bold leading-normal tracking-[0.015em]">Style</p>
+</a>
+<a class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white pb-[10px] pt-4" href="#">
+<p class="text-sm font-bold leading-normal tracking-[0.015em]">Content</p>
+</a>
+</div>
+</div>
+<div class="flex-1 p-6">
+<div class="flex flex-col items-center gap-4 rounded-lg border-2 border-dashed border-gray-300 dark:border-white/20 px-6 py-14 text-center">
+<span class="material-symbols-outlined !text-5xl text-gray-400 dark:text-gray-500">space_dashboard</span>
+<div class="flex max-w-[480px] flex-col items-center gap-1">
+<p class="text-gray-800 dark:text-white text-base font-bold leading-tight tracking-[-0.015em]">No Item Selected</p>
+<p class="text-gray-500 dark:text-gray-400 text-sm font-normal leading-normal">Click on an element on the canvas to see its properties here.</p>
+</div>
+</div>
+</div>
+</aside>
+</main>
+</div>
+</body></html>

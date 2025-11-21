@@ -3,6 +3,11 @@ import click
 import httpx
 import uvicorn
 import sys
+from dotenv import load_dotenv
+
+# Load environment variables before importing agents that might initialize clients
+load_dotenv()
+
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import (

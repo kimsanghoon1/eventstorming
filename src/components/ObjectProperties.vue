@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { defineProps, computed, ref, watch, onBeforeUnmount } from 'vue';
+import { computed, ref, watch, onBeforeUnmount, onMounted } from 'vue';
 import type { CanvasItem, UmlAttribute, UmlOperation, Property } from '../types';
 import { store } from '../store';
+
+onMounted(() => {
+  store.fetchUmlBoards();
+});
 
 const props = defineProps<{
   item: CanvasItem;
@@ -103,6 +107,33 @@ const removeProperty = (type: 'properties' | 'attributes' | 'methods' | 'enumVal
       <select v-model="localItem.stereotype" @change="scheduleUpdate">
         <option v-for="s in availableStereotypes" :key="s" :value="s || undefined">{{ s || 'None' }}</option>
       </select>
+    </div>
+
+    <!-- Context Actions (ContextBox) -->
+    <div v-if="item.type === 'ContextBox'" class="form-section">
+      <label>Context Actions</label>
+      
+      <!-- Linked Diagram Selection -->
+      <div class="linked-diagram-group">
+        <label class="sub-label">Linked UML</label>
+        <div class="input-group">
+          <select v-model="localItem.linkedDiagram" @change="scheduleUpdate">
+            <option :value="undefined">-- None --</option>
+            <option v-for="board in store.umlBoards" :key="board.boardId" :value="board.boardId">
+              {{ board.instanceName }}
+            </option>
+          </select>
+          <button v-if="localItem.linkedDiagram" class="icon-btn" @click="$emit('open-uml', localItem.linkedDiagram)" title="Open UML">↗</button>
+        </div>
+      </div>
+
+      <button class="action-btn generate-btn" @click="$emit('generate-uml', localItem)">
+        {{ localItem.linkedDiagram ? 'Regenerate UML' : 'Generate UML' }}
+      </button>
+
+      <button class="action-btn generate-btn" @click="$emit('generate-code', localItem)">
+        Generate Source Code
+      </button>
     </div>
     
     <!-- Properties Section -->
@@ -261,5 +292,55 @@ h4 {
 .add-btn:hover {
   background-color: #42b983;
   color: var(--vt-c-white);
+}
+
+.generate-btn {
+  width: 100%;
+  background-color: #3b82f6; /* Blue */
+  color: white;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+.generate-btn:hover {
+  background-color: #2563eb;
+}
+
+.linked-diagram-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.sub-label {
+  font-size: 0.8rem;
+  color: var(--color-text-mute);
+}
+.input-group {
+  display: flex;
+  gap: 4px;
+}
+.input-group input {
+  flex: 1;
+}
+.icon-btn {
+  background-color: var(--vt-c-black-mute);
+  border: 1px solid var(--vt-c-divider-dark-1);
+  color: var(--color-text);
+  border-radius: 6px;
+  width: 36px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+}
+.icon-btn:hover {
+  background-color: var(--vt-c-black);
+  border-color: #42b983;
+  color: #42b983;
 }
 </style>
