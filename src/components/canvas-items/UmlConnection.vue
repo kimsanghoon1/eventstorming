@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import type { PropType } from 'vue';
 import type { CanvasItem, Connection } from '../../types';
 import { getOrthogonalPoints, getClosestPointOnRect } from '@/utils/canvas';
@@ -78,12 +78,19 @@ const points = computed(() => {
   return pts;
 });
 
-const startPoint = computed(() => ({ x: points.value[0], y: points.value[1] }));
-const endPoint = computed(() => ({ x: points.value[points.value.length - 2], y: points.value[points.value.length - 1] }));
+const isDragging = ref(false);
+const localPoints = ref<number[]>([]);
+
+const displayPoints = computed(() => {
+    return isDragging.value ? localPoints.value : points.value;
+});
+
+const startPoint = computed(() => ({ x: displayPoints.value[0], y: displayPoints.value[1] }));
+const endPoint = computed(() => ({ x: displayPoints.value[displayPoints.value.length - 2], y: displayPoints.value[displayPoints.value.length - 1] }));
 
 const startAngle = computed(() => {
-    if (points.value.length < 4) return 0;
-    return Math.atan2(points.value[3] - points.value[1], points.value[2] - points.value[0]);
+    if (displayPoints.value.length < 4) return 0;
+    return Math.atan2(displayPoints.value[3] - displayPoints.value[1], displayPoints.value[2] - displayPoints.value[0]);
 });
 
 const diamondSize = 10;
@@ -100,24 +107,33 @@ const sourceLabelPos = computed(() => ({
 }));
 
 const targetLabelPos = computed(() => {
-    const n = points.value.length;
+    const n = displayPoints.value.length;
     if (n < 4) return { x: 0, y: 0 };
-    const angle = Math.atan2(points.value[n-1] - points.value[n-3], points.value[n-2] - points.value[n-4]);
+    const angle = Math.atan2(displayPoints.value[n-1] - displayPoints.value[n-3], displayPoints.value[n-2] - displayPoints.value[n-4]);
     return {
         x: endPoint.value.x - Math.cos(angle - 0.5) * 20,
         y: endPoint.value.y - Math.sin(angle - 0.5) * 20
     };
 });
 
+// Segment handles for connection editing
+// isDragging and localPoints moved up
+
 const segmentHandles = computed(() => {
     if (!props.isSelected) return [];
-    const pts = points.value;
+    // Use localPoints if dragging, otherwise computed points
+    const pts = isDragging.value ? localPoints.value : points.value;
     const handles = [];
     for (let i = 0; i < pts.length - 2; i += 2) {
         const x1 = pts[i];
         const y1 = pts[i+1];
         const x2 = pts[i+2];
         const y2 = pts[i+3];
+        
+        // Filter out short segments (< 10px)
+        const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+        if (length < 10) continue;
+
         const orientation = Math.abs(x1 - x2) < 1 ? 'vertical' : 'horizontal';
         handles.push({
             x: (x1 + x2) / 2,
@@ -129,10 +145,77 @@ const segmentHandles = computed(() => {
     return handles;
 });
 
+// Anchor handles for reconnection
+const anchorHandles = computed(() => {
+    if (!props.isSelected) return [];
+    const pts = isDragging.value ? localPoints.value : points.value;
+    const n = pts.length;
+    if (n < 4) return [];
 
+    return [
+        { x: pts[0], y: pts[1], type: 'start' },
+        { x: pts[n - 2], y: pts[n - 1], type: 'end' }
+    ];
+});
+
+const onAnchorDragMove = (e: KonvaEventObject<DragEvent>, handle: any) => {
+    // Update handle position visually during drag
+    const stage = e.target.getStage();
+    if (!stage) return;
+};
+
+const onAnchorDragEnd = (e: KonvaEventObject<DragEvent>, handle: any) => {
+    const stage = e.target.getStage();
+    if (!stage) return;
+
+    // Get pointer position relative to the stage (world coordinates)
+    const pos = stage.getRelativePointerPosition();
+    
+    if (!pos) return;
+
+    // Find all intersecting items
+    const intersectingItems = store.reactiveItems.filter(item => {
+        return (
+            pos.x >= item.x &&
+            pos.x <= item.x + item.width &&
+            pos.y >= item.y &&
+            pos.y <= item.y + item.height
+        );
+    });
+
+    // Sort by area (ascending) to pick the smallest item (likely the inner item)
+    intersectingItems.sort((a, b) => (a.width * a.height) - (b.width * b.height));
+    
+    const targetItem = intersectingItems[0];
+
+    if (targetItem) {
+        const updatePayload: any = { ...props.connection };
+        updatePayload.points = undefined; 
+
+        if (handle.type === 'start') {
+            if (targetItem.id !== props.connection.from) {
+                updatePayload.from = targetItem.id;
+                store.updateConnection(updatePayload);
+            }
+        } else {
+            if (targetItem.id !== props.connection.to) {
+                updatePayload.to = targetItem.id;
+                store.updateConnection(updatePayload);
+            }
+        }
+    } 
+    
+    // Always revert handle position visually
+    e.target.position({ x: handle.x, y: handle.y });
+    const layer = e.target.getLayer();
+    layer?.batchDraw();
+};
+
+
+// displayPoints moved up
 
 const onSegmentDragMove = (e: KonvaEventObject<DragEvent>, handle: any) => {
-    const newPoints = [...points.value];
+    const newPoints = [...localPoints.value];
     const idx = handle.index * 2;
     const pos = e.target.position();
     const n = newPoints.length;
@@ -155,10 +238,14 @@ const onSegmentDragMove = (e: KonvaEventObject<DragEvent>, handle: any) => {
     // Adjust first segment to maintain orthogonality
     if (Math.abs(newPoints[2] - newPoints[0]) < 1) {
         // First segment is vertical, keep X aligned
-        newPoints[2] = startSnap.x;
+        if (!(handle.index === 0 && handle.orientation === 'vertical')) {
+            newPoints[2] = startSnap.x;
+        }
     } else if (Math.abs(newPoints[3] - newPoints[1]) < 1) {
         // First segment is horizontal, keep Y aligned
-        newPoints[3] = startSnap.y;
+        if (!(handle.index === 0 && handle.orientation === 'horizontal')) {
+            newPoints[3] = startSnap.y;
+        }
     }
 
     // Snap end point to nearest edge based on second-to-last point direction
@@ -168,15 +255,47 @@ const onSegmentDragMove = (e: KonvaEventObject<DragEvent>, handle: any) => {
     newPoints[n - 1] = endSnap.y;
 
     // Adjust last segment to maintain orthogonality
+    const lastHandleIdx = (n / 2) - 2;
     if (Math.abs(newPoints[n - 2] - newPoints[n - 4]) < 1) {
         // Last segment is vertical, keep X aligned
-        newPoints[n - 4] = endSnap.x;
+        if (!(handle.index === lastHandleIdx && handle.orientation === 'vertical')) {
+            newPoints[n - 4] = endSnap.x;
+        }
     } else if (Math.abs(newPoints[n - 1] - newPoints[n - 3]) < 1) {
         // Last segment is horizontal, keep Y aligned
-        newPoints[n - 3] = endSnap.y;
+        if (!(handle.index === lastHandleIdx && handle.orientation === 'horizontal')) {
+            newPoints[n - 3] = endSnap.y;
+        }
     }
 
-    store.updateConnection({ ...props.connection, points: newPoints });
+    // Update local state immediately
+    localPoints.value = newPoints;
+    
+    // Debounce store update
+    // debouncedUpdate({ ...props.connection, points: newPoints }); // Removed as per instruction
+};
+
+const onSegmentDragEnd = (e: KonvaEventObject<DragEvent>, handle: any) => {
+    isDragging.value = false;
+    // Ensure final state is saved
+    store.updateConnection({ ...props.connection, points: localPoints.value });
+};
+
+function debounce(func: Function, wait: number) {
+  let timeout: any;
+  return function(...args: any[]) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
+const debouncedUpdate = debounce((payload: any) => {
+  store.updateConnection(payload);
+}, 50);
+
+const onSegmentDragStart = (e: KonvaEventObject<DragEvent>) => {
+  isDragging.value = true;
+  localPoints.value = [...points.value];
 };
 
 const getSegmentHandleConfig = (handle: any) => ({
@@ -187,13 +306,28 @@ const getSegmentHandleConfig = (handle: any) => ({
     stroke: selectionColor,
     strokeWidth: 1,
     draggable: true,
-    dragBoundFunc: function(pos: {x: number, y: number}) {
+    dragBoundFunc: function(this: any, pos: {x: number, y: number}) {
+        const oldAbsPos = this.getAbsolutePosition();
         if (handle.orientation === 'horizontal') {
-            return { x: handle.x, y: pos.y };
+            // Dragging a horizontal segment means moving it up/down (changing Y).
+            // So X should be fixed.
+            return { x: oldAbsPos.x, y: pos.y };
         } else {
-            return { x: pos.x, y: handle.y };
+            // Dragging a vertical segment means moving it left/right (changing X).
+            // So Y should be fixed.
+            return { x: pos.x, y: oldAbsPos.y };
         }
     }
+});
+
+const getAnchorHandleConfig = (handle: any) => ({
+    x: handle.x,
+    y: handle.y,
+    radius: 8,
+    fill: selectionColor,
+    stroke: 'white',
+    strokeWidth: 2,
+    draggable: true,
 });
 
 const setCursor = (e: KonvaEventObject<MouseEvent>, cursor: string) => {
@@ -212,7 +346,7 @@ const setCursor = (e: KonvaEventObject<MouseEvent>, cursor: string) => {
     >
         <!-- Generalization (Inheritance) -->
         <v-arrow v-if="connection.type === 'Generalization'" :config="{
-            points: points,
+            points: displayPoints,
             stroke: strokeColor,
             strokeWidth: strokeWidth,
             hitStrokeWidth: 15,
@@ -223,7 +357,7 @@ const setCursor = (e: KonvaEventObject<MouseEvent>, cursor: string) => {
 
         <!-- Aggregation -->
         <v-group v-else-if="connection.type === 'Aggregation'">
-            <v-line :config="{ points: points, stroke: strokeColor, strokeWidth: strokeWidth, hitStrokeWidth: 15 }" />
+            <v-line :config="{ points: displayPoints, stroke: strokeColor, strokeWidth: strokeWidth, hitStrokeWidth: 15 }" />
             <v-regular-polygon :config="{
                 x: diamondCenter.x,
                 y: diamondCenter.y,
@@ -238,7 +372,7 @@ const setCursor = (e: KonvaEventObject<MouseEvent>, cursor: string) => {
 
         <!-- Composition -->
         <v-group v-else-if="connection.type === 'Composition'">
-            <v-line :config="{ points: points, stroke: strokeColor, strokeWidth: strokeWidth, hitStrokeWidth: 15 }" />
+            <v-line :config="{ points: displayPoints, stroke: strokeColor, strokeWidth: strokeWidth, hitStrokeWidth: 15 }" />
             <v-regular-polygon :config="{
                 x: diamondCenter.x,
                 y: diamondCenter.y,
@@ -253,7 +387,7 @@ const setCursor = (e: KonvaEventObject<MouseEvent>, cursor: string) => {
 
         <!-- Dependency -->
         <v-arrow v-else-if="connection.type === 'Dependency'" :config="{
-            points: points,
+            points: displayPoints,
             stroke: strokeColor,
             strokeWidth: strokeWidth,
             hitStrokeWidth: 15,
@@ -265,7 +399,7 @@ const setCursor = (e: KonvaEventObject<MouseEvent>, cursor: string) => {
 
         <!-- Association (Default) -->
         <v-arrow v-else :config="{
-            points: points,
+            points: displayPoints,
             stroke: strokeColor,
             strokeWidth: strokeWidth,
             hitStrokeWidth: 15,
@@ -290,7 +424,7 @@ const setCursor = (e: KonvaEventObject<MouseEvent>, cursor: string) => {
             fill: 'black'
         }" />
 
-        <!-- Handles -->
+        <!-- Segment Handles -->
         <template v-if="isSelected">
             <v-circle
                 v-for="(handle, i) in segmentHandles"
@@ -298,8 +432,19 @@ const setCursor = (e: KonvaEventObject<MouseEvent>, cursor: string) => {
                 :config="getSegmentHandleConfig(handle)"
                 @mouseenter="(e: any) => setCursor(e, handle.orientation === 'horizontal' ? 'row-resize' : 'col-resize')"
                 @mouseleave="(e: any) => setCursor(e, 'default')"
+                @dragstart="(e: any) => onSegmentDragStart(e)"
                 @dragmove="(e: any) => onSegmentDragMove(e, handle)"
-                @dragend="(e: any) => onSegmentDragMove(e, handle)"
+                @dragend="(e: any) => onSegmentDragEnd(e, handle)"
+            />
+            <!-- Anchor Handles -->
+            <v-circle
+                v-for="(handle, i) in anchorHandles"
+                :key="`anchor-${i}`"
+                :config="getAnchorHandleConfig(handle)"
+                @mouseenter="(e: any) => setCursor(e, 'crosshair')"
+                @mouseleave="(e: any) => setCursor(e, 'default')"
+                @dragmove="(e: any) => onAnchorDragMove(e, handle)"
+                @dragend="(e: any) => onAnchorDragEnd(e, handle)"
             />
         </template>
     </v-group>

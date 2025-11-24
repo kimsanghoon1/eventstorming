@@ -286,15 +286,25 @@ const startRequestAnimation = (node: Konva.Path | null | undefined) => {
 let setupTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Segment handles for connection editing
+const isDragging = ref(false);
+const localPoints = ref<number[]>([]);
+
+// Segment handles for connection editing
 const segmentHandles = computed(() => {
   if (!props.isSelected) return [];
-  const pts = points.value;
+  // Use localPoints if dragging, otherwise computed points
+  const pts = isDragging.value ? localPoints.value : points.value;
   const handles = [];
   for (let i = 0; i < pts.length - 2; i += 2) {
     const x1 = pts[i];
     const y1 = pts[i + 1];
     const x2 = pts[i + 2];
     const y2 = pts[i + 3];
+    
+    // Filter out short segments (< 10px)
+    const length = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+    if (length < 10) continue;
+
     const orientation = Math.abs(x1 - x2) < 1 ? 'vertical' : 'horizontal';
     handles.push({
       x: (x1 + x2) / 2,
@@ -306,12 +316,103 @@ const segmentHandles = computed(() => {
   return handles;
 });
 
+// Anchor handles for reconnection
+const anchorHandles = computed(() => {
+  if (!props.isSelected) return [];
+  const pts = isDragging.value ? localPoints.value : points.value;
+  const n = pts.length;
+  if (n < 4) return [];
+
+  return [
+    { x: pts[0], y: pts[1], type: 'start' },
+    { x: pts[n - 2], y: pts[n - 1], type: 'end' }
+  ];
+});
+
+const onAnchorDragMove = (e: KonvaEventObject<DragEvent>, handle: any) => {
+  // Update handle position visually during drag
+  const stage = e.target.getStage();
+  if (!stage) return;
+  
+  // We don't need to manually update position as Konva handles draggable behavior
+  // But we might want to snap or show guides here later
+};
+
+const onAnchorDragEnd = (e: KonvaEventObject<DragEvent>, handle: any) => {
+  const stage = e.target.getStage();
+  if (!stage) return;
+
+  // Get pointer position relative to the stage (world coordinates)
+  // This accounts for stage pan (x, y) and scale
+  const pos = stage.getRelativePointerPosition();
+  
+  if (!pos) return;
+
+  // Find all intersecting items
+  const intersectingItems = store.reactiveItems.filter(item => {
+    return (
+      pos.x >= item.x &&
+      pos.x <= item.x + item.width &&
+      pos.y >= item.y &&
+      pos.y <= item.y + item.height
+    );
+  });
+
+  // Sort by area (ascending) to pick the smallest item (likely the inner item)
+  intersectingItems.sort((a, b) => (a.width * a.height) - (b.width * b.height));
+  
+  const targetItem = intersectingItems[0];
+
+  if (targetItem) {
+    const updatePayload: any = { ...props.connection };
+    // Reset points to trigger recalculation for new path
+    updatePayload.points = undefined; 
+
+    if (handle.type === 'start') {
+      if (targetItem.id !== props.connection.from) {
+        updatePayload.from = targetItem.id;
+        store.updateConnection(updatePayload);
+      }
+    } else {
+      if (targetItem.id !== props.connection.to) {
+        updatePayload.to = targetItem.id;
+        store.updateConnection(updatePayload);
+      }
+    }
+  } 
+  
+  // Always revert handle position visually
+  // If connection updated, the component will re-render with new points
+  // If not, we want it back at the original point
+  e.target.position({ x: handle.x, y: handle.y });
+  const layer = e.target.getLayer();
+  layer?.batchDraw();
+};
+
+const displayPoints = computed(() => {
+  return isDragging.value ? localPoints.value : points.value;
+});
+
+function debounce(func: Function, wait: number) {
+  let timeout: any;
+  return function(...args: any[]) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
+}
+
+const onSegmentDragStart = (e: KonvaEventObject<DragEvent>) => {
+  isDragging.value = true;
+  localPoints.value = [...points.value];
+};
+
 const onSegmentDragMove = (e: KonvaEventObject<DragEvent>, handle: any) => {
   const fromNode = store.getItemById(props.connection.from);
   const toNode = store.getItemById(props.connection.to);
   if (!fromNode || !toNode) return;
 
-  const newPoints = [...points.value];
+  // Use localPoints during drag
+  const newPoints = [...localPoints.value];
   const idx = handle.index * 2;
   const pos = e.target.position();
   const n = newPoints.length;
@@ -335,10 +436,16 @@ const onSegmentDragMove = (e: KonvaEventObject<DragEvent>, handle: any) => {
   // Check if first segment is vertical or horizontal
   if (Math.abs(newPoints[2] - newPoints[0]) < 1) {
     // First segment is vertical, keep X aligned
-    newPoints[2] = startSnap.x;
+    // But if we are dragging this segment horizontally, respect the drag position
+    if (!(handle.index === 0 && handle.orientation === 'vertical')) {
+      newPoints[2] = startSnap.x;
+    }
   } else if (Math.abs(newPoints[3] - newPoints[1]) < 1) {
     // First segment is horizontal, keep Y aligned
-    newPoints[3] = startSnap.y;
+    // But if we are dragging this segment vertically, respect the drag position
+    if (!(handle.index === 0 && handle.orientation === 'horizontal')) {
+      newPoints[3] = startSnap.y;
+    }
   }
 
   // Snap end point to nearest edge based on second-to-last point direction
@@ -348,17 +455,35 @@ const onSegmentDragMove = (e: KonvaEventObject<DragEvent>, handle: any) => {
   newPoints[n - 1] = endSnap.y;
 
   // Adjust last segment to maintain orthogonality
+  const lastHandleIdx = (n / 2) - 2;
   // Check if last segment is vertical or horizontal
   if (Math.abs(newPoints[n - 2] - newPoints[n - 4]) < 1) {
     // Last segment is vertical, keep X aligned
-    newPoints[n - 4] = endSnap.x;
+    if (!(handle.index === lastHandleIdx && handle.orientation === 'vertical')) {
+      newPoints[n - 4] = endSnap.x;
+    }
   } else if (Math.abs(newPoints[n - 1] - newPoints[n - 3]) < 1) {
     // Last segment is horizontal, keep Y aligned
-    newPoints[n - 3] = endSnap.y;
+    if (!(handle.index === lastHandleIdx && handle.orientation === 'horizontal')) {
+      newPoints[n - 3] = endSnap.y;
+    }
   }
 
-  store.updateConnection({ ...props.connection, points: newPoints });
+  // Update local state immediately
+  localPoints.value = newPoints;
+  
+  // No store update during drag (as requested)
 };
+
+const onSegmentDragEnd = (e: KonvaEventObject<DragEvent>, handle: any) => {
+  isDragging.value = false;
+  // Ensure final state is saved
+  store.updateConnection({ ...props.connection, points: localPoints.value });
+};
+
+const debouncedUpdate = debounce((payload: any) => {
+  store.updateConnection(payload);
+}, 50);
 
 const getSegmentHandleConfig = (handle: any) => ({
   x: handle.x,
@@ -368,14 +493,52 @@ const getSegmentHandleConfig = (handle: any) => ({
   stroke: selectionColor,
   strokeWidth: 1,
   draggable: true,
-  dragBoundFunc: function(pos: {x: number, y: number}) {
+  dragBoundFunc: function(this: any, pos: {x: number, y: number}) {
+    const oldAbsPos = this.getAbsolutePosition();
     if (handle.orientation === 'horizontal') {
-      return { x: handle.x, y: pos.y };
-    } else {
-      return { x: pos.x, y: handle.y };
+      return { x: handle.x, y: pos.y }; // Wait, handle.x is local. We need to allow movement along X (horizontal) or Y (vertical)?
+      // Horizontal segment: Handle moves vertically (changes Y). So X should be fixed?
+      // No, "orientation" in segmentHandles calculation:
+      // const orientation = Math.abs(x1 - x2) < 1 ? 'vertical' : 'horizontal';
+      // If segment is horizontal (y1 == y2), we drag it VERTICALLY to change its Y.
+      // So we want to lock X and allow Y change.
+      
+      // Let's re-verify the logic in onSegmentDragMove:
+      // if (handle.orientation === 'horizontal') { newPoints[...y] = pos.y }
+      // So for horizontal segment, we update Y. So we drag vertically.
+      // So we should lock X.
+      
+      // Original code:
+      // if (handle.orientation === 'horizontal') { return { x: handle.x, y: pos.y }; }
+      // This locks X to handle.x (local). This is WRONG if pos is absolute.
+      
+      // Correct logic:
+      // If horizontal segment (drag vertically): Keep X constant (absolute X).
+      // If vertical segment (drag horizontally): Keep Y constant (absolute Y).
+      
+      if (handle.orientation === 'horizontal') {
+         // Dragging a horizontal segment means moving it up/down (changing Y).
+         // So X should be fixed.
+         return { x: oldAbsPos.x, y: pos.y };
+      } else {
+         // Dragging a vertical segment means moving it left/right (changing X).
+         // So Y should be fixed.
+         return { x: pos.x, y: oldAbsPos.y };
+      }
     }
   }
 });
+
+const getAnchorHandleConfig = (handle: any) => ({
+  x: handle.x,
+  y: handle.y,
+  radius: 8,
+  fill: selectionColor,
+  stroke: 'white',
+  strokeWidth: 2,
+  draggable: true,
+});
+
 
 const setCursor = (e: KonvaEventObject<MouseEvent>, cursor: string) => {
   const stage = e.target.getStage();
@@ -443,7 +606,7 @@ onBeforeUnmount(() => {
 <template>
   <v-group>
     <v-arrow :config="{
-      points: points,
+      points: displayPoints,
       stroke: strokeColor,
       fill: strokeColor,
       strokeWidth: strokeWidth,
@@ -491,8 +654,19 @@ onBeforeUnmount(() => {
         :config="getSegmentHandleConfig(handle)"
         @mouseenter="(e: any) => setCursor(e, handle.orientation === 'horizontal' ? 'row-resize' : 'col-resize')"
         @mouseleave="(e: any) => setCursor(e, 'default')"
+        @dragstart="(e: any) => onSegmentDragStart(e)"
         @dragmove="(e: any) => onSegmentDragMove(e, handle)"
-        @dragend="(e: any) => onSegmentDragMove(e, handle)"
+        @dragend="(e: any) => onSegmentDragEnd(e, handle)"
+      />
+      <!-- Anchor Handles -->
+      <v-circle
+        v-for="(handle, i) in anchorHandles"
+        :key="`anchor-${i}`"
+        :config="getAnchorHandleConfig(handle)"
+        @mouseenter="(e: any) => setCursor(e, 'crosshair')"
+        @mouseleave="(e: any) => setCursor(e, 'default')"
+        @dragmove="(e: any) => onAnchorDragMove(e, handle)"
+        @dragend="(e: any) => onAnchorDragEnd(e, handle)"
       />
     </template>
   </v-group>
