@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import datetime
 from langchain_core.pydantic_v1 import BaseModel, Field, parse_obj_as, ValidationError
 from langchain_core.messages import AIMessage
@@ -208,7 +209,7 @@ def _create_uml_diagram(description: str, concepts: UMLConcepts | None = None, c
         name_to_id = {}
 
         for i, uml_class in enumerate(concepts.classes, start=1):
-            item_id = i
+            item_id = str(uuid.uuid4())
             name_to_id[uml_class.name] = item_id
 
             uml_item = {
@@ -242,7 +243,7 @@ def _create_uml_diagram(description: str, concepts: UMLConcepts | None = None, c
             
             if source_id and target_id:
                 connections.append({
-                    "id": f"conn-{source_id}-{target_id}",
+                    "id": str(uuid.uuid4()),
                     "from": source_id,
                     "to": target_id,
                     "type": rel.type,
@@ -277,7 +278,7 @@ def _create_uml_diagram(description: str, concepts: UMLConcepts | None = None, c
 
     if not items:
         items.append({
-            "id": 1,
+            "id": str(uuid.uuid4()),
             "type": "Class",
             "instanceName": "FallbackAggregate",
             "stereotype": "AggregateRoot",

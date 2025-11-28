@@ -392,7 +392,7 @@ export function useCanvasLogic(
   };
 
   const dragState = {
-    positions: new Map<number, { x: number; y: number }>(),
+    positions: new Map<string, { x: number; y: number }>(),
   };
 
   const updateConnectionsDuringDrag = (stage: Konva.Stage) => {
@@ -435,7 +435,7 @@ export function useCanvasLogic(
   };
 
   const collectDragItemIds = (baseItems: CanvasItem[]) => {
-    const ids = new Set<number>();
+    const ids = new Set<string>();
     baseItems.forEach(item => {
       ids.add(item.id);
       if (item.type === 'ContextBox') {
@@ -475,7 +475,7 @@ export function useCanvasLogic(
     if (!stage) return;
 
     const draggedNode = e.target;
-    const draggedId = Number(draggedNode.name().split('-')[1]);
+    const draggedId = draggedNode.name().split('item-')[1]; // Remove 'item-' prefix
     const startPos = dragState.positions.get(draggedId);
     if (!startPos) return;
 
@@ -545,7 +545,14 @@ export function useCanvasLogic(
     updateStageSize();
   };
 
-  watch(selectedItems, updateTransformer, { deep: true });
+  watch(selectedItems, () => {
+    updateTransformer();
+    if (selectedItems.value.length === 1) {
+      store.setSelectedItem(selectedItems.value[0]);
+    } else {
+      store.setSelectedItem(null);
+    }
+  }, { deep: true });
   watch(() => store.activeBoard, () => {
     selectedItems.value = [];
     selectedConnections.value = [];

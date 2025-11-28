@@ -9,6 +9,7 @@ const props = defineProps<{
   isSelected: boolean;
   isDownstream: boolean;
   changeKind?: 'added' | 'updated';
+  lockedBy?: { name: string; color: string } | null;
 }>();
 
 const emit = defineEmits(['click', 'dblclick', 'dragstart', 'dragmove', 'dragend', 'transform', 'transformend']);
@@ -16,7 +17,8 @@ const emit = defineEmits(['click', 'dblclick', 'dragstart', 'dragmove', 'dragend
 const rectRef = ref<Konva.Rect | null>(null);
 let anim: Konva.Animation | null = null;
 let node: any = null;
-const highlightColor = '#FF4500'; // OrangeRed for high visibility
+const highlightColor = '#60a5fa'; // Light Blue for downstream/highlight
+const selectionColor = '#2563eb'; // Royal Blue for selection
 const changeHighlightMap: Record<'added' | 'updated', string> = {
   added: '#16a34a',
   updated: '#0ea5e9',
@@ -88,12 +90,29 @@ const stickyFont = "'Gowun Dodum', sans-serif";
       width: item.width,
       height: item.height,
       fill: colorMap[item.type],
-      stroke: isSelected || isDownstream ? highlightColor : (item.type === 'ContextBox' ? '#000000' : 'transparent'),
-      strokeWidth: isSelected ? 4 / scale : isDownstream ? 3 / scale : (item.type === 'ContextBox' ? 1 / scale : 0),
+      stroke: lockedBy ? lockedBy.color : (isSelected ? selectionColor : (isDownstream ? highlightColor : (item.type === 'ContextBox' ? '#000000' : 'transparent'))),
+      strokeWidth: lockedBy ? 4 / scale : (isSelected ? 4 / scale : isDownstream ? 3 / scale : (item.type === 'ContextBox' ? 1 / scale : 0)),
       dash: isDownstream ? [20, 5] : [],
       cornerRadius: 8
     }" />
     <v-text :config="{ text: item.type, fontSize: 14 / scale, fontStyle: 'bold', width: item.width, y: 10, padding: 2, align: 'center', fontFamily: stickyFont }" />
     <v-text :config="{ text: item.instanceName, fontSize: 16 / scale, width: item.width, y: 30, padding: 2, align: 'center', fontFamily: stickyFont }" />
+    
+    <!-- Presence Indicator -->
+    <v-group v-if="lockedBy" :config="{ x: 0, y: -25 / scale }">
+      <v-rect :config="{
+        width: lockedBy.name.length * 8 + 10,
+        height: 20 / scale,
+        fill: lockedBy.color,
+        cornerRadius: 4
+      }" />
+      <v-text :config="{
+        text: lockedBy.name,
+        fontSize: 12 / scale,
+        fill: 'white',
+        padding: 4 / scale,
+        fontFamily: stickyFont
+      }" />
+    </v-group>
   </v-group>
 </template>

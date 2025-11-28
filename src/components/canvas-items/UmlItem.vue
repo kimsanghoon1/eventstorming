@@ -16,7 +16,8 @@ const emit = defineEmits(['click', 'dblclick', 'dragstart', 'dragmove', 'dragend
 
 const rectRef = ref<Konva.Rect | null>(null);
 let anim: Konva.Animation | null = null;
-const highlightColor = '#FF4500'; // OrangeRed for high visibility
+const highlightColor = '#60a5fa'; // Light Blue for downstream/highlight
+const selectionColor = '#2563eb'; // Royal Blue for selection
 const changeHighlightMap: Record<'added' | 'updated', string> = {
   added: '#16a34a',
   updated: '#0ea5e9',
@@ -102,8 +103,8 @@ const hasDetailSection = computed(() => {
       width: item.width,
       height: item.height,
       fill: item.type === 'Enum' ? '#e9ecef' : '#ffffff',
-      stroke: 'black',
-      strokeWidth: 2 / scale,
+      stroke: isSelected ? selectionColor : (isDownstream ? highlightColor : 'black'),
+      strokeWidth: isSelected ? 4 / scale : (isDownstream ? 3 / scale : 2 / scale),
       dash: [],
       shadowColor: changeShadowColor || undefined,
       shadowBlur: changeShadowColor ? 25 : 0,

@@ -80,7 +80,7 @@ const isRequestResponse = computed(() => {
   return fromNode.type === 'Event' && toNode.type === 'Command';
 });
 
-const highlightColor = '#FF4500';
+const highlightColor = '#60a5fa';
 const selectionColor = '#2563eb';
 
 const pubGradient = ['#ffb703', 'ffb703'] as const;

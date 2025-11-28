@@ -72,6 +72,26 @@ const openUmlDiagram = () => {
 onMounted(() => {
   store.fetchUmlBoards();
 });
+
+const normalizedLinkedDiagram = computed(() => {
+  const val = editableProperties.value.linkedDiagram;
+  if (!val) return null;
+  // If value starts with 'data/', strip it to match boardId
+  if (val.startsWith('data/')) {
+    return val.substring(5);
+  }
+  return val;
+});
+
+const updateLinkedDiagram = (event: Event) => {
+  const target = event.target as HTMLSelectElement;
+  const value = target.value;
+  // When selecting, we use the value as is (which is the boardId from store)
+  // If we want to enforce 'data/' prefix, we could add it here, but based on analysis,
+  // 'data/' prefix is what caused the issue. So let's stick to the boardId (relative to data root).
+  editableProperties.value.linkedDiagram = value || null;
+  updateItem();
+};
 </script>
 
 <template>
@@ -151,8 +171,8 @@ onMounted(() => {
           <div class="linked-diagram-group">
             <label class="sub-label">Linked UML</label>
             <div class="input-group">
-              <select v-model="editableProperties.linkedDiagram" @change="updateItem">
-                <option :value="undefined">-- None --</option>
+              <select :value="normalizedLinkedDiagram" @change="updateLinkedDiagram">
+                <option :value="null">-- None --</option>
                 <option v-for="board in store.umlBoards" :key="board.boardId" :value="board.boardId">
                   {{ board.instanceName }}
                 </option>

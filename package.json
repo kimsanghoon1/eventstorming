@@ -16,7 +16,11 @@
     "type-check": "vue-tsc --build"
   },
   "dependencies": {
+    "@apollo/client": "^4.0.9",
+    "@apollo/server": "^5.2.0",
+    "@supabase/supabase-js": "^2.84.0",
     "adm-zip": "^0.5.16",
+    "apollo-server-express": "^3.13.0",
     "archiver": "^7.0.1",
     "axios": "^1.7.2",
     "chokidar": "^4.0.3",
@@ -24,8 +28,10 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.2",
     "express": "^4.19.2",
+    "graphql": "^16.12.0",
     "konva": "^9.3.22",
     "multer": "^2.0.2",
+    "neo4j-driver": "^6.0.1",
     "openai": "^5.20.3",
     "unzipper": "^0.12.3",
     "uuid": "^13.0.0",

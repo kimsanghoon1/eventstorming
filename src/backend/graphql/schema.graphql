@@ -1,0 +1,252 @@
+# CanvasData 분리 구조 - GraphQL Schema
+
+# ===== Enums =====
+
+enum DomainObjectType {
+  EVENT
+  COMMAND
+  POLICY
+  AGGREGATE
+  ACTOR
+  READ_MODEL
+  EXTERNAL_SYSTEM
+}
+
+enum BoardType {
+  EVENTSTORMING
+  UML
+}
+
+enum UMLStereotype {
+  AGGREGATE_ROOT
+  ENTITY
+  VALUE_OBJECT
+  SERVICE
+  REPOSITORY
+  FACTORY
+}
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+  PROTECTED
+  PACKAGE
+}
+
+# ===== Eventstorming Types =====
+
+type CanvasItem {
+  id: ID!
+  x: Float!
+  y: Float!
+  width: Float!
+  height: Float!
+  rotation: Float
+  boardId: ID!
+  domainObjectId: ID!
+  
+  # Relations
+  domainObject: DomainObject!
+  board: Board!
+}
+
+type DomainObject {
+  id: ID!
+  type: DomainObjectType!
+  instanceName: String!
+  description: String
+  properties: String  # JSON string
+  
+  # Relations
+  boundedContext: BoundedContext
+  canvasItems: [CanvasItem!]!
+  triggeredEvents: [DomainObject!]!  # for Command -> Event
+  activatedPolicies: [DomainObject!]!  # for Event -> Policy
+  handledBy: DomainObject  # for Command -> Aggregate
+  implementedBy: UMLClass  # for Aggregate -> UMLClass
+}
+
+type BoundedContext {
+  id: ID!
+  name: String!
+  description: String
+  
+  # Relations
+  domainObjects: [DomainObject!]!
+  detailView: Board  # UML Board
+}
+
+type Board {
+  id: ID!
+  name: String!
+  boardType: BoardType!
+  path: String
+  
+  # Relations
+  canvasItems: [CanvasItem!]!
+  umlCanvasItems: [UMLCanvasItem!]!
+}
+
+# ===== UML Types =====
+
+type UMLCanvasItem {
+  id: ID!
+  x: Float!
+  y: Float!
+  width: Float!
+  height: Float!
+  rotation: Float
+  boardId: ID!
+  classId: ID!
+  
+  # Relations
+  umlClass: UMLClass!
+  board: Board!
+}
+
+type UMLClass {
+  id: ID!
+  className: String!
+  stereotype: UMLStereotype
+  package: String
+  isAbstract: Boolean
+  
+  # Relations
+  attributes: [UMLAttribute!]!
+  methods: [UMLMethod!]!
+  canvasItems: [UMLCanvasItem!]!
+  inheritsFrom: UMLClass
+  aggregates: [UMLClass!]!
+  implements: [DomainObject!]!  # Aggregate 구현
+}
+
+type UMLAttribute {
+  id: ID!
+  name: String!
+  type: String!
+  visibility: Visibility!
+  isStatic: Boolean
+  defaultValue: String
+  
+  # Relations
+  owner: UMLClass!
+}
+
+type UMLMethod {
+  id: ID!
+  name: String!
+  returnType: String!
+  visibility: Visibility!
+  isStatic: Boolean
+  isAbstract: Boolean
+  parameters: String  # JSON string
+  
+  # Relations
+  owner: UMLClass!
+}
+
+# ===== Queries =====
+
+type Query {
+  # Board queries
+  board(id: ID!): Board
+  boards(type: BoardType): [Board!]!
+  
+  # DomainObject queries
+  domainObject(id: ID!): DomainObject
+  domainObjects(type: DomainObjectType, contextId: ID): [DomainObject!]!
+  
+  # BoundedContext queries
+  boundedContext(id: ID!): BoundedContext
+  boundedContexts: [BoundedContext!]!
+  
+  # UML queries
+  umlClass(id: ID!): UMLClass
+  umlClasses(boardId: ID): [UMLClass!]!
+}
+
+# ===== Mutations =====
+
+input CanvasItemInput {
+  x: Float!
+  y: Float!
+  width: Float!
+  height: Float!
+  rotation: Float
+}
+
+input DomainObjectInput {
+  type: DomainObjectType!
+  instanceName: String!
+  description: String
+  properties: String
+  boundedContextId: ID
+}
+
+input BoundedContextInput {
+  name: String!
+  description: String
+}
+
+input UMLClassInput {
+  className: String!
+  stereotype: UMLStereotype
+  package: String
+  isAbstract: Boolean
+}
+
+input UMLAttributeInput {
+  name: String!
+  type: String!
+  visibility: Visibility!
+  isStatic: Boolean
+  defaultValue: String
+}
+
+input UMLMethodInput {
+  name: String!
+  returnType: String!
+  visibility: Visibility!
+  isStatic: Boolean
+  isAbstract: Boolean
+  parameters: String
+}
+
+type Mutation {
+  # CanvasItem mutations
+  updateCanvasItemPosition(id: ID!, input: CanvasItemInput!): CanvasItem!
+  createCanvasItem(boardId: ID!, domainObjectId: ID!, input: CanvasItemInput!): CanvasItem!
+  deleteCanvasItem(id: ID!): Boolean!
+  
+  # DomainObject mutations
+  createDomainObject(input: DomainObjectInput!): DomainObject!
+  updateDomainObject(id: ID!, input: DomainObjectInput!): DomainObject!
+  deleteDomainObject(id: ID!): Boolean!
+  linkDomainObjects(fromId: ID!, toId: ID!, relationType: String!): Boolean!
+  
+  # BoundedContext mutations
+  createBoundedContext(input: BoundedContextInput!): BoundedContext!
+  updateBoundedContext(id: ID!, input: BoundedContextInput!): BoundedContext!
+  deleteBoundedContext(id: ID!): Boolean!
+  
+  # UML mutations
+  createUMLClass(input: UMLClassInput!): UMLClass!
+  updateUMLClass(id: ID!, input: UMLClassInput!): UMLClass!
+  deleteUMLClass(id: ID!): Boolean!
+  
+  addUMLAttribute(classId: ID!, input: UMLAttributeInput!): UMLAttribute!
+  updateUMLAttribute(id: ID!, input: UMLAttributeInput!): UMLAttribute!
+  deleteUMLAttribute(id: ID!): Boolean!
+  
+  addUMLMethod(classId: ID!, input: UMLMethodInput!): UMLMethod!
+  updateUMLMethod(id: ID!, input: UMLMethodInput!): UMLMethod!
+  deleteUMLMethod(id: ID!): Boolean!
+}
+
+# ===== Subscriptions =====
+
+type Subscription {
+  # Real-time updates
+  canvasItemUpdated(boardId: ID!): CanvasItem!
+  domainObjectUpdated(id: ID!): DomainObject!
+}

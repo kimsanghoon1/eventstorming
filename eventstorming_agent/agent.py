@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import datetime
 from typing import Any
 from langchain_core.pydantic_v1 import BaseModel, Field, ValidationError
@@ -288,306 +289,118 @@ def compute_item_dimensions(item_type: str, data: dict) -> tuple[int, int]:
     height = max(MIN_ITEM_HEIGHT, min(MAX_ITEM_HEIGHT, height))
     return int(width), int(height)
 
-def _create_eventstorming_board(description: str, concepts: EventstormingConcepts | None, existing_board: dict | None = None) -> dict:
-    if concepts:
-        board_name = _slugify(concepts.project_name)
-        items = []
-        connections = []
-        item_id_counter = 1
-        name_to_id_map = {}
-        item_context_map = {}
+def _create_eventstorming_board(description: str, concepts: EventstormingConcepts, existing_board: dict | None = None) -> dict:
+    import requests
+    api_base = "http://localhost:3000/api"
+    
+    # 1. Create or Identify Board
+    board_id = str(uuid.uuid4())
+    board_name = _slugify(concepts.project_name)
+    
+    # Check if we can use an existing board ID from existing_board
+    if existing_board and "id" in existing_board:
+        board_id = existing_board["id"]
+        logging.info(f"Using existing board ID: {board_id}")
+    else:
+        # Create new board via API (optional, but good for consistency)
+        # For now, we'll just generate the ID and let the items create the board association implicitly
+        # or we can assume the board exists if we are updating.
+        # If we are creating from scratch, we might want to call create-empty.
+        pass
 
-        # --- Position Preservation Logic ---
-        existing_items_map = {}
-        if existing_board and "items" in existing_board:
-            for item in existing_board["items"]:
-                # Key by (type, instanceName) to find matches
-                # For ContextBox, instanceName is the context name
-                i_type = item.get("type")
-                i_name = item.get("instanceName")
-                if i_type and i_name:
-                    existing_items_map[(i_type, i_name)] = item
-                    # Keep track of max ID to avoid conflicts
-                    try:
-                        item_id_counter = max(item_id_counter, int(item.get("id", 0)) + 1)
-                    except:
-                        pass
+    logging.info(f"Creating/Updating board: {board_id} ({board_name})")
+
+    # 2. Layout Parameters
+    x_pos = 100
+    y_pos = 100
+    x_gap = 250
+    y_gap = 150
+    
+    current_x = x_pos
+    current_y = y_pos
+
+    items = []
+    connections = []
+
+    # 3. Process Contexts and Create Items
+    for context in concepts.contexts:
+        logging.info(f"Processing context: {context.name}")
         
-        # --- Final, Corrected Layout Logic: Adaptive Dimensions ---
-        CONTEXT_H_GAP = 50
-        ITEM_H_GAP = 50
-        ITEM_V_GAP = 30
-        PADDING = 50
+        # Process each type of element
+        elements = []
+        for cmd in context.commands: elements.append(('COMMAND', cmd))
+        for agg in context.aggregates: elements.append(('AGGREGATE', agg))
+        for evt in context.events: elements.append(('EVENT', evt))
+        for pol in context.policies: elements.append(('POLICY', pol))
+        for rm in context.readModels: elements.append(('READ_MODEL', rm))
 
-        global_x_offset = PADDING
-
-        for context in concepts.contexts:
-            # 1. Group items into columns with pre-computed dimensions
-            left_column = []
-            for cmd in context.commands:
-                cmd_data = cmd.dict()
-                left_column.append({
-                    "type": "Command",
-                    "data": cmd_data,
-                    "dimensions": compute_item_dimensions("Command", cmd_data),
-                })
-            for pol in context.policies:
-                pol_data = pol.dict()
-                left_column.append({
-                    "type": "Policy",
-                    "data": pol_data,
-                    "dimensions": compute_item_dimensions("Policy", pol_data),
-                })
-
-            center_column = []
-            for agg in context.aggregates:
-                agg_data = agg.dict()
-                center_column.append({
-                    "type": "Aggregate",
-                    "data": agg_data,
-                    "dimensions": compute_item_dimensions("Aggregate", agg_data),
-                })
-
-            right_column = []
-            for evt in context.events:
-                evt_data = evt.dict()
-                right_column.append({
-                    "type": "Event",
-                    "data": evt_data,
-                    "dimensions": compute_item_dimensions("Event", evt_data),
-                })
-            for rm in context.readModels:
-                rm_data = rm.dict()
-                # Map 'fields' to 'attributes' for UI rendering if present
-                if rm_data.get("fields"):
-                    rm_data["attributes"] = [{"name": f, "type": "String"} for f in rm_data["fields"]]
+        for type_name, item in elements:
+            try:
+                # A. Create DomainObject
+                domain_payload = {
+                    "type": type_name,
+                    "instanceName": item.name,
+                    "description": item.description,
+                    "properties": "{}" 
+                }
                 
-                right_column.append({
-                    "type": "ReadModel",
-                    "data": rm_data,
-                    "dimensions": compute_item_dimensions("ReadModel", rm_data),
-                })
-            
-            def column_stats(column: list[dict]) -> dict:
-                if not column:
-                    return {"width": 0, "height": 0}
-                width = max(entry["dimensions"][0] for entry in column)
-                height = 0
-                for idx, entry in enumerate(column):
-                    height += entry["dimensions"][1]
-                    if idx > 0:
-                        height += ITEM_V_GAP
-                return {"width": width, "height": height}
-
-            left_stats = column_stats(left_column)
-            center_stats = column_stats(center_column)
-            right_stats = column_stats(right_column)
-            
-            column_order: list[tuple[str, dict]] = []
-            if left_stats["width"]:
-                column_order.append(("left", left_stats))
-            if center_stats["width"]:
-                column_order.append(("center", center_stats))
-            if right_stats["width"]:
-                column_order.append(("right", right_stats))
-            if not column_order:
-                column_order.append(("placeholder", {"width": MIN_ITEM_WIDTH, "height": MIN_ITEM_HEIGHT}))
-
-            column_x_positions: dict[str, float] = {}
-            current_offset = PADDING
-            for index, (key, stats) in enumerate(column_order):
-                column_x_positions[key] = current_offset
-                current_offset += stats["width"]
-                if index < len(column_order) - 1:
-                    current_offset += ITEM_H_GAP
-
-            inner_width = current_offset - PADDING
-            inner_height = max(left_stats["height"], center_stats["height"], right_stats["height"], MIN_ITEM_HEIGHT)
-            # 3. Calculate final ContextBox dimensions
-            context_width = inner_width + PADDING
-            context_height = inner_height + (2 * PADDING)
-
-            # 4. Add ContextBox item with its global position
-            context_id = item_id_counter
-            context_global_y = PADDING
-            items.append({
-                "id": context_id,
-                "type": "ContextBox",
-                "instanceName": context.name,
-                "description": context.description,
-                "x": global_x_offset,
-                "y": context_global_y,
-                "width": context_width,
-                "height": context_height,
-            })
-
-            # Preserve ContextBox position if exists
-            final_context_x = items[-1]["x"]
-            final_context_y = items[-1]["y"]
-            
-            if ("ContextBox", context.name) in existing_items_map:
-                existing_ctx = existing_items_map[("ContextBox", context.name)]
-                items[-1]["x"] = existing_ctx.get("x", items[-1]["x"])
-                items[-1]["y"] = existing_ctx.get("y", items[-1]["y"])
-                items[-1]["id"] = existing_ctx.get("id", items[-1]["id"])
-                # Update context_id to match existing if preserved
-                context_id = items[-1]["id"]
-                
-                # Update final coordinates to use for children
-                final_context_x = items[-1]["x"]
-                final_context_y = items[-1]["y"]
-            
-            item_context_map[context_id] = context_id
-            # If we used an existing ID, ensure counter is higher
-            if isinstance(context_id, int):
-                item_id_counter = max(item_id_counter, context_id + 1)
-            else:
-                item_id_counter += 1
-
-            def place_column_items(column: list[dict], x_pos: float, column_name: str):
-                nonlocal item_id_counter
-                if not column:
-                    return
-                stats = column_stats(column)
-                # Calculate relative Y within the context box
-                relative_y_offset = PADDING + (inner_height - stats["height"]) / 2
-                
-                for item_entry in column:
-                    item_id = item_id_counter
-                    width, height = item_entry["dimensions"]
-                    
-                    # DEBUG: Log raw data for Commands/Policies to check for produced_event_name
-                    if item_entry["type"] in ["Command", "Policy"]:
-                        logging.info(f"Processing {item_entry['type']} '{item_entry['data']['name']}': {item_entry['data']}")
-
-                    # Calculate the ideal calculated position
-                    ideal_x = final_context_x + x_pos
-                    ideal_y = final_context_y + relative_y_offset
-                    
-                    base_item = {
-                        "id": item_id,
-                        "parent": context_id,
-                        "type": item_entry["type"],
-                        "instanceName": item_entry["data"]["name"],
-                        "description": item_entry["data"].get("description"),
-                        "x": ideal_x,
-                        "y": ideal_y,
-                        "width": width,
-                        "height": height,
-                    }
-                    
-                    # Add attributes for ReadModels if present
-                    if item_entry["type"] == "ReadModel" and "attributes" in item_entry["data"]:
-                        base_item["attributes"] = item_entry["data"]["attributes"]
-
-                    # Add producedEventId for Commands and Policies (step 1: capture name)
-                    if item_entry["type"] in ["Command", "Policy"]:
-                        produced_event_name = item_entry["data"].get("produced_event_name")
-                        if produced_event_name:
-                            base_item["_produced_event_name"] = produced_event_name
-
-                    # Preserve item position if exists, BUT apply heuristic to fix broken layouts
-                    if (item_entry["type"], item_entry["data"]["name"]) in existing_items_map:
-                        existing_item = existing_items_map[(item_entry["type"], item_entry["data"]["name"])]
-                        preserved_x = existing_item.get("x", base_item["x"])
-                        preserved_y = existing_item.get("y", base_item["y"])
-                        
-                        # Heuristic: If we are in center/right column, but the preserved X is 
-                        # significantly to the left of the ideal calculated position (e.g. > 50px difference),
-                        # it implies the layout is collapsed or broken (e.g. stuck in left column).
-                        # In that case, IGNORE the preserved X and use the ideal_x.
-                        is_collapsed = False
-                        if column_name in ["center", "right"]:
-                            # If preserved position is much smaller (left) than where it should be
-                            if preserved_x < (ideal_x - 50): 
-                                is_collapsed = True
-                                logging.warning(f"Detected collapsed layout for {item_entry['data']['name']} (Preserved X: {preserved_x}, Ideal X: {ideal_x}). Resetting to ideal position.")
-                        
-                        if not is_collapsed:
-                            base_item["x"] = preserved_x
-                            base_item["y"] = preserved_y
-                        
-                        base_item["id"] = existing_item.get("id", base_item["id"])
-                        item_id = base_item["id"]
-                    
-                    if item_entry["type"] == "Aggregate":
-                        base_item["linkedDiagram"] = f"{_slugify(item_entry['data']['name'])}-uml"
-                    items.append(base_item)
-                    name_to_id_map[item_entry["data"]["name"]] = item_id
-                    item_context_map[item_id] = context_id
-                    
-                    relative_y_offset += height + ITEM_V_GAP
-                    # If we used an existing ID, ensure counter is higher
-                    if isinstance(item_id, int):
-                        item_id_counter = max(item_id_counter, item_id + 1)
-                    else:
-                        item_id_counter += 1
-
-            place_column_items(left_column, column_x_positions.get("left", PADDING), "left")
-            place_column_items(center_column, column_x_positions.get("center", PADDING), "center")
-            place_column_items(right_column, column_x_positions.get("right", PADDING), "right")
-
-            # 6. Update the global offset for the next context
-            global_x_offset += context_width + CONTEXT_H_GAP
-            
-        # 7. Process connections using the name-to-ID map
-        for conn in concepts.connections:
-            from_id = name_to_id_map.get(conn.from_name)
-            to_id = name_to_id_map.get(conn.to_name)
-            if from_id and to_id:
-                from_context = item_context_map.get(from_id)
-                to_context = item_context_map.get(to_id)
-                if from_context and to_context and from_context == to_context:
-                    logging.info(f"Skipping intra-context connection from '{conn.from_name}' to '{conn.to_name}'.")
+                # Try to create domain object
+                try:
+                    domain_resp = requests.post(f"{api_base}/domain", json=domain_payload)
+                    domain_resp.raise_for_status()
+                    domain_obj = domain_resp.json()
+                    domain_id = domain_obj['id']
+                except Exception as e:
+                    logging.error(f"Failed to create domain object {item.name}: {e}")
                     continue
-                connections.append({
-                    "id": f"conn-{from_id}-{to_id}",
-                    "from": from_id,
-                    "to": to_id,
-                    "type": conn.type
-                })
-            else:
-                logging.warning(f"Could not create connection from '{conn.from_name}' to '{conn.to_name}'. One or both names not found.")
 
-        # 7.5 Resolve producesEventId
-        # 7.5 Resolve producesEventId
-        logging.info(f"Name to ID Map keys: {list(name_to_id_map.keys())}")
-        for item in items:
-            if "_produced_event_name" in item:
-                event_name = item.pop("_produced_event_name")
-                event_id = name_to_id_map.get(event_name)
-                if event_id:
-                    item["producesEventId"] = event_id
-                    logging.info(f"Resolved produced event '{event_name}' (ID: {event_id}) for item '{item['instanceName']}'")
-                else:
-                    logging.warning(f"Could not resolve produced event '{event_name}' for item '{item['instanceName']}'. Available events: {list(name_to_id_map.keys())}")
-            
-            # Fallback: Try to infer produced event if not explicitly set
-            elif item["type"] in ["Command", "Policy"] and "producesEventId" not in item:
-                # Find the context this item belongs to
-                ctx_id = item_context_map.get(item["id"])
-                if ctx_id:
-                    # Find all events in this context
-                    context_events = []
-                    for other_item in items:
-                        if other_item["type"] == "Event" and item_context_map.get(other_item["id"]) == ctx_id:
-                            context_events.append(other_item)
+                # B. Create CanvasItem
+                canvas_payload = {
+                    "boardId": board_id,
+                    "domainObjectId": domain_id,
+                    "x": current_x,
+                    "y": current_y,
+                    "width": 120,
+                    "height": 60
+                }
+                
+                try:
+                    canvas_resp = requests.post(f"{api_base}/canvas-items", json=canvas_payload)
+                    canvas_resp.raise_for_status()
+                    canvas_item = canvas_resp.json()
                     
-                    # Try to match
-                    inferred_event = _infer_produced_event(item["instanceName"], context_events)
-                    if inferred_event:
-                        item["producesEventId"] = inferred_event["id"]
-                        logging.info(f"Inferred produced event '{inferred_event['instanceName']}' for item '{item['instanceName']}'")
+                    # Add to local list for return value (legacy support)
+                    items.append({
+                        "id": canvas_item.get("id"),
+                        "type": type_name, # Frontend expects specific types
+                        "instanceName": item.name,
+                        "x": current_x,
+                        "y": current_y,
+                        "domainObjectId": domain_id
+                    })
+                except Exception as e:
+                    logging.error(f"Failed to create canvas item for {item.name}: {e}")
 
-        # 8. Final Layout Adjustment (Containment & Cleanup)
-        items = _adjust_board_layout(items)
+                # Update position
+                current_x += x_gap
+                if current_x > 1500:
+                    current_x = x_pos
+                    current_y += y_gap
+                    
+            except Exception as e:
+                logging.error(f"Error processing item {item.name}: {e}")
 
-        return {
-            "boardType": "Eventstorming",
-            "instanceName": board_name,
-            "items": items,
-            "connections": connections
-        }
+        # New row for next context
+        current_x = x_pos
+        current_y += y_gap + 50
+
+    return {
+        "id": board_id,
+        "boardType": "Eventstorming",
+        "instanceName": board_name,
+        "items": items,
+        "connections": connections
+    }
 
 def _infer_produced_event(item_name: str, context_events: list[dict]) -> dict | None:
     """
@@ -607,9 +420,6 @@ def _infer_produced_event(item_name: str, context_events: list[dict]) -> dict | 
         
         # Common patterns:
         # Command: Verb + Noun (Register User) -> Event: Noun + Verb + ed (User Registered)
-        
-        # Simple heuristic: Check if they share significant tokens
-        # This is a bit weak but better than nothing.
         
         # Let's try a specific pattern match for "Command -> Event"
         # If Command is "RegisterUser", Event "UserRegistered" is a strong match.
@@ -750,7 +560,7 @@ class EventstormingAgent:
                 "boardType": "Eventstorming",
                 "instanceName": "error-board",
                 "items": [{
-                    "id": 1,
+                    "id": str(uuid.uuid4()),
                     "type": "Error",
                     "instanceName": "Failed to generate concepts",
                     "description": "The language model failed to produce a valid set of domain concepts after multiple retries."

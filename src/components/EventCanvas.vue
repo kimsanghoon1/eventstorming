@@ -338,6 +338,7 @@ const commandEventPreviews = computed(() => {
     .filter((entry): entry is { id: string; points: number[] } => Boolean(entry));
 });
 
+const activeUsers = computed(() => Array.from(store.awarenessUsers.values()));
 </script>
 
 <template>
@@ -368,6 +369,7 @@ const commandEventPreviews = computed(() => {
               :is-selected="selectedItems.some(s => s.id === item.id)"
               :is-downstream="highlightedItemIds.has(item.id)"
               :change-kind="store.recentChangeMap[item.id]"
+              :locked-by="Array.from(store.awarenessUsers.values()).find(u => u.selectedItemId === item.id)"
               @click="(e) => onCanvasItemClick(e, item)"
               @dblclick="(e) => onCanvasItemDblClick(e, item)"
               @dragstart="(e) => onDragStart(e, item)"
@@ -463,6 +465,22 @@ const commandEventPreviews = computed(() => {
           >
             <span class="material-symbols-outlined">timeline</span>
           </button>
+        </div>
+      </div>
+
+      <!-- User Presence List -->
+      <div class="absolute top-4 right-4 z-20 flex items-center gap-[-8px]">
+        <div 
+          v-for="user in activeUsers" 
+          :key="user.clientId"
+          class="flex items-center justify-center w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 shadow-sm text-xs font-bold text-white relative -ml-2 first:ml-0 transition-transform hover:z-10 hover:scale-110 cursor-default"
+          :style="{ backgroundColor: user.color }"
+          :title="user.name"
+        >
+          {{ user.name.charAt(0).toUpperCase() }}
+        </div>
+        <div v-if="activeUsers.length === 0" class="px-3 py-1.5 bg-white/80 dark:bg-black/50 backdrop-blur rounded-full text-xs font-medium text-gray-500 border border-gray-200 dark:border-gray-700">
+           No other users
         </div>
       </div>
 

@@ -24,7 +24,7 @@ export interface UmlOperation {
 }
 
 export interface CanvasItem {
-  id: number;
+  id: string;
   type: string;
   instanceName: string;
   description?: string;
@@ -35,22 +35,22 @@ export interface CanvasItem {
   linkedDiagram?: string | null;
   stereotype?: string;
   enumValues?: string[];
-  producesEventId?: number | null;
+  producesEventId?: string | null;
 
   x: number;
   y: number;
   width: number;
   height: number;
   rotation: number;
-  parent: number | null;
-  children?: number[];
-  connectedPolicies?: number[];
+  parent: string | null;
+  children?: string[];
+  connectedPolicies?: string[];
 }
 
 export interface Connection {
   id: string;
-  from: number;
-  to: number;
+  from: string;
+  to: string;
   type: string;
   sourceMultiplicity?: string;
   targetMultiplicity?: string;

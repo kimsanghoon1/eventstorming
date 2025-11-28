@@ -2,6 +2,12 @@
 import { ref, onMounted, computed, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import { userStore } from '../stores/userStore';
+
+const handleLogout = async () => {
+  await userStore.signOut();
+  router.push('/login');
+};
 
 type FolderItem = {
   type: 'folder';
@@ -557,10 +563,10 @@ onUnmounted(() => {
             <div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-8 bg-gray-300"></div>
             <div class="flex flex-col">
               <h1 class="text-sm font-medium leading-tight">User</h1>
-              <p class="text-xs font-normal leading-tight opacity-50">user@example.com</p>
+              <p class="text-xs font-normal leading-tight opacity-50">{{ userStore.user?.email || 'user@example.com' }}</p>
             </div>
           </div>
-          <div class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 cursor-pointer">
+          <div @click="handleLogout" class="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-600 dark:text-white/70 hover:bg-gray-100 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-colors duration-200 cursor-pointer">
             <span class="material-symbols-outlined">logout</span>
             <p class="text-sm font-medium leading-normal">Log out</p>
           </div>

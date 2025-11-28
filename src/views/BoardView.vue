@@ -11,11 +11,18 @@ const store = useStore();
 const route = useRoute();
 const router = useRouter();
 
+
 const boardId = Array.isArray(route.params.boardId) ? route.params.boardId.join('/') : route.params.boardId;
+
 const boardName = computed(() => {
-  if (!boardId) return 'Unknown Board';
-  const parts = boardId.split('/');
-  return parts[parts.length - 1].replace('.json', '');
+  if (store.board?.instanceName) return store.board.instanceName;
+  if (store.board?.name) return store.board.name;
+  
+  // Fallback: Try to find in the boards list
+  const found = store.boards.find(b => b.boardId === boardId || b.id === boardId);
+  if (found) return found.name || found.instanceName;
+
+  return 'Loading...';
 });
 
 const selectedItem = computed(() => store.selectedItem);

@@ -18,8 +18,8 @@ const props = defineProps({
 const emit = defineEmits(['connection-click']);
 const store = useStore();
 
-const highlightColor = '#FF4500';
-const selectionColor = '#007bff';
+const highlightColor = '#60a5fa';
+const selectionColor = '#2563eb';
 
 const strokeColor = computed(() => {
   if (props.isSelected) return selectionColor;

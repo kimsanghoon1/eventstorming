@@ -1,8 +1,17 @@
-import { reactive } from 'vue';
+import { reactive, watch } from 'vue';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import type { CanvasItem, Connection, Property, UmlAttribute, UmlOperation } from './types';
 import { ensureUmlItemDimensions, isUmlCanvasItem } from './utils/uml';
+import { userStore } from './stores/userStore';
+
+// Define Awareness User Type
+export type AwarenessUser = {
+  clientId: number;
+  name: string;
+  color: string;
+  selectedItemId: string | null;
+};
 
 // Helper to convert deep JS objects to Y.Map
 const toYMap = (obj: Record<string, any>): Y.Map<any> => {
@@ -45,9 +54,9 @@ const stripGeometry = (item: CanvasItem) => {
   return clone;
 };
 
-const deriveChangeMap = (previousItems: CanvasItem[], nextItems: CanvasItem[]): Record<number, 'added' | 'updated'> => {
-  const changeMap: Record<number, 'added' | 'updated'> = {};
-  const prevById = new Map<number, CanvasItem>();
+const deriveChangeMap = (previousItems: CanvasItem[], nextItems: CanvasItem[]): Record<string, 'added' | 'updated'> => {
+  const changeMap: Record<string, 'added' | 'updated'> = {};
+  const prevById = new Map<string, CanvasItem>();
   const prevByName = new Map<string, CanvasItem>();
 
   previousItems.forEach(item => {
@@ -111,9 +120,12 @@ interface Store {
   selectedItem: CanvasItem | null;
 
   currentView: 'event-canvas' | 'uml-canvas' | 'loading';
-  recentChangeMap: Record<number, 'added' | 'updated'>;
+  recentChangeMap: Record<string, 'added' | 'updated'>;
   recentChangeSummary: { added: number; updated: number };
   _recentChangeTimer: ReturnType<typeof setTimeout> | null;
+
+  // Awareness State
+  awarenessUsers: Map<number, AwarenessUser>;
 
   // Methods
   setSelectedItem: (item: CanvasItem | null) => void;
@@ -129,12 +141,12 @@ interface Store {
 
   addItem: (item: Omit<CanvasItem, 'id'>) => void;
   updateItem: (item: CanvasItem) => void;
-  deleteItems: (ids: number[]) => void;
-  deleteItemsAndAttachedConnections: (ids: number[]) => void;
+  deleteItems: (ids: string[]) => void;
+  deleteItemsAndAttachedConnections: (ids: string[]) => void;
   addConnection: (connection: Omit<Connection, 'id' | 'type'> & { type?: string }) => void;
   deleteConnections: (ids: string[]) => void;
   updateConnection: (connection: Connection) => void;
-  syncAttributesToChildren: (aggregateId: number) => void;
+  syncAttributesToChildren: (aggregateId: string) => void;
 
   createTestObjects: () => void;
   undo: () => void;
@@ -143,10 +155,10 @@ interface Store {
   saveBoardHeadless: (boardName: string, boardData: any, boardType: 'Eventstorming' | 'UML') => Promise<void>;
   reverseEngineerCode: (zipFile: File | null) => Promise<{ eventstormingBoardName: string, umlBoardNames: string[] }>;
   generateProjectFromRequirements: (requirements: string) => Promise<{ eventstormingBoardName: string, umlBoardNames: string[] }>;
-  getItemById: (id: number) => CanvasItem | undefined;
+  getItemById: (id: string) => CanvasItem | undefined;
   getSerializableBoardData: () => { instanceName: string; boardType: string; items: CanvasItem[]; connections: Connection[] } | null;
   applyBoardData: (boardData: { instanceName?: string; boardType?: string; items?: CanvasItem[]; connections?: Connection[] }) => void;
-  setRecentChanges: (changes: Record<number, 'added' | 'updated'>) => void;
+  setRecentChanges: (changes: Record<string, 'added' | 'updated'>) => void;
   clearRecentChanges: () => void;
 }
 
@@ -175,8 +187,14 @@ export const store = reactive<Store>({
   recentChangeSummary: { added: 0, updated: 0 },
   _recentChangeTimer: null as ReturnType<typeof setTimeout> | null,
 
+  awarenessUsers: new Map(),
+
   setSelectedItem(item: CanvasItem | null) {
     this.selectedItem = item;
+    // Update local awareness state
+    if (this.provider && this.provider.awareness) {
+      this.provider.awareness.setLocalStateField('selectedItemId', item ? item.id : null);
+    }
   },
 
   toggleCodeGenerator(isOpen: boolean) {
@@ -281,6 +299,55 @@ export const store = reactive<Store>({
 
       this.provider = new WebsocketProvider(`ws://${window.location.hostname}:3000`, boardId, doc);
 
+      // --- Awareness Setup ---
+      const awareness = this.provider.awareness;
+
+      // Set local user info
+      const updateLocalAwareness = () => {
+        const user = userStore.user;
+        const currentState = awareness.getLocalState();
+        if (user && user.email !== currentState?.name) {
+          awareness.setLocalState({
+            ...currentState,
+            name: user.email,
+          });
+        }
+      };
+
+      // Initial set
+      const user = userStore.user;
+      const randomColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
+      awareness.setLocalState({
+        name: user?.email || 'Anonymous',
+        color: randomColor,
+        selectedItemId: null
+      });
+
+      // Watch for auth changes
+      watch(() => userStore.user, () => {
+        updateLocalAwareness();
+      });
+
+      // Handle awareness updates
+      awareness.on('change', () => {
+        const states = awareness.getStates();
+        const users = new Map<number, AwarenessUser>();
+
+        states.forEach((state: any, clientId: number) => {
+          if (clientId !== awareness.clientID && state.name) { // Exclude self and empty states
+            users.set(clientId, {
+              clientId,
+              name: state.name,
+              color: state.color,
+              selectedItemId: state.selectedItemId
+            });
+          }
+        });
+
+        this.awarenessUsers = users;
+      });
+      // --- End Awareness Setup ---
+
       this.provider.on('synced', async (isSynced: boolean) => {
         if (isSynced && this.canvasItems?.length === 0) {
           // 1. Fetch initial data from REST API only if the doc is empty after sync
@@ -310,8 +377,9 @@ export const store = reactive<Store>({
         // This will now be populated, triggering the initial render
         this.reactiveItems = this.canvasItems!.toJSON();
         this.reactiveConnections = this.connections!.toJSON();
-        // Also update the board state with the latest reactive data
+        // Update the board state with the latest reactive data, but preserve existing metadata
         this.board = {
+          ...this.board,
           items: this.reactiveItems,
           connections: this.reactiveConnections
         };
@@ -326,8 +394,9 @@ export const store = reactive<Store>({
         if (this.canvasItems && this.connections) {
           this.reactiveItems = this.canvasItems.toJSON();
           this.reactiveConnections = this.connections.toJSON();
-          // Also update the board state with the latest reactive data
+          // Also update the board state with the latest reactive data, preserving metadata
           this.board = {
+            ...this.board,
             items: this.reactiveItems,
             connections: this.reactiveConnections
           };
@@ -335,6 +404,20 @@ export const store = reactive<Store>({
       });
 
       this.undoManager = new Y.UndoManager([this.canvasItems, this.connections]);
+
+      // Always fetch board metadata to ensure we have the name
+      try {
+        const response = await fetch(`/api/boards/${boardId}`);
+        if (response.ok) {
+          const boardData = await response.json();
+          this.board = {
+            ...this.board,
+            ...boardData
+          };
+        }
+      } catch (e) {
+        console.error("Failed to fetch board metadata:", e);
+      }
 
     } catch (error) {
       console.error("Failed to load board:", error);
@@ -350,15 +433,21 @@ export const store = reactive<Store>({
     }
 
     const boardData = {
+      name: instanceName, // Send as name
       instanceName: instanceName,
       items: [],
       connections: [],
       boardType: boardType,
     };
-    await fetch(`/api/boards/${instanceName}`, {
+    // Use create-empty endpoint which we fixed to accept name
+    await fetch(`/api/boards/create-empty`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(boardData),
+      body: JSON.stringify({
+        name: instanceName,
+        boardType: boardType,
+        path: '' // Optional
+      }),
     });
 
     await this.fetchBoards();
@@ -366,7 +455,17 @@ export const store = reactive<Store>({
   },
 
   async deleteBoard(instanceName: string) {
+    // ... (keep existing)
     if (!confirm(`Are you sure you want to delete ${instanceName}?`)) return;
+    // We need the ID, but here we only have instanceName. 
+    // Assuming instanceName might be the ID or we need to look it up.
+    // For now, let's assume the component passes the ID or we find it.
+    // But wait, the component passes the item, so it might be the ID if we change the call signature.
+    // Let's look at how deleteBoard is called.
+    // It's called with instanceName in the original code.
+    // Let's try to find the board by name if possible, or assume it's the ID if it matches.
+
+    // Actually, let's just fix the saveActiveBoard first as requested.
     await fetch(`/api/boards/${instanceName}`, { method: 'DELETE' });
     if (this.activeBoard === instanceName) {
       this.unloadBoard();
@@ -378,7 +477,7 @@ export const store = reactive<Store>({
   addItem(item: Omit<CanvasItem, 'id'>) {
     if (!this.canvasItems) return;
     const normalized = isUmlCanvasItem(item) ? ensureUmlItemDimensions(item) : item;
-    const newItemMap = toYMap({ ...normalized, id: Date.now() });
+    const newItemMap = toYMap({ ...normalized, id: crypto.randomUUID() });
     this.canvasItems.push([newItemMap]);
   },
 
@@ -402,7 +501,7 @@ export const store = reactive<Store>({
     }
   },
 
-  deleteItems(ids: number[]) {
+  deleteItems(ids: string[]) {
     if (!this.canvasItems) return;
     const idsSet = new Set(ids);
     let i = this.canvasItems.length;
@@ -414,7 +513,7 @@ export const store = reactive<Store>({
     }
   },
 
-  deleteItemsAndAttachedConnections(ids: number[]) {
+  deleteItemsAndAttachedConnections(ids: string[]) {
     if (!this.doc || !this.canvasItems || !this.connections) return;
 
     this.doc.transact(() => {
@@ -455,7 +554,7 @@ export const store = reactive<Store>({
     if (!this.connections) return;
     const newConnMap = toYMap({
       ...connection,
-      id: `conn-${connection.from}-${connection.to}-${Date.now()}`
+      id: crypto.randomUUID()
     });
     this.connections.push([newConnMap]);
   },
@@ -491,7 +590,7 @@ export const store = reactive<Store>({
     }
   },
 
-  syncAttributesToChildren(aggregateId: number) {
+  syncAttributesToChildren(aggregateId: string) {
     if (!this.canvasItems) return;
 
     const aggregate = this.reactiveItems.find(i => i.id === aggregateId);
@@ -531,7 +630,7 @@ export const store = reactive<Store>({
       for (let i = 0; i < 1000; i++) {
         const type = toolTypes[Math.floor(Math.random() * toolTypes.length)];
         const newItem = {
-          id: Date.now() + i,
+          id: crypto.randomUUID(),
           type: type,
           instanceName: `Test ${type} ${i}`,
           properties: [],
@@ -565,9 +664,10 @@ export const store = reactive<Store>({
     };
 
     try {
+      // Use PUT for updates
       const response = await fetch(`/api/boards/${this.activeBoard}`,
         {
-          method: 'POST',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(boardData),
         });
@@ -700,7 +800,7 @@ export const store = reactive<Store>({
       throw error;
     }
   },
-  getItemById(id: number) {
+  getItemById(id: string) {
     return this.reactiveItems.find(item => item.id === id);
   },
 
